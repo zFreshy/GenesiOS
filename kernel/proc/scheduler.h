@@ -16,6 +16,7 @@ void     sched_init(void);
 /* Task management                                                     */
 /* ------------------------------------------------------------------ */
 task_t  *sched_create_task(const char *name, task_entry_t entry);
+void     process_create_user(const char *name, const uint8_t *elf_data);
 void     sched_add(task_t *task);
 void     sched_remove(task_t *task);
 void     sched_exit(void);            /* terminate current task        */

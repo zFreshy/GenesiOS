@@ -67,11 +67,13 @@ void isr_handler(registers_t *regs) {
     if (regs->int_no < 32) {
         kpanic("Unhandled exception #%zu: %s\n"
                "  RIP=%p  RSP=%p  RFLAGS=%p\n"
-               "  ERR=%p  RAX=%p  RBX=%p\n",
+               "  ERR=%p  RAX=%p  RBX=%p\n"
+               "  CS=%p  SS=%p\n",
                (size_t)regs->int_no,
                g_exception_names[regs->int_no],
                (void *)regs->rip, (void *)regs->rsp, (void *)regs->rflags,
-               (void *)regs->err_code, (void *)regs->rax, (void *)regs->rbx);
+               (void *)regs->err_code, (void *)regs->rax, (void *)regs->rbx,
+               (void *)regs->cs, (void *)regs->ss);
     }
     /* Unhandled IRQ — just ignore */
 }

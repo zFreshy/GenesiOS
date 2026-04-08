@@ -24,6 +24,7 @@
 #include "mm/heap.h"
 
 #include "proc/scheduler.h"
+#include "syscall/syscall.h"
 
 /* ------------------------------------------------------------------ */
 /* Banner                                                               */
@@ -97,10 +98,10 @@ static void test_thread_c(void) {
     sched_exit();
 }
 
-static int kstrcmp(const char *a, const char *b) {
-    while (*a && *a == *b) { a++; b++; }
-    return (int)(unsigned char)*a - (int)(unsigned char)*b;
-}
+// We already have kstrcmp in kernel.h
+
+/* Global to store multiboot info pointer */
+uint64_t g_mboot_info = 0;
 
 static void shell_exec(const char *cmd) {
     if (!cmd[0]) return;
@@ -131,6 +132,23 @@ static void shell_exec(const char *cmd) {
         sched_add(b);
         sched_add(c);
         kprintf("  Threads created. Watch for interleaved A/B/C output.\n");
+    } else if (kstrcmp(cmd, "run") == 0) {
+        kprintf("  Running test user process...\n");
+        extern void process_create_user(const char *name, const uint8_t *elf_data);
+        
+        mb2_info_t *info = (mb2_info_t *)(uintptr_t)g_mboot_info;
+        mb2_tag_t *tag = (mb2_tag_t *)((uint8_t *)info + 8);
+        
+        while (tag->type != MB2_TAG_END) {
+            if (tag->type == 3) { // MB2_TAG_MODULE
+                // struct: type, size, mod_start, mod_end, string...
+                uint32_t mod_start = *(uint32_t *)((uint8_t *)tag + 8);
+                process_create_user("test", (const uint8_t *)(uintptr_t)mod_start);
+                return;
+            }
+            tag = (mb2_tag_t *)((uint8_t *)tag + ((tag->size + 7) & ~7));
+        }
+        kprintf("  Error: Could not find module in Multiboot info.\n");
     } else if (kstrcmp(cmd, "halt") == 0) {
         kprintf("  Halting...\n");
         irq_disable();
@@ -175,6 +193,8 @@ static void run_shell(void) {
 /* kernel_main                                                          */
 /* ------------------------------------------------------------------ */
 void kernel_main(uint32_t boot_magic, uint64_t mboot_info) {
+    g_mboot_info = mboot_info;
+
     /* --- Phase 1: VGA + banner ------------------------------------ */
     vga_init();
     print_banner();
@@ -206,7 +226,10 @@ void kernel_main(uint32_t boot_magic, uint64_t mboot_info) {
     heap_init();           ok("Kernel heap allocator ready");
 
     /* --- Phase 4: Scheduler --------------------------------------- */
-    sched_init();          ok("Preemptive scheduler active (PID 0: idle, PID 1: kernel)");
+    sched_init();          ok("Scheduler initialized (PID 0 idle, PID 1 kernel)");
+
+    /* --- Phase 5: Syscalls ---------------------------------------- */
+    syscall_init();        ok("Syscalls enabled (SYSCALL/SYSRET)");
 
     /* --- Enable interrupts ---------------------------------------- */
     irq_enable();

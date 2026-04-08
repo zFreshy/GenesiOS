@@ -25,12 +25,9 @@ static void print_int(int64_t v) {
 }
 
 /* ------------------------------------------------------------------ */
-/* kprintf                                                             */
+/* vkprintf                                                            */
 /* ------------------------------------------------------------------ */
-void kprintf(const char *fmt, ...) {
-    va_list ap;
-    va_start(ap, fmt);
-
+void vkprintf(const char *fmt, va_list ap) {
     for (const char *p = fmt; *p; p++) {
         if (*p != '%') { vga_putchar(*p); continue; }
         p++;
@@ -79,7 +76,15 @@ void kprintf(const char *fmt, ...) {
             break;
         }
     }
+}
 
+/* ------------------------------------------------------------------ */
+/* kprintf                                                             */
+/* ------------------------------------------------------------------ */
+void kprintf(const char *fmt, ...) {
+    va_list ap;
+    va_start(ap, fmt);
+    vkprintf(fmt, ap);
     va_end(ap);
 }
 
@@ -92,19 +97,7 @@ void kpanic(const char *fmt, ...) {
 
     va_list ap;
     va_start(ap, fmt);
-    /* Re-use kprintf logic via a separate call is cleaner */
-    va_end(ap);
-
-    /* Print the message directly */
-    va_start(ap, fmt);
-    for (const char *p = fmt; *p; p++) {
-        if (*p != '%') { vga_putchar(*p); continue; }
-        p++;
-        if (*p == 's') vga_puts(va_arg(ap, const char *));
-        else if (*p == 'd') print_int((int64_t)va_arg(ap, int));
-        else if (*p == 'x') { vga_puts("0x"); print_uint(va_arg(ap, unsigned int), 16, false); }
-        else vga_putchar(*p);
-    }
+    vkprintf(fmt, ap);
     va_end(ap);
 
     vga_puts("\n\n  System halted.\n");

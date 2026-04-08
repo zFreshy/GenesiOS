@@ -86,11 +86,24 @@ $(KERNEL_ELF): $(ALL_OBJS)
 	@size $@
 
 # -------------------------------------------------------------
+# User Space Test Program
+# -------------------------------------------------------------
+USER_DIR := user/test
+USER_ELF := $(BUILD_DIR)/user_test.elf
+
+$(USER_ELF): $(USER_DIR)/main.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) -c $< -o $(BUILD_DIR)/user_main.o
+	$(LD) -T $(USER_DIR)/linker.ld -nostdlib -z max-page-size=0x1000 $(BUILD_DIR)/user_main.o -o $@
+	@echo "  [Genesi] User test linked: $@"
+
+# -------------------------------------------------------------
 # ISO image
 # -------------------------------------------------------------
-iso: $(KERNEL_ELF)
-	@mkdir -p iso/boot/grub
+iso: $(KERNEL_ELF) $(USER_ELF)
+	@mkdir -p iso/boot/grub iso/modules
 	@cp $(KERNEL_ELF) iso/boot/genesi.elf
+	@cp $(USER_ELF) iso/modules/test.elf
 	@cp tools/grub.cfg iso/boot/grub/grub.cfg
 	@$(GRUB) -o $(ISO_FILE) iso/ 2>/dev/null
 	@echo "  [Genesi] ISO ready: $(ISO_FILE)"

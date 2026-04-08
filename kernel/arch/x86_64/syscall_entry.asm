@@ -24,6 +24,8 @@ syscall_entry:
     ; Save registers used by C ABI and syscall ABI
     push rcx ; user RIP (saved by SYSCALL)
     push r11 ; user RFLAGS (saved by SYSCALL)
+    
+    ; Save extra registers just to be safe
     push rbx
     push rbp
     push r12
@@ -31,38 +33,46 @@ syscall_entry:
     push r14
     push r15
     
-    ; RDI = syscall number (or RAX depending on ABI, let's say RAX = syscall number)
-    ; RSI, RDX, R10, R8, R9 = args
-    ; Wait, standard SysV ABI for syscalls:
+    ; SysV ABI for syscalls:
     ; RAX = syscall number
     ; RDI, RSI, RDX, R10, R8, R9 = args
-    ; R11 = RFLAGS, RCX = RIP
-    
-    ; Call C handler
-    ; We can pass args directly since they are mostly in the right registers.
     ; C signature: uint64_t syscall_handler(uint64_t num, uint64_t a1, uint64_t a2, uint64_t a3, uint64_t a4, uint64_t a5)
-    ; But RCX is clobbered. R10 is used for a4.
-    ; So we need to move R10 to RCX for the C call.
-    mov rcx, r10
+    ; In C ABI, args go to RDI, RSI, RDX, RCX, R8, R9.
     
-    ; The syscall number is in RAX. We want it as first argument (RDI).
-    ; But wait, RDI has a1.
-    ; So let's push all args and pass a pointer to a struct, or just move things around.
-    ; Let's pass a pointer to saved registers.
-    push r9
-    push r8
-    push r10
-    push rdx
-    push rsi
-    push rdi
+    ; Save everything before we mess up the registers
     push rax
+    push rdi
+    push rsi
+    push rdx
+    push r10
+    push r8
+    push r9
     
-    mov rdi, rsp ; rdi = pointer to struct
+    ; Now map Syscall ABI to C ABI:
+    ; num = RAX -> RDI
+    ; a1 = RDI -> RSI
+    ; a2 = RSI -> RDX
+    ; a3 = RDX -> RCX
+    ; a4 = R10 -> R8
+    ; a5 = R8  -> R9
+    
+    mov r9, r8
+    mov r8, r10
+    mov rcx, rdx
+    mov rdx, rsi
+    mov rsi, rdi
+    mov rdi, rax
     
     call syscall_handler
     
-    ; RAX has return value.
-    add rsp, 56 ; pop args
+    ; RAX has return value. Restore original registers except RAX
+    pop r9
+    pop r8
+    pop r10
+    pop rdx
+    pop rsi
+    pop rdi
+    add rsp, 8 ; throw away pushed rax
     
     ; Restore callee-saved
     pop r15
@@ -78,4 +88,4 @@ syscall_entry:
     mov rsp, [rel g_user_rsp]
     
     ; Return to user mode
-    sysretq
+    o64 sysret

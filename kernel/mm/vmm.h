@@ -21,11 +21,17 @@ void vmm_init(void);
 /* Map a virtual address to a physical address */
 void vmm_map(uint64_t virt, uint64_t phys, uint64_t flags);
 
+/* Map a virtual address to a physical address for user-space */
+void vmm_map_user(uint64_t pml4_phys, uint64_t virt, uint64_t phys, uint64_t flags);
+
 /* Unmap a virtual address */
 void vmm_unmap(uint64_t virt);
 
 /* Get physical address of a virtual address (0 if not mapped) */
 uint64_t vmm_get_phys(uint64_t virt);
+
+/* Create a new address space (PML4) by copying kernel mappings */
+uint64_t vmm_create_address_space(void);
 
 /* Switch to a page table (load CR3) */
 void vmm_load_cr3(uint64_t pml4_phys);

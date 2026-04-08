@@ -49,6 +49,10 @@ typedef struct task {
     uint8_t      *kernel_stack;      /* base of allocated stack        */
     size_t        kernel_stack_size;
 
+    /* User Mode details */
+    uint64_t      user_entry;
+    uint64_t      user_rsp;
+
     /* Linked list for scheduler run queue */
     struct task  *next;
 } task_t;

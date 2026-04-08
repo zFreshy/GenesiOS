@@ -22,6 +22,15 @@
 /* ------------------------------------------------------------------ */
 static pte_t *get_or_create_table(pte_t *parent, size_t idx, uint64_t flags) {
     if (parent[idx] & VMM_PRESENT) {
+        /* Guard: if this is a 2MB huge page (PS bit = bit 7), we cannot
+         * walk through it as a page table. This indicates a design error
+         * (trying to map 4KB pages inside a 2MB huge-page region). */
+        if (parent[idx] & (1ULL << 7)) {
+            kpanic("vmm: get_or_create_table hit a 2MB huge page at idx=%zu entry=0x%llx\n",
+                   idx, (unsigned long long)parent[idx]);
+        }
+        /* Ensure intermediate directories have the necessary flags (like USER) */
+        parent[idx] |= flags;
         return (pte_t *)(uintptr_t)PAGE_ADDR(parent[idx]);
     }
     uint64_t phys = pmm_alloc_frame();
@@ -58,6 +67,65 @@ void vmm_map(uint64_t virt, uint64_t phys, uint64_t flags) {
 
     /* Invalidate the TLB entry for this virtual address */
     __asm__ volatile ("invlpg (%0)" :: "r"(virt) : "memory");
+}
+
+/* ------------------------------------------------------------------ */
+/* vmm_map_user                                                         */
+/* ------------------------------------------------------------------ */
+void vmm_map_user(uint64_t pml4_phys, uint64_t virt, uint64_t phys, uint64_t flags) {
+    pte_t *pml4 = (pte_t *)(uintptr_t)(pml4_phys & ~0xFFFULL);
+
+    pte_t *pdp = get_or_create_table(pml4, PML4_IDX(virt), VMM_PRESENT | VMM_WRITABLE | VMM_USER);
+    pte_t *pd  = get_or_create_table(pdp,  PDP_IDX(virt),  VMM_PRESENT | VMM_WRITABLE | VMM_USER);
+    pte_t *pt  = get_or_create_table(pd,   PD_IDX(virt),   VMM_PRESENT | VMM_WRITABLE | VMM_USER);
+
+    pt[PT_IDX(virt)] = (phys & ~0xFFFULL) | (flags & 0xFFF) | VMM_PRESENT | VMM_USER;
+}
+
+/* ------------------------------------------------------------------ */
+/* vmm_create_address_space                                             */
+/* ------------------------------------------------------------------ */
+uint64_t vmm_create_address_space(void) {
+    uint64_t pml4_phys = pmm_alloc_frame();
+    if (!pml4_phys) return 0;
+
+    pte_t *new_pml4 = (pte_t *)(uintptr_t)pml4_phys;
+    kmemset(new_pml4, 0, PAGE_SIZE);
+
+    /*
+     * Deep-clone the kernel's PDP so the user process has its own copy of
+     * the intermediate table. This prevents vmm_map_user() from inserting
+     * user entries directly into the kernel's boot page-directory.
+     *
+     * We copy all 512 PDP entries (each covers 1 GB).  User-space regions
+     * will be handled by vmm_map_user() which creates fresh PD/PT tables
+     * inside this new PDP.
+     */
+    uint64_t cr3;
+    __asm__ volatile ("mov %%cr3, %0" : "=r"(cr3));
+    pte_t *kernel_pml4 = (pte_t *)(uintptr_t)(cr3 & ~0xFFFULL);
+
+    /* Allocate a fresh PDP for the user process */
+    uint64_t new_pdp_phys = pmm_alloc_frame();
+    if (!new_pdp_phys) return 0;
+    pte_t *new_pdp = (pte_t *)(uintptr_t)new_pdp_phys;
+
+    /* Copy the kernel PDP entries (same 512 GB window) */
+    if (kernel_pml4[0] & VMM_PRESENT) {
+        pte_t *kernel_pdp = (pte_t *)(uintptr_t)PAGE_ADDR(kernel_pml4[0]);
+        kmemcpy(new_pdp, kernel_pdp, PAGE_SIZE);
+    } else {
+        kmemset(new_pdp, 0, PAGE_SIZE);
+    }
+
+    /*
+     * Point new PML4[0] to the cloned PDP.
+     * Keep kernel-only access for safety (no VMM_USER at PML4 level);
+     * user mappings get USER bit applied at the PD/PT level.
+     */
+    new_pml4[0] = new_pdp_phys | VMM_PRESENT | VMM_WRITABLE;
+
+    return pml4_phys;
 }
 
 /* ------------------------------------------------------------------ */
