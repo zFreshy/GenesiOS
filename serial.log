@@ -1,0 +1,38 @@
+   ____                    _
+  / ___| ___ _ __   ___  ___ _ (_)
+ | |  _ / _ \ '_ \ / _ \/ __| |
+ | |_| |  __/ | | |  __/\__ \| |
+  \____|___|_| |_|\___|____/|_|
+      The Programming Operating System
+
+  Initializing hardware...
+  [OK] GDT loaded (null/kcode/kdata/ucode/udata + TSS)
+  [OK] IDT installed (256 interrupt gates)
+  [OK] PIC 8259 remapped (IRQ0-7 -> vec 32-39)
+  [OK] PIT timer initialized at 100 Hz
+  [OK] PS/2 keyboard driver active
+Standard PS/2 Mouse (Relative) enabled.
+  [OK] PS/2 mouse driver active
+
+  Initializing memory...
+[PMM] Total: 12543 MB | Free: 254 MB
+  [OK] Physical Memory Manager ready
+[VMM] CR3=0x0x107000  identity map active
+  [OK] Virtual Memory Manager (4-level paging)
+[Heap] 16384 KB dynamic buffer at 0x135000
+  [OK] Kernel heap allocator ready
+[GFX] Framebuffer 1280x720x32 at 0xfd000000
+
+   ____                    _
+  / ___| ___ _ __   ___  ___ (_)
+ | |  _ / _ \ '_ \/ _ \/ __|| |
+ | |_| |  __/ | | |  __/\__ \| |
+  \____|\___| | |_|\___||____/|_|
+      The Programming Operating System
+
+  [OK] Framebuffer console active
+  [OK] Desktop initialized (Compositor + WM)
+  [OK] Scheduler initialized (PID 0 idle, PID 1 kernel)
+  [OK] Syscalls enabled (SYSCALL/SYSRET)
+
+  System ready. (238 MB RAM available)
