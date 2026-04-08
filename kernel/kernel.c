@@ -26,6 +26,8 @@
 
 #include "gfx/framebuffer.h"
 #include "gfx/fb_console.h"
+#include "gui/desktop.h"
+#include "gui/compositor.h"
 
 #include "proc/scheduler.h"
 #include "syscall/syscall.h"
@@ -36,8 +38,8 @@
 static void print_banner(void) {
     vga_set_color(VGA_LIGHT_CYAN, VGA_BLACK);
     kprintf("   ____                    _\n");
-    kprintf("  / ___| ___ _ __   ___  ___ (_)\n");
-    kprintf(" | |  _ / _ \\ '_ \\ / _ \\/ __|| |\n");
+    kprintf("  / ___| ___ _ __   ___  ___ _ (_)\n");
+    kprintf(" | |  _ / _ \\ '_ \\ / _ \\/ __| |\n");
     kprintf(" | |_| |  __/ | | |  __/\\__ \\| |\n");
     kprintf("  \\____|\___|_| |_|\\___|____/|_|\n");
 
@@ -112,8 +114,8 @@ static void test_thread_c(void) {
 static void mouse_irq_wrapper(registers_t *regs) {
     (void)regs;
     mouse_irq_handler();
-    /* Desktop and WM comes later */
-    /* if (fb_available()) compositor_render(); */
+    /* Update GUI when mouse moves */
+    if (fb_available()) compositor_update();
     irq_send_eoi(IRQ_MOUSE);
 }
 
@@ -269,9 +271,9 @@ void kernel_main(uint32_t boot_magic, uint64_t mboot_info) {
     kprintf("      The Programming Operating System\n\n");
     ok("Framebuffer console active");
 
-    /* Desktop and WM comes later */
-    /* desktop_start(); */
-    /* ok("Desktop initialized (Compositor + WM)"); */
+    /* --- Phase 10: Desktop & Window Manager -------------------------- */
+    desktop_start();
+    ok("Desktop initialized (Compositor + WM)");
 
     /* --- Phase 4: Scheduler --------------------------------------- */
     sched_init();          ok("Scheduler initialized (PID 0 idle, PID 1 kernel)");
@@ -287,8 +289,10 @@ void kernel_main(uint32_t boot_magic, uint64_t mboot_info) {
             (size_t)(pmm_free_frames() * PAGE_SIZE / (1024 * 1024)));
 
     /* --- Phase 7 preview: basic interactive shell ----------------- */
-    run_shell();
+    /* run_shell(); */
 
-    /* Should never reach here */
-    panic_halt();
+    /* Enter idle loop for the GUI */
+    for (;;) {
+        cpu_halt();
+    }
 }

@@ -33,6 +33,12 @@ void wm_destroy_window(window_t *win);
 /* Get the bottom-most window (start of Z-order list) */
 window_t *wm_get_bottom(void);
 
+/* Get the top-most window (end of Z-order list) */
+window_t *wm_get_top(void);
+
+/* Bring a window to the top of the Z-order */
+void wm_bring_to_front(window_t *win);
+
 /* Update a region of the window's buffer (placeholder for future partial redraws) */
 void wm_invalidate(window_t *win, int32_t x, int32_t y, uint32_t w, uint32_t h);
 

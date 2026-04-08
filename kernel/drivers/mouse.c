@@ -10,6 +10,7 @@
 #include "mouse.h"
 #include "../gfx/framebuffer.h"
 #include "../include/kernel.h"
+#include "../include/kprintf.h"
 
 /* ------------------------------------------------------------------ */
 /* PS/2 controller I/O ports                                          */
@@ -19,6 +20,22 @@
 #define PS2_CMD     0x64
 
 /* ------------------------------------------------------------------ */
+/* VMMouse (VMware/QEMU Absolute Mouse) Constants                     */
+/* ------------------------------------------------------------------ */
+#define VMMOUSE_MAGIC 0x564D5868
+#define VMMOUSE_PORT  0x5658
+
+#define VMMOUSE_CMD_GETVERSION          10
+#define VMMOUSE_CMD_ABSPOINTER_DATA     39
+#define VMMOUSE_CMD_ABSPOINTER_STATUS   40
+#define VMMOUSE_CMD_ABSPOINTER_COMMAND  41
+
+#define VMMOUSE_CMD_ENABLE              0x45414552
+#define VMMOUSE_CMD_REQUEST_ABSOLUTE    0x53424152
+
+#define VMMOUSE_VERSION_ID              0x3442554a
+
+/* ------------------------------------------------------------------ */
 /* State                                                               */
 /* ------------------------------------------------------------------ */
 static int32_t s_x       = 0;
@@ -26,10 +43,54 @@ static int32_t s_y       = 0;
 static uint8_t s_buttons = 0;
 static uint8_t s_packet[3];
 static uint8_t s_phase   = 0;
+static bool    s_vmmouse = false;
 
 /* Mouse screen bounds (updated on init from framebuffer size) */
 static int32_t s_max_x = 1023;
 static int32_t s_max_y = 767;
+
+/* ------------------------------------------------------------------ */
+/* VMMouse helpers                                                      */
+/* ------------------------------------------------------------------ */
+static void vmmouse_cmd(uint32_t cmd, uint32_t arg, uint32_t *eax, uint32_t *ebx, uint32_t *ecx, uint32_t *edx) {
+    uint32_t out_eax, out_ebx, out_ecx, out_edx;
+    uint32_t dummy_esi, dummy_edi;
+    __asm__ volatile (
+        "inl %%dx, %%eax"
+        : "=a"(out_eax), "=b"(out_ebx), "=c"(out_ecx), "=d"(out_edx), "=S"(dummy_esi), "=D"(dummy_edi)
+        : "a"(VMMOUSE_MAGIC), "b"(arg), "c"(cmd), "d"(VMMOUSE_PORT)
+        : "memory"
+    );
+    if (eax) *eax = out_eax;
+    if (ebx) *ebx = out_ebx;
+    if (ecx) *ecx = out_ecx;
+    if (edx) *edx = out_edx;
+}
+
+static bool vmmouse_init_device(void) {
+    uint32_t eax, ebx, ecx, edx;
+    vmmouse_cmd(VMMOUSE_CMD_GETVERSION, 0, &eax, &ebx, &ecx, &edx);
+    if (eax != VMMOUSE_VERSION_ID) {
+        return false;
+    }
+
+    /* Drain any pending packets in the queue before enabling */
+    uint32_t status, dummy1, dummy2, dummy3;
+    vmmouse_cmd(VMMOUSE_CMD_ABSPOINTER_STATUS, 0, &status, &dummy1, &dummy2, &dummy3);
+    int queue_length = status & 0xFFFF;
+    while (queue_length >= 4) {
+        vmmouse_cmd(VMMOUSE_CMD_ABSPOINTER_DATA, 4, &status, &dummy1, &dummy2, &dummy3);
+        queue_length -= 4;
+    }
+
+    /* Enable VMMouse */
+    vmmouse_cmd(VMMOUSE_CMD_ABSPOINTER_COMMAND, VMMOUSE_CMD_ENABLE, &eax, &ebx, &ecx, &edx);
+    
+    /* Request absolute coordinates */
+    vmmouse_cmd(VMMOUSE_CMD_ABSPOINTER_COMMAND, VMMOUSE_CMD_REQUEST_ABSOLUTE, &eax, &ebx, &ecx, &edx);
+    
+    return true;
+}
 
 /* ------------------------------------------------------------------ */
 /* PS/2 helpers                                                         */
@@ -89,7 +150,20 @@ void mouse_init(void) {
     mouse_write(0xF4);
     mouse_read();   /* ACK */
 
+    /* Empty PS/2 buffer to prevent out-of-sync packets (ACKs causing drift) */
+    while (inb(PS2_STATUS) & 0x01) {
+        inb(PS2_DATA);
+    }
+
     s_phase = 0;
+
+    /* Try to initialize VMMouse (Absolute Mouse mode for QEMU/VMware) */
+    if (vmmouse_init_device()) {
+        s_vmmouse = true;
+        kprintf("VMMouse (Absolute Pointer) enabled!\n");
+    } else {
+        kprintf("Standard PS/2 Mouse (Relative) enabled.\n");
+    }
 }
 
 /* ------------------------------------------------------------------ */
@@ -98,11 +172,51 @@ void mouse_init(void) {
 void mouse_irq_handler(void) {
     uint8_t data = inb(PS2_DATA);
 
+    if (s_vmmouse) {
+        uint32_t status, dummy1, dummy2, dummy3;
+        vmmouse_cmd(VMMOUSE_CMD_ABSPOINTER_STATUS, 0, &status, &dummy1, &dummy2, &dummy3);
+        
+        int queue_length = status & 0xFFFF;
+        while (queue_length >= 4) {
+            uint32_t pkt_status, x, y, z;
+            vmmouse_cmd(VMMOUSE_CMD_ABSPOINTER_DATA, 4, &pkt_status, &x, &y, &z);
+            
+            if (fb_available()) {
+                /* Check if the hypervisor sent a relative packet instead of absolute */
+                if (pkt_status & 0x00010000) {
+                    /* Inverted for WSLg / SDL relative mouse bugs */
+                    s_x -= (int32_t)x;
+                    s_y += (int32_t)y;
+                } else {
+                    s_x = (int32_t)((x * fb_width()) / 0xFFFF);
+                    s_y = (int32_t)((y * fb_height()) / 0xFFFF);
+                }
+            }
+            
+            s_buttons = 0;
+            if (pkt_status & 0x20) s_buttons |= MOUSE_BTN_LEFT;
+            if (pkt_status & 0x10) s_buttons |= MOUSE_BTN_RIGHT;
+            if (pkt_status & 0x08) s_buttons |= MOUSE_BTN_MIDDLE;
+            
+            queue_length -= 4;
+        }
+        
+        /* Clamp to screen */
+        if (s_x < 0)       s_x = 0;
+        if (s_x > s_max_x) s_x = s_max_x;
+        if (s_y < 0)       s_y = 0;
+        if (s_y > s_max_y) s_y = s_max_y;
+        
+        return; /* Skip standard PS/2 processing */
+    }
+
     s_packet[s_phase] = data;
 
     if (s_phase == 0) {
-        /* First byte must have bit 3 set; discard if not (re-sync) */
-        if (!(data & 0x08)) return;
+        /* First byte must have bit 3 set; discard if not (re-sync).
+         * Also discard ACK bytes (0xFA) that sometimes sneak in and shift the state machine.
+         */
+        if (data == 0xFA || !(data & 0x08)) return;
     }
 
     s_phase++;
@@ -120,9 +234,10 @@ void mouse_irq_handler(void) {
 
     s_buttons = flags & 0x07;
 
-    /* Y axis is inverted in PS/2 */
-    s_x += dx;
-    s_y -= dy;
+    /* Y axis is inverted in PS/2. 
+     * Inverted X and Y again to workaround WSLg/SDL relative mouse bugs */
+    s_x -= dx;
+    s_y += dy;
 
     /* Clamp to screen */
     if (s_x < 0)       s_x = 0;

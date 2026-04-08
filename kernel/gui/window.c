@@ -75,6 +75,33 @@ void wm_destroy_window(window_t *win) {
 }
 
 /* ------------------------------------------------------------------ */
+/* Bring a window to the top of the Z-order                           */
+/* ------------------------------------------------------------------ */
+void wm_bring_to_front(window_t *win) {
+    if (!win || win == s_top_window) return;
+
+    /* Remove from current position */
+    if (win->prev) win->prev->next = win->next;
+    else s_bottom_window = win->next;
+
+    if (win->next) win->next->prev = win->prev;
+    else s_top_window = win->prev;
+
+    /* Append to top */
+    win->next = NULL;
+    win->prev = s_top_window;
+    
+    if (s_top_window) s_top_window->next = win;
+    else s_bottom_window = win;
+    
+    s_top_window = win;
+}
+
+window_t *wm_get_top(void) {
+    return s_top_window;
+}
+
+/* ------------------------------------------------------------------ */
 /* Get bottom window (for compositor)                                 */
 /* ------------------------------------------------------------------ */
 window_t *wm_get_bottom(void) {
