@@ -4,6 +4,7 @@
  */
 #include "framebuffer.h"
 #include "font.h"
+#include "../mm/vmm.h"
 #include "../include/multiboot2.h"
 #include "../include/kprintf.h"
 
@@ -42,10 +43,19 @@ int fb_init(uint64_t mboot_info) {
     s_pitch  = tag->framebuffer_pitch;
     s_bpp    = tag->framebuffer_bpp;
 
-    kprintf("[FB] %ux%u @32bpp  addr=0x%llx pitch=%u\n",
+    /* Map the framebuffer (identity map) since it is likely above 256MB */
+    uint32_t fb_size_bytes = s_pitch * s_height;
+    for (uint32_t offset = 0; offset < fb_size_bytes; offset += 4096) {
+        vmm_map(tag->framebuffer_addr + offset, 
+                tag->framebuffer_addr + offset, 
+                VMM_PRESENT | VMM_WRITABLE);
+    }
+
+    kprintf("[FB] %ux%u @32bpp  addr=0x%llx pitch=%u mapped %u pages\n",
             s_width, s_height,
             (unsigned long long)tag->framebuffer_addr,
-            s_pitch);
+            s_pitch,
+            (fb_size_bytes + 4095) / 4096);
     return 1;
 }
 
