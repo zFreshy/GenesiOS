@@ -35,12 +35,12 @@ mb2_start:
     dd MB2_ARCH
     dd MB2_LEN
     dd MB2_CHECKSUM
-    ; Framebuffer request tag (type=5): ask GRUB for 1024x768x32
+    ; Framebuffer request tag (type=5): 16:9 Widescreen (1280x720)
     dw 5        ; type
     dw 0        ; flags
     dd 20       ; size
-    dd 1024     ; preferred width
-    dd 768      ; preferred height
+    dd 1280     ; preferred width
+    dd 720      ; preferred height
     dd 32       ; preferred bpp
     align 8
     ; Required end tag
