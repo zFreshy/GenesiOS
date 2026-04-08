@@ -27,6 +27,9 @@
 #include "gfx/framebuffer.h"
 #include "gfx/fb_console.h"
 
+#include "gui/compositor.h"
+#include "gui/desktop.h"
+
 #include "proc/scheduler.h"
 #include "syscall/syscall.h"
 
@@ -112,6 +115,7 @@ static void test_thread_c(void) {
 static void mouse_irq_wrapper(registers_t *regs) {
     (void)regs;
     mouse_irq_handler();
+    if (fb_available()) compositor_render();
     irq_send_eoi(IRQ_MOUSE);
 }
 
@@ -258,6 +262,10 @@ void kernel_main(uint32_t boot_magic, uint64_t mboot_info) {
             fbc_set_fg(FBC_WHITE);
         }
         ok("Framebuffer console active");
+
+        /* --- Phase 10: Desktop & Window Manager -------------------------- */
+        desktop_start();
+        ok("Desktop initialized (Compositor + WM)");
     }
 
     /* --- Phase 4: Scheduler --------------------------------------- */

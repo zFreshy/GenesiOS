@@ -1,0 +1,10 @@
+kernel/gui/compositor.c: In function 'compositor_init':
+kernel/gui/compositor.c:26:9: warning: implicit declaration of function 'kprintf' [-Wimplicit-function-declaration]
+   26 |         kprintf("[COMP] Failed to allocate backbuffer\n");
+      |         ^~~~~~~
+kernel/gui/compositor.c: In function 'draw_window':
+kernel/gui/compositor.c:58:14: error: 'intsy' undeclared (first use in this function); did you mean 'int'?
+   58 |         for (intsy = title_y; intsy < win->y; intsy++) {
+      |              ^~~~~
+      |              int
+kernel/gui/compositor.c:58:14: note: each undeclared identifier is reported only once for each function it appears in
