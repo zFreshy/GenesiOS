@@ -23,6 +23,8 @@
 #include "mm/vmm.h"
 #include "mm/heap.h"
 
+#include "proc/scheduler.h"
+
 /* ------------------------------------------------------------------ */
 /* Banner                                                               */
 /* ------------------------------------------------------------------ */
@@ -62,26 +64,74 @@ static void shell_prompt(void) {
     kprintf("> ");
 }
 
+/* ------------------------------------------------------------------ */
+/* Test kernel threads for scheduler verification                      */
+/* ------------------------------------------------------------------ */
+static void test_thread_a(void) {
+    for (int i = 0; i < 5; i++) {
+        vga_set_color(VGA_LIGHT_RED, VGA_BLACK);
+        kprintf("A");
+        vga_set_color(VGA_WHITE, VGA_BLACK);
+        pit_sleep(500);
+    }
+    sched_exit();
+}
+
+static void test_thread_b(void) {
+    for (int i = 0; i < 5; i++) {
+        vga_set_color(VGA_LIGHT_GREEN, VGA_BLACK);
+        kprintf("B");
+        vga_set_color(VGA_WHITE, VGA_BLACK);
+        pit_sleep(500);
+    }
+    sched_exit();
+}
+
+static void test_thread_c(void) {
+    for (int i = 0; i < 5; i++) {
+        vga_set_color(VGA_LIGHT_BLUE, VGA_BLACK);
+        kprintf("C");
+        vga_set_color(VGA_WHITE, VGA_BLACK);
+        pit_sleep(500);
+    }
+    sched_exit();
+}
+
+static int kstrcmp(const char *a, const char *b) {
+    while (*a && *a == *b) { a++; b++; }
+    return (int)(unsigned char)*a - (int)(unsigned char)*b;
+}
+
 static void shell_exec(const char *cmd) {
     if (!cmd[0]) return;
 
-    if (cmd[0] == 'h' && cmd[1] == 'e' && cmd[2] == 'l' && cmd[3] == 'p') {
+    if (kstrcmp(cmd, "help") == 0) {
         kprintf("  help      - show this help\n");
         kprintf("  mem       - show memory info\n");
         kprintf("  clear     - clear screen\n");
         kprintf("  version   - show OS info\n");
+        kprintf("  test      - spawn 3 test threads (A, B, C)\n");
         kprintf("  halt      - halt the system\n");
-    } else if (cmd[0] == 'm' && cmd[1] == 'e' && cmd[2] == 'm') {
+    } else if (kstrcmp(cmd, "mem") == 0) {
         kprintf("  Free  : %zu MB\n",
                 (size_t)(pmm_free_frames()  * PAGE_SIZE / (1024*1024)));
         kprintf("  Total : %zu MB\n",
                 (size_t)(pmm_total_frames() * PAGE_SIZE / (1024*1024)));
-    } else if (cmd[0] == 'c' && cmd[1] == 'l') {
+    } else if (kstrcmp(cmd, "clear") == 0) {
         vga_clear();
-    } else if (cmd[0] == 'v') {
-        kprintf("  Genesi OS v0.1-dev (x86-64, C + Assembly)\n");
+    } else if (kstrcmp(cmd, "version") == 0) {
+        kprintf("  Genesi OS v0.2-dev (x86-64, C + Assembly)\n");
         kprintf("  Uptime: %zu ticks\n", (size_t)pit_get_ticks());
-    } else if (cmd[0] == 'h' && cmd[1] == 'a' && cmd[2] == 'l' && cmd[3] == 't') {
+    } else if (kstrcmp(cmd, "test") == 0) {
+        kprintf("  Spawning 3 test threads...\n");
+        task_t *a = sched_create_task("test-A", test_thread_a);
+        task_t *b = sched_create_task("test-B", test_thread_b);
+        task_t *c = sched_create_task("test-C", test_thread_c);
+        sched_add(a);
+        sched_add(b);
+        sched_add(c);
+        kprintf("  Threads created. Watch for interleaved A/B/C output.\n");
+    } else if (kstrcmp(cmd, "halt") == 0) {
         kprintf("  Halting...\n");
         irq_disable();
         for (;;) cpu_halt();
@@ -154,6 +204,9 @@ void kernel_main(uint32_t boot_magic, uint64_t mboot_info) {
     pmm_init(mboot_info);  ok("Physical Memory Manager ready");
     vmm_init();            ok("Virtual Memory Manager (4-level paging)");
     heap_init();           ok("Kernel heap allocator ready");
+
+    /* --- Phase 4: Scheduler --------------------------------------- */
+    sched_init();          ok("Preemptive scheduler active (PID 0: idle, PID 1: kernel)");
 
     /* --- Enable interrupts ---------------------------------------- */
     irq_enable();

@@ -6,6 +6,7 @@
 #include "pit.h"
 #include "irq.h"
 #include "../../include/kernel.h"
+#include "../../proc/scheduler.h"
 
 #define PIT_CHANNEL0  0x40
 #define PIT_CMD       0x43
@@ -22,6 +23,7 @@ static void pit_irq_handler(registers_t *regs) {
     (void)regs;
     g_pit_ticks++;
     irq_send_eoi(IRQ_TIMER);
+    sched_tick();
 }
 
 /* ------------------------------------------------------------------ */

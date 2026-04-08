@@ -77,8 +77,8 @@ void gdt_init(void) {
     set_entry(&s_gdt.entries[0], 0, 0,       0x00, 0x00); /* null        */
     set_entry(&s_gdt.entries[1], 0, 0xFFFFF, 0x9A, 0xA0); /* kernel code */
     set_entry(&s_gdt.entries[2], 0, 0xFFFFF, 0x92, 0x80); /* kernel data */
-    set_entry(&s_gdt.entries[3], 0, 0xFFFFF, 0xFA, 0xA0); /* user code   */
-    set_entry(&s_gdt.entries[4], 0, 0xFFFFF, 0xF2, 0x80); /* user data   */
+    set_entry(&s_gdt.entries[3], 0, 0xFFFFF, 0xF2, 0x80); /* user data   */
+    set_entry(&s_gdt.entries[4], 0, 0xFFFFF, 0xFA, 0xA0); /* user code   */
 
     set_tss_entry((uint64_t)&s_tss, (uint32_t)sizeof(s_tss) - 1);
 
