@@ -197,16 +197,14 @@ void mouse_irq_handler(void) {
                     s_x -= (int32_t)x;
                     s_y += (int32_t)y;
                 } else {
-                    /* Alguns hypervisors limitam o VMMouse a retornar valores entre 0 e a resolução real 
-                     * da janela hospedada em vez de usar 0xFFFF. Se for muito menor que 0xFFFF,
-                     * podemos estar lendo as coordenadas físicas diretas sem precisar escalar. */
-                    if (x <= fb_width() && y <= fb_height()) {
-                        s_x = (int32_t)x;
-                        s_y = (int32_t)y;
-                    } else {
-                        s_x = (int32_t)((x * fb_width()) / 0xFFFF);
-                        s_y = (int32_t)((y * fb_height()) / 0xFFFF);
-                    }
+                    /* Volta para a escala oficial do VMMouse (0 a 0xFFFF)
+                     * e compensa o fato da imagem da seta começar um pouco
+                     * mais para a esquerda/cima que o hotspot do cursor do host. */
+                    int32_t offset_x = -2;
+                    int32_t offset_y = -2;
+                    
+                    s_x = (int32_t)((x * fb_width()) / 0xFFFF) + offset_x;
+                    s_y = (int32_t)((y * fb_height()) / 0xFFFF) + offset_y;
                 }
             }
             
