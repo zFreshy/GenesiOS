@@ -58,10 +58,10 @@ typedef struct {
 } PACKED tss_t;
 
 /* ------------------------------------------------------------------ */
-/* GDT table layout (6 descriptors + 1 TSS = 7 slots used as 6 + 2)  */
+/* GDT table layout (5 descriptors + 1 TSS = 7 slots used as 5 + 2)  */
 /* ------------------------------------------------------------------ */
 typedef struct {
-    gdt_entry_t     entries[6];   /* null, kcode, kdata, ucode, udata, padding */
+    gdt_entry_t     entries[5];   /* null, kcode, kdata, ucode, udata */
     gdt_tss_entry_t tss;
 } PACKED gdt_table_t;
 
