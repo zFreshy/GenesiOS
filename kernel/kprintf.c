@@ -12,6 +12,9 @@
 /* Output one character to whichever backend is active                 */
 /* ------------------------------------------------------------------ */
 static void putc_backend(char c) {
+    /* Always log to COM1 serial port (0x3F8) for debugging */
+    outb(0x3F8, c);
+
     if (fb_available()) {
         fbc_putchar(c);
     } else {
@@ -107,12 +110,12 @@ void kprintf(const char *fmt, ...) {
 }
 
 /* ------------------------------------------------------------------ */
-/* kpanic                                                              */
+/* kpanic_color / kpanic                                               */
 /* ------------------------------------------------------------------ */
-void kpanic(const char *fmt, ...) {
+static void vkpanic_core(uint32_t bg, uint32_t fg, const char *fmt, va_list ap) {
     if (fb_available()) {
-        fbc_set_bg(0x00AA0000);   /* red background */
-        fbc_set_fg(0x00FFFFFF);   /* white text      */
+        fbc_set_bg(bg);
+        fbc_set_fg(fg);
         fbc_clear();
         fbc_puts("\n\n  *** KERNEL PANIC ***\n  ");
     } else {
@@ -120,11 +123,22 @@ void kpanic(const char *fmt, ...) {
         vga_puts("\n\n  *** KERNEL PANIC ***  \n  ");
     }
 
-    va_list ap;
-    va_start(ap, fmt);
     vkprintf(fmt, ap);
-    va_end(ap);
 
     puts_backend("\n\n  System halted.\n");
     panic_halt();
+}
+
+void kpanic(const char *fmt, ...) {
+    va_list ap;
+    va_start(ap, fmt);
+    vkpanic_core(0x00AA0000, 0x00FFFFFF, fmt, ap);
+    va_end(ap);
+}
+
+void kpanic_color(uint32_t bg, uint32_t fg, const char *fmt, ...) {
+    va_list ap;
+    va_start(ap, fmt);
+    vkpanic_core(bg, fg, fmt, ap);
+    va_end(ap);
 }

@@ -1,0 +1,4 @@
+  [Genesi] ISO ready: genesi.iso
+qemu-system-x86_64 -m 256M -serial stdio -no-reboot -no-shutdown \
+        -nographic -cdrom genesi.iso
+make: *** [Makefile:127: run-nographic] Terminated

@@ -51,6 +51,10 @@ void fbc_clear(void) {
 /* ------------------------------------------------------------------ */
 static void newline(void) {
     s_cx = 0;
+    
+    /* Safeguard against being called before fbc_init */
+    if (s_rows == 0) return;
+
     s_cy++;
     if (s_cy >= s_rows) {
         fb_scroll_up(s_bg);

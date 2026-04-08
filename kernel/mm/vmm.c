@@ -26,7 +26,7 @@ static pte_t *get_or_create_table(pte_t *parent, size_t idx, uint64_t flags) {
          * walk through it as a page table. This indicates a design error
          * (trying to map 4KB pages inside a 2MB huge-page region). */
         if (parent[idx] & (1ULL << 7)) {
-            kpanic("vmm: get_or_create_table hit a 2MB huge page at idx=%zu entry=0x%llx\n",
+            kpanic_color(0x000000AA, 0x00FFFFFF, "vmm: get_or_create_table hit a 2MB huge page at idx=%zu entry=0x%llx\n",
                    idx, (unsigned long long)parent[idx]);
         }
         /* Ensure intermediate directories have the necessary flags (like USER) */
@@ -34,7 +34,7 @@ static pte_t *get_or_create_table(pte_t *parent, size_t idx, uint64_t flags) {
         return (pte_t *)(uintptr_t)PAGE_ADDR(parent[idx]);
     }
     uint64_t phys = pmm_alloc_frame();
-    if (!phys) kpanic("vmm: out of physical memory for page table\n");
+    if (!phys) kpanic_color(0x000000AA, 0x00FFFFFF, "vmm: out of physical memory for page table\n");
     kmemset((void *)(uintptr_t)phys, 0, PAGE_SIZE);
     parent[idx] = phys | flags | VMM_PRESENT;
     return (pte_t *)(uintptr_t)phys;

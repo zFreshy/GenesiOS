@@ -62,6 +62,11 @@ void pmm_init(uint64_t mboot_info) {
             uint64_t frame_start = ALIGN_UP(base, PAGE_SIZE) >> PAGE_SHIFT;
             uint64_t frame_end   = (base + length) >> PAGE_SHIFT;
 
+            /* Safety: clamp frames to 256MB (the boot.asm identity map limit). 
+             * If we return frames above 256MB, the VMM's kmemset will page-fault. */
+            uint64_t max_usable_frames = (256ULL * 1024 * 1024) / PAGE_SIZE;
+            if (frame_end > max_usable_frames) frame_end = max_usable_frames;
+
             for (uint64_t f = frame_start; f < frame_end && f < MAX_FRAMES; f++) {
                 /* Keep frames used by kernel, bitmap and first 1 MB reserved */
                 uint64_t addr = FRAME_TO_ADDR(f);

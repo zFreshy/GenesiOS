@@ -113,7 +113,6 @@ iso: $(KERNEL_ELF) $(USER_ELF)
 # -------------------------------------------------------------
 QEMU_FLAGS := \
 	-m 256M \
-	-serial stdio \
 	-no-reboot \
 	-no-shutdown \
 	-vga std \
@@ -124,8 +123,12 @@ run: iso
 
 # Run headless (for CI / WSL without display)
 run-nographic: iso
-	$(QEMU) -m 256M -serial stdio -no-reboot -no-shutdown \
+	$(QEMU) -m 256M -no-reboot -no-shutdown \
 	        -nographic -cdrom $(ISO_FILE)
+
+test-headless: iso
+	$(QEMU) -m 256M -no-reboot -no-shutdown -vga std -display none \
+	        -serial file:serial.log -cdrom $(ISO_FILE)
 
 # GDB debug session (start QEMU paused, attach gdb manually)
 debug: iso

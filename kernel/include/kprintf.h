@@ -11,6 +11,7 @@
 void kprintf(const char *fmt, ...);
 
 /* Panic: print message + halt forever */
-void kpanic(const char *fmt, ...) NORETURN;
+NORETURN void kpanic(const char *fmt, ...);
+NORETURN void kpanic_color(uint32_t bg, uint32_t fg, const char *fmt, ...);
 
 #endif /* KPRINTF_H */

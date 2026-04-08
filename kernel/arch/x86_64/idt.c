@@ -65,7 +65,7 @@ void isr_handler(registers_t *regs) {
 
     /* Unhandled CPU exception */
     if (regs->int_no < 32) {
-        kpanic("Unhandled exception #%zu: %s\n"
+        kpanic_color(0x00AAAA00, 0x00000000, "Unhandled exception #%zu: %s\n"
                "  RIP=%p  RSP=%p  RFLAGS=%p\n"
                "  ERR=%p  RAX=%p  RBX=%p\n"
                "  CS=%p  SS=%p\n",

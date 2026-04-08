@@ -79,7 +79,7 @@ void *kmalloc(size_t size) {
         }
         b = b->next;
     }
-    kpanic("kmalloc: out of kernel heap (requested %zu bytes)\n", size);
+    kpanic_color(0x0000AA00, 0x00000000, "kmalloc: out of kernel heap (requested %zu bytes)\n", size);
 }
 
 /* ------------------------------------------------------------------ */
