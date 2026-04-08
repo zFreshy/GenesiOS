@@ -16,7 +16,7 @@ static idt_ptr_t   s_idt_ptr;
 /* idt_flush — assembly stub                                           */
 /* ------------------------------------------------------------------ */
 void idt_flush(uint64_t addr) {
-    __asm__ volatile ("lidt [%0]" :: "r"(addr) : "memory");
+    __asm__ volatile ("lidt (%0)" :: "r"(addr) : "memory");
 }
 
 /* ------------------------------------------------------------------ */

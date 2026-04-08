@@ -199,9 +199,9 @@ gdt64:
     dq 0x00AF9A000000FFFF       ;   P=1, DPL=0, L=1 (64-bit), E=1, R=1
 .data: equ $ - gdt64            ; 0x10  kernel data
     dq 0x00AF92000000FFFF       ;   P=1, DPL=0, W=1
-gdt64_end:
+gdt64_end: equ $
 
-.ptr:
+gdt64.ptr:
     dw gdt64_end - gdt64 - 1   ; limit
     dd gdt64                    ; base (low 32 bits — fine before paging)
     dd 0                        ; base high (padding, ignored by 32-bit lgdt)
