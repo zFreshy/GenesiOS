@@ -23,6 +23,9 @@
 #include "mm/vmm.h"
 #include "mm/heap.h"
 
+#include "gfx/framebuffer.h"
+#include "gfx/fb_console.h"
+
 #include "proc/scheduler.h"
 #include "syscall/syscall.h"
 
@@ -47,9 +50,11 @@ static void print_banner(void) {
 /* Status line helper                                                   */
 /* ------------------------------------------------------------------ */
 static void ok(const char *msg) {
-    vga_set_color(VGA_LIGHT_GREEN, VGA_BLACK);
+    if (fb_available()) { fbc_set_fg(FBC_LIGHT_GREEN); }
+    else vga_set_color(VGA_LIGHT_GREEN, VGA_BLACK);
     kprintf("  [OK] ");
-    vga_set_color(VGA_WHITE, VGA_BLACK);
+    if (fb_available()) { fbc_set_fg(FBC_WHITE); }
+    else vga_set_color(VGA_WHITE, VGA_BLACK);
     kprintf("%s\n", msg);
 }
 
@@ -59,9 +64,11 @@ static void ok(const char *msg) {
 static char s_line[256];
 
 static void shell_prompt(void) {
-    vga_set_color(VGA_LIGHT_GREEN, VGA_BLACK);
+    if (fb_available()) fbc_set_fg(FBC_LIGHT_GREEN);
+    else vga_set_color(VGA_LIGHT_GREEN, VGA_BLACK);
     kprintf("genesi");
-    vga_set_color(VGA_WHITE, VGA_BLACK);
+    if (fb_available()) fbc_set_fg(FBC_WHITE);
+    else vga_set_color(VGA_WHITE, VGA_BLACK);
     kprintf("> ");
 }
 
@@ -224,6 +231,24 @@ void kernel_main(uint32_t boot_magic, uint64_t mboot_info) {
     pmm_init(mboot_info);  ok("Physical Memory Manager ready");
     vmm_init();            ok("Virtual Memory Manager (4-level paging)");
     heap_init();           ok("Kernel heap allocator ready");
+
+    /* --- Phase 8: Framebuffer ---------------------------------------- */
+    if (fb_init(mboot_info)) {
+        fbc_init();
+        /* Reprint the banner now that we're in graphical mode */
+        if (fb_available()) {
+            fbc_set_fg(FBC_LIGHT_CYAN);
+            kprintf("   ____                    _\n");
+            kprintf("  / ___| ___ _ __   ___  ___ (_)\n");
+            kprintf(" | |  _ / _ \\ '_ \\/ _ \\/ __|| |\n");
+            kprintf(" | |_| |  __/ | | |  __/\\__ \\| |\n");
+            kprintf("  \\____|\\___|\_| |_|\\___||____/|_|\n");
+            fbc_set_fg(FBC_DARK_GREY);
+            kprintf("      The Programming Operating System\n\n");
+            fbc_set_fg(FBC_WHITE);
+        }
+        ok("Framebuffer console active");
+    }
 
     /* --- Phase 4: Scheduler --------------------------------------- */
     sched_init();          ok("Scheduler initialized (PID 0 idle, PID 1 kernel)");

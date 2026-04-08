@@ -116,6 +116,7 @@ QEMU_FLAGS := \
 	-serial stdio \
 	-no-reboot \
 	-no-shutdown \
+	-vga std \
 	-display sdl
 
 run: iso

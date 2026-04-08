@@ -89,4 +89,26 @@ static inline mb2_tag_t *mb2_find_tag(uint64_t mboot_info, uint32_t type) {
     return NULL;
 }
 
+/* ------------------------------------------------------------------ */
+/* Framebuffer info tag (type 8) — filled by GRUB when using gfx mode */
+/* ------------------------------------------------------------------ */
+typedef struct {
+    uint32_t type;               /* = 8 */
+    uint32_t size;
+    uint64_t framebuffer_addr;   /* physical address of the framebuffer */
+    uint32_t framebuffer_pitch;  /* bytes per scanline */
+    uint32_t framebuffer_width;
+    uint32_t framebuffer_height;
+    uint8_t  framebuffer_bpp;    /* bits per pixel  */
+    uint8_t  framebuffer_type;   /* 1 = direct RGB  */
+    uint16_t reserved;
+    /* Color info follows for indexed modes; we only use type=1 (RGB) */
+} PACKED mb2_framebuffer_tag_t;
+
+/* Framebuffer type values */
+#define MB2_FB_TYPE_INDEXED  0
+#define MB2_FB_TYPE_RGB      1
+#define MB2_FB_TYPE_TEXT     2
+
 #endif /* MULTIBOOT2_H */
+

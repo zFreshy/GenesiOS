@@ -35,11 +35,20 @@ mb2_start:
     dd MB2_ARCH
     dd MB2_LEN
     dd MB2_CHECKSUM
+    ; Framebuffer request tag (type=5): ask GRUB for 1024x768x32
+    dw 5        ; type
+    dw 0        ; flags
+    dd 20       ; size
+    dd 1024     ; preferred width
+    dd 768      ; preferred height
+    dd 32       ; preferred bpp
+    align 8
     ; Required end tag
     dw 0    ; type  = 0
     dw 0    ; flags = 0
     dd 8    ; size  = 8
 mb2_end:
+
 
 ; -------------------------------------------------------
 ; BSS: page tables + kernel stack
