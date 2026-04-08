@@ -32,9 +32,21 @@ typedef struct {
 #define MB2_TAG_END       0
 #define MB2_TAG_CMDLINE   1
 #define MB2_TAG_BOOTNAME  2
+#define MB2_TAG_MODULE    3
 #define MB2_TAG_MMAP      6
 #define MB2_TAG_FRAMEBUF  8
 #define MB2_TAG_EFI64     12
+
+/* ------------------------------------------------------------------ */
+/* Module tag (type 3)                                                 */
+/* ------------------------------------------------------------------ */
+typedef struct {
+    uint32_t type;
+    uint32_t size;
+    uint32_t mod_start;
+    uint32_t mod_end;
+    char     string[0];     /* null-terminated string follows */
+} PACKED mb2_module_tag_t;
 
 /* ------------------------------------------------------------------ */
 /* Memory map tag (type 6)                                             */

@@ -41,7 +41,7 @@ static void print_banner(void) {
     kprintf("  / ___| ___ _ __   ___  ___ _ (_)\n");
     kprintf(" | |  _ / _ \\ '_ \\ / _ \\/ __| |\n");
     kprintf(" | |_| |  __/ | | |  __/\\__ \\| |\n");
-    kprintf("  \\____|\___|_| |_|\\___|____/|_|\n");
+    kprintf("  \\____|\\___|_| |_|\\___|____/|_|\n");
 
     vga_set_color(VGA_DARK_GREY, VGA_BLACK);
     kprintf("      The Programming Operating System\n");
@@ -160,14 +160,17 @@ static void shell_exec(const char *cmd) {
         
         while (tag->type != MB2_TAG_END) {
             if (tag->type == 3) { // MB2_TAG_MODULE
-                // struct: type, size, mod_start, mod_end, string...
                 uint32_t mod_start = *(uint32_t *)((uint8_t *)tag + 8);
-                process_create_user("test", (const uint8_t *)(uintptr_t)mod_start);
-                return;
+                uint8_t *mod_data = (uint8_t *)(uintptr_t)mod_start;
+                // Only execute if it is an ELF file (Magic: 0x7F 'E' 'L' 'F')
+                if (mod_data[0] == 0x7F && mod_data[1] == 'E' && mod_data[2] == 'L' && mod_data[3] == 'F') {
+                    process_create_user("test", mod_data);
+                    return;
+                }
             }
             tag = (mb2_tag_t *)((uint8_t *)tag + ((tag->size + 7) & ~7));
         }
-        kprintf("  Error: Could not find module in Multiboot info.\n");
+        kprintf("  Error: Could not find an ELF module in Multiboot info.\n");
     } else if (kstrcmp(cmd, "halt") == 0) {
         kprintf("  Halting...\n");
         irq_disable();
@@ -177,7 +180,7 @@ static void shell_exec(const char *cmd) {
     }
 }
 
-static void run_shell(void) {
+static void __attribute__((unused)) run_shell(void) {
     kprintf("\n");
     vga_set_color(VGA_YELLOW, VGA_BLACK);
     kprintf("  Genesi Shell — type 'help' for commands.\n");
@@ -279,6 +282,8 @@ void kernel_main(uint32_t boot_magic, uint64_t mboot_info) {
 
     /* --- Phase 8: Framebuffer ---------------------------------------- */
     fb_init(mboot_info);
+    extern void font_init(uint64_t);
+    font_init(mboot_info);
     fb_console_init();
     kprintf_enable_fb();
 

@@ -30,12 +30,49 @@ void compositor_init(void) {
 }
 
 /* ------------------------------------------------------------------ */
+/* Draw Drop Shadow (Fake Alpha Blending)                             */
+/* ------------------------------------------------------------------ */
+static void draw_shadow(int32_t x, int32_t y, int32_t w, int32_t h) {
+    if (!fb_available()) return;
+    
+    int32_t shadow_offset = 8;
+    int32_t sx = x + shadow_offset;
+    int32_t sy = y + shadow_offset;
+    
+    for (int32_t cy = sy; cy < sy + h; cy++) {
+        if (cy < 0 || cy >= (int32_t)s_height) continue;
+        for (int32_t cx = sx; cx < sx + w; cx++) {
+            if (cx < 0 || cx >= (int32_t)s_width) continue;
+            
+            /* Basic 50% darken blend (shift right by 1 and mask) */
+            extern uint32_t *fb_get_backbuffer(void);
+            uint32_t *bb = fb_get_backbuffer();
+            if (bb) {
+                uint32_t pitch_words = fb_width(); /* Note: simplistic pitch assumption for 32bpp */
+                uint32_t bg = bb[cy * pitch_words + cx];
+                
+                uint32_t r = ((bg >> 16) & 0xFF) / 2;
+                uint32_t g = ((bg >> 8) & 0xFF) / 2;
+                uint32_t b = (bg & 0xFF) / 2;
+                
+                bb[cy * pitch_words + cx] = (r << 16) | (g << 8) | b;
+            }
+        }
+    }
+}
+
+/* ------------------------------------------------------------------ */
 /* Draw a single window                                               */
 /* ------------------------------------------------------------------ */
 static void draw_window(window_t *win) {
     if (!win) return;
 
-    int32_t title_h = 24;
+    int32_t title_h = 32;
+
+    /* Draw window drop shadow (Win11 aesthetic) */
+    if (win->x > 0 && win->y > title_h) {
+        draw_shadow(win->x, win->y - title_h, win->width, win->height + title_h);
+    }
 
     /* Draw window border (1px) and shadow effect */
     uint32_t border_color = (win == wm_get_top()) ? 0x00555555 : 0x00333333;
@@ -53,12 +90,26 @@ static void draw_window(window_t *win) {
         /* Draw title bar background */
         fb_fillrect(win->x, title_y, win->width, title_h, tb_color);
 
-        /* Draw close button (clean dark red box) */
+        /* Draw control buttons (Win11 style: Maximize, Minimize, Close) */
+        /* Minimize */
+        fb_fillrect(win->x + win->width - 96, title_y, 32, title_h, tb_color); /* Hover state later */
+        font_draw_char(win->x + win->width - 96 + 12, title_y + 12, '_', 0x00FFFFFF, 0x00000000);
+        
+        /* Maximize */
+        fb_fillrect(win->x + win->width - 64, title_y, 32, title_h, tb_color);
+        font_draw_char(win->x + win->width - 64 + 12, title_y + 12, '#', 0x00FFFFFF, 0x00000000);
+
+        /* Close button (clean dark red box) */
         fb_fillrect(win->x + win->width - 32, title_y, 32, title_h, 0x00C42B1C);
-        font_draw_char(win->x + win->width - 16 - 4, title_y + 8, 'X', 0x00FFFFFF, 0x00000000);
+        font_draw_char(win->x + win->width - 32 + 12, title_y + 12, 'X', 0x00FFFFFF, 0x00000000);
 
         /* Draw title text centered vertically */
-        font_draw_string(win->x + 12, title_y + 8, win->title, 0x00FFFFFF, 0x00000000);
+        font_draw_string(win->x + 12, title_y + 12, win->title, 0x00FFFFFF, 0x00000000);
+        
+        /* Mask the top corners to simulate rounded corners (draw wallpaper color back) */
+        uint32_t corner_color = 0x00555555; /* Actually, we can just draw 1 pixel of background but shadow handles it. Let's just draw corner pixels as black to round it off a bit */
+        fb_putpixel(win->x, title_y, 0x00111111);
+        fb_putpixel(win->x + win->width - 1, title_y, 0x00111111);
     }
 
     /* Draw window content buffer */
@@ -175,6 +226,9 @@ static void draw_start_menu(void) {
     /* Calculate centered Start Menu */
     int32_t sm_x = (s_width - sm_width) / 2;
     int32_t sm_y = s_height - 40 - sm_height - 12; /* Floating above taskbar */
+    
+    /* Draw drop shadow behind menu */
+    draw_shadow(sm_x, sm_y, sm_width, sm_height);
     
     /* Menu border */
     fb_fillrect(sm_x - 1, sm_y - 1, sm_width + 2, sm_height + 2, 0x00333333);

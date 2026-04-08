@@ -94,6 +94,10 @@ void fb_flip(void) {
     kmemcpy(g_fb.buffer, s_backbuffer, g_fb.height * g_fb.pitch);
 }
 
+uint32_t *fb_get_backbuffer(void) {
+    return s_backbuffer;
+}
+
 void fb_blit(uint32_t x, uint32_t y, uint32_t w, uint32_t h, const uint32_t *src) {
     if (!s_backbuffer || !src) return;
     for (uint32_t cy = y; cy < y + h; cy++) {
