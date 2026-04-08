@@ -55,6 +55,10 @@ align 16
 stack_bottom: resb 16384      ; 16 KB kernel stack
 stack_top:
 
+align 4
+saved_magic:  resd 1
+saved_mboot:  resd 1
+
 ; -------------------------------------------------------
 ; 32-bit entry point
 ; -------------------------------------------------------
@@ -68,8 +72,8 @@ _start:
     ;   EBX = physical address of Multiboot2 info struct
 
     ; Save for later (we'll pass them to kernel_main as RDI, RSI)
-    mov edi, eax        ; arg1: boot magic
-    mov esi, ebx        ; arg2: mboot info ptr
+    mov dword [saved_magic], eax
+    mov dword [saved_mboot], ebx
 
     cli                 ; disable interrupts
 
@@ -224,9 +228,9 @@ long_mode_entry:
     ; Set up kernel stack
     mov rsp, stack_top
 
-    ; RDI = magic (from EDI, zero-extended)
-    ; RSI = mboot info ptr (from ESI, zero-extended)
-    ; Both already set in 32-bit code above.
+    ; Load magic and mboot pointer to RDI, RSI for kernel_main
+    mov edi, dword [saved_magic]
+    mov esi, dword [saved_mboot]
 
     call kernel_main
 
