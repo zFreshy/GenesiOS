@@ -135,9 +135,14 @@ void mouse_init(void) {
         s_max_y = (int32_t)fb_height() - 1;
     }
 
-    /* Enable PS/2 auxiliary (mouse) port */
+    /* Wait and Enable PS/2 auxiliary (mouse) port */
     ps2_wait_write();
-    outb(PS2_CMD, 0xA8);
+    outb(PS2_CMD, 0xA8); /* Enable mouse port */
+
+    /* Flush out the buffer */
+    while (inb(PS2_STATUS) & 0x01) {
+        inb(PS2_DATA);
+    }
 
     /* Enable mouse interrupt in the PS/2 controller */
     ps2_wait_write();
@@ -147,9 +152,15 @@ void mouse_init(void) {
     cfg |= 0x02;               /* enable IRQ12         */
     cfg &= ~0x20;              /* clear "mouse disable" bit */
     ps2_wait_write();
-    outb(PS2_CMD, 0x60);
+    outb(PS2_CMD, 0x60);       /* write config */
     ps2_wait_write();
     outb(PS2_DATA, cfg);
+
+    /* Reset the mouse */
+    mouse_write(0xFF);
+    mouse_read(); /* ACK */
+    mouse_read(); /* BAT pass (0xAA) */
+    mouse_read(); /* Device ID (0x00) */
 
     /* Tell mouse to use default settings */
     mouse_write(0xF6);
@@ -159,7 +170,7 @@ void mouse_init(void) {
     mouse_write(0xF4);
     mouse_read();   /* ACK */
 
-    /* Empty PS/2 buffer to prevent out-of-sync packets (ACKs causing drift) */
+    /* Empty PS/2 buffer again to prevent out-of-sync packets */
     while (inb(PS2_STATUS) & 0x01) {
         inb(PS2_DATA);
     }

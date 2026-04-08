@@ -20,8 +20,15 @@ void kprintf_enable_fb(void) {
 /* Output one character to whichever backend is active                 */
 /* ------------------------------------------------------------------ */
 static void putc_backend(char c) {
-    /* Always log to COM1 serial port (0x3F8) for debugging */
-    outb(0x3F8, c);
+    /* Log to COM1 serial port (0x3F8) for debugging */
+    /* Check if the serial port is ready to transmit before writing to avoid blocking on real hardware */
+    int timeout = 1000;
+    while ((inb(0x3FD) & 0x20) == 0 && timeout > 0) {
+        timeout--;
+    }
+    if (timeout > 0) {
+        outb(0x3F8, c);
+    }
 
     if (s_fb_ready) {
         fb_console_putchar(c);
