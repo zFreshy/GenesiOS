@@ -37,6 +37,7 @@ static char     s_buf[KB_BUF_SIZE];
 static uint32_t s_head = 0, s_tail = 0;
 static bool     s_shift = false;
 static bool     s_caps  = false;
+static bool     s_e0    = false;
 
 static void buf_push(char c) {
     uint32_t next = (s_head + 1) % KB_BUF_SIZE;
@@ -58,10 +59,27 @@ static void kb_irq_handler(registers_t *regs) {
 
     uint8_t sc = inb(KB_DATA);
 
+    if (sc == 0xE0) {
+        s_e0 = true;
+        irq_send_eoi(IRQ_KEYBOARD);
+        return;
+    }
+
+    bool is_e0 = s_e0;
+    s_e0 = false;
+
     /* Key release — high bit set */
     if (sc & 0x80) {
         sc &= 0x7F;
         if (sc == 0x2A || sc == 0x36) s_shift = false;
+        irq_send_eoi(IRQ_KEYBOARD);
+        return;
+    }
+
+    /* Handle Windows Key (Left GUI = 0x5B, Right GUI = 0x5C) or F12 (0x58) */
+    if ((is_e0 && (sc == 0x5B || sc == 0x5C)) || sc == 0x58) {
+        extern void compositor_toggle_start_menu(void);
+        compositor_toggle_start_menu();
         irq_send_eoi(IRQ_KEYBOARD);
         return;
     }

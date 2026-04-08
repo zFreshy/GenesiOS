@@ -219,7 +219,27 @@ static void run_shell(void) {
 }
 
 /* ------------------------------------------------------------------ */
-/* kernel_main                                                          */
+/* Shutdown / Power Off                                               */
+/* ------------------------------------------------------------------ */
+void system_shutdown(void) {
+    kprintf("\n[ACPI] Shutting down virtual machine...\n");
+    
+    /* Desabilita interrupções pra não ter tela azul no meio do desligamento */
+    irq_disable();
+    
+    /* Portas mágicas ACPI para emuladores comuns */
+    outw(0x604, 0x2000);  /* QEMU newer than 2.0 */
+    outw(0xB004, 0x2000); /* Older QEMU / Bochs */
+    outw(0x4004, 0x3400); /* VirtualBox */
+    
+    /* Se nada disso funcionar (PC Real sem ACPI configurado), trava o CPU */
+    for (;;) {
+        cpu_halt();
+    }
+}
+
+/* ------------------------------------------------------------------ */
+/* kernel_main                                                        */
 /* ------------------------------------------------------------------ */
 void kernel_main(uint32_t boot_magic, uint64_t mboot_info) {
     g_mboot_info = mboot_info;
