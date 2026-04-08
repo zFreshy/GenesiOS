@@ -27,9 +27,6 @@
 #include "gfx/framebuffer.h"
 #include "gfx/fb_console.h"
 
-#include "gui/compositor.h"
-#include "gui/desktop.h"
-
 #include "proc/scheduler.h"
 #include "syscall/syscall.h"
 
@@ -115,7 +112,8 @@ static void test_thread_c(void) {
 static void mouse_irq_wrapper(registers_t *regs) {
     (void)regs;
     mouse_irq_handler();
-    if (fb_available()) compositor_render();
+    /* Desktop and WM comes later */
+    /* if (fb_available()) compositor_render(); */
     irq_send_eoi(IRQ_MOUSE);
 }
 
@@ -137,7 +135,8 @@ static void shell_exec(const char *cmd) {
         kprintf("  Total : %zu MB\n",
                 (size_t)(pmm_total_frames() * PAGE_SIZE / (1024*1024)));
     } else if (kstrcmp(cmd, "clear") == 0) {
-        vga_clear();
+        if (fb_available()) fbc_clear();
+        else vga_clear();
     } else if (kstrcmp(cmd, "version") == 0) {
         kprintf("  Genesi OS v0.2-dev (x86-64, C + Assembly)\n");
         kprintf("  Uptime: %zu ticks\n", (size_t)pit_get_ticks());
@@ -189,18 +188,28 @@ static void run_shell(void) {
         while (true) {
             char c = keyboard_getchar();
             if (c == '\n' || c == '\r') {
-                vga_putchar('\n');
+                if (fb_available()) fbc_putchar('\n');
+                else vga_putchar('\n');
                 s_line[len] = '\0';
                 break;
             }
             if (c == '\b' && len > 0) {
                 len--;
-                vga_putchar('\b');
+                /* Deleting a char in FB console needs some logic or just print space over it */
+                if (fb_available()) {
+                    /* Basic backspace */
+                    fbc_putchar('\b'); 
+                    fbc_putchar(' ');
+                    fbc_putchar('\b');
+                } else {
+                    vga_putchar('\b');
+                }
                 continue;
             }
             if (len < sizeof(s_line) - 1) {
                 s_line[len++] = c;
-                vga_putchar(c);
+                if (fb_available()) fbc_putchar(c);
+                else vga_putchar(c);
             }
         }
         shell_exec(s_line);
@@ -247,26 +256,22 @@ void kernel_main(uint32_t boot_magic, uint64_t mboot_info) {
     heap_init();           ok("Kernel heap allocator ready");
 
     /* --- Phase 8: Framebuffer ---------------------------------------- */
-    if (fb_init(mboot_info)) {
-        fbc_init();
-        /* Reprint the banner now that we're in graphical mode */
-        if (fb_available()) {
-            fbc_set_fg(FBC_LIGHT_CYAN);
-            kprintf("   ____                    _\n");
-            kprintf("  / ___| ___ _ __   ___  ___ (_)\n");
-            kprintf(" | |  _ / _ \\ '_ \\/ _ \\/ __|| |\n");
-            kprintf(" | |_| |  __/ | | |  __/\\__ \\| |\n");
-            kprintf("  \\____|\\___|\_| |_|\\___||____/|_|\n");
-            fbc_set_fg(FBC_DARK_GREY);
-            kprintf("      The Programming Operating System\n\n");
-            fbc_set_fg(FBC_WHITE);
-        }
-        ok("Framebuffer console active");
+    fb_init(mboot_info);
+    fb_console_init();
+    kprintf_enable_fb();
 
-        /* --- Phase 10: Desktop & Window Manager -------------------------- */
-        desktop_start();
-        ok("Desktop initialized (Compositor + WM)");
-    }
+    /* Reprint the banner now that we're in graphical mode */
+    kprintf("\n   ____                    _\n");
+    kprintf("  / ___| ___ _ __   ___  ___ (_)\n");
+    kprintf(" | |  _ / _ \\ '_ \\/ _ \\/ __|| |\n");
+    kprintf(" | |_| |  __/ | | |  __/\\__ \\| |\n");
+    kprintf("  \\____|\\___| | |_|\\___||____/|_|\n");
+    kprintf("      The Programming Operating System\n\n");
+    ok("Framebuffer console active");
+
+    /* Desktop and WM comes later */
+    /* desktop_start(); */
+    /* ok("Desktop initialized (Compositor + WM)"); */
 
     /* --- Phase 4: Scheduler --------------------------------------- */
     sched_init();          ok("Scheduler initialized (PID 0 idle, PID 1 kernel)");
@@ -277,12 +282,9 @@ void kernel_main(uint32_t boot_magic, uint64_t mboot_info) {
     /* --- Enable interrupts ---------------------------------------- */
     irq_enable();
     kprintf("\n");
-    vga_set_color(VGA_LIGHT_GREEN, VGA_BLACK);
     kprintf("  System ready. ");
-    vga_set_color(VGA_DARK_GREY, VGA_BLACK);
     kprintf("(%zu MB RAM available)\n",
             (size_t)(pmm_free_frames() * PAGE_SIZE / (1024 * 1024)));
-    vga_set_color(VGA_WHITE, VGA_BLACK);
 
     /* --- Phase 7 preview: basic interactive shell ----------------- */
     run_shell();

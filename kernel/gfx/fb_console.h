@@ -1,42 +1,26 @@
-/*
- * kernel/gfx/fb_console.h
- * Text console rendered on the linear framebuffer.
- */
 #ifndef FB_CONSOLE_H
 #define FB_CONSOLE_H
 
 #include "../include/kernel.h"
 
-/* Colour palette (ARGB 0x00RRGGBB) */
-#define FBC_BLACK        0x00000000U
-#define FBC_DARK_GREY    0x00444444U
-#define FBC_GREY         0x00AAAAAAAU
-#define FBC_WHITE        0x00CCCCCCU
-#define FBC_CYAN         0x0000CCCCU
-#define FBC_LIGHT_CYAN   0x0055FFFFU
-#define FBC_GREEN        0x0000AA00U
-#define FBC_LIGHT_GREEN  0x0055FF55U
-#define FBC_YELLOW       0x00FFFF55U
-#define FBC_RED          0x00AA0000U
-#define FBC_LIGHT_RED    0x00FF5555U
-#define FBC_BLUE         0x000000AAU
-#define FBC_MAGENTA      0x00AA00AAU
-#define FBC_BG           0x0012121FU  /* dark navy background */
+void fb_console_init(void);
+void fb_console_putchar(char c);
+void fb_console_puts(const char *str);
+void fb_console_clear(void);
 
-/* Initialise the framebuffer console */
-void fbc_init(void);
+/* Colors to match VGA logic if used */
+#define FBC_BLACK       0x00000000
+#define FBC_WHITE       0x00FFFFFF
+#define FBC_LIGHT_GREY  0x00AAAAAA
+#define FBC_DARK_GREY   0x00555555
+#define FBC_LIGHT_CYAN  0x0055FFFF
+#define FBC_LIGHT_GREEN 0x0055FF55
+#define FBC_RED         0x00FF0000
 
-/* Output one character (handles \n, \b, \t) */
+void fbc_set_fg(uint32_t color);
+void fbc_set_bg(uint32_t color);
+void fbc_clear(void);
+void fbc_puts(const char *str);
 void fbc_putchar(char c);
 
-/* Output a null-terminated string */
-void fbc_puts(const char *s);
-
-/* Set text / background colour */
-void fbc_set_fg(uint32_t colour);
-void fbc_set_bg(uint32_t colour);
-
-/* Clear the screen */
-void fbc_clear(void);
-
-#endif /* FB_CONSOLE_H */
+#endif

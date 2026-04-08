@@ -14,4 +14,6 @@ void kprintf(const char *fmt, ...);
 NORETURN void kpanic(const char *fmt, ...);
 NORETURN void kpanic_color(uint32_t bg, uint32_t fg, const char *fmt, ...);
 
+void kprintf_enable_fb(void);
+
 #endif /* KPRINTF_H */

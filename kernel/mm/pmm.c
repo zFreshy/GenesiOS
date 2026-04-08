@@ -62,9 +62,9 @@ void pmm_init(uint64_t mboot_info) {
             uint64_t frame_start = ALIGN_UP(base, PAGE_SIZE) >> PAGE_SHIFT;
             uint64_t frame_end   = (base + length) >> PAGE_SHIFT;
 
-            /* Safety: clamp frames to 256MB (the boot.asm identity map limit). 
-             * If we return frames above 256MB, the VMM's kmemset will page-fault. */
-            uint64_t max_usable_frames = (256ULL * 1024 * 1024) / PAGE_SIZE;
+            /* Safety: clamp frames to 4GB (the boot.asm identity map limit). 
+             * If we return frames above 4GB, the VMM's kmemset will page-fault. */
+            uint64_t max_usable_frames = (4096ULL * 1024 * 1024) / PAGE_SIZE;
             if (frame_end > max_usable_frames) frame_end = max_usable_frames;
 
             for (uint64_t f = frame_start; f < frame_end && f < MAX_FRAMES; f++) {
@@ -103,6 +103,34 @@ uint64_t pmm_alloc_frame(void) {
         return FRAME_TO_ADDR(frame);
     }
     return 0;   /* Out of memory */
+}
+
+/* ------------------------------------------------------------------ */
+/* pmm_alloc_frames — find N contiguous free frames                   */
+/* ------------------------------------------------------------------ */
+uint64_t pmm_alloc_frames(size_t count) {
+    if (count == 0) return 0;
+    if (count == 1) return pmm_alloc_frame();
+
+    size_t run = 0;
+    uint64_t start_frame = 0;
+
+    for (uint64_t i = 0; i < MAX_FRAMES; i++) {
+        if (!bitmap_test(i)) {
+            if (run == 0) start_frame = i;
+            run++;
+            if (run == count) {
+                for (size_t j = 0; j < count; j++) {
+                    bitmap_set(start_frame + j);
+                }
+                s_free -= count;
+                return FRAME_TO_ADDR(start_frame);
+            }
+        } else {
+            run = 0;
+        }
+    }
+    return 0;
 }
 
 /* ------------------------------------------------------------------ */

@@ -8,6 +8,14 @@
 #include "gfx/fb_console.h"
 #include "gfx/framebuffer.h"
 
+/* Simple spinlock for kprintf if we have multiple CPUs/threads */
+static bool s_kprintf_lock = false;
+static bool s_fb_ready = false;
+
+void kprintf_enable_fb(void) {
+    s_fb_ready = true;
+}
+
 /* ------------------------------------------------------------------ */
 /* Output one character to whichever backend is active                 */
 /* ------------------------------------------------------------------ */
@@ -15,8 +23,8 @@ static void putc_backend(char c) {
     /* Always log to COM1 serial port (0x3F8) for debugging */
     outb(0x3F8, c);
 
-    if (fb_available()) {
-        fbc_putchar(c);
+    if (s_fb_ready) {
+        fb_console_putchar(c);
     } else {
         vga_putchar(c);
     }
@@ -113,11 +121,11 @@ void kprintf(const char *fmt, ...) {
 /* kpanic_color / kpanic                                               */
 /* ------------------------------------------------------------------ */
 static void vkpanic_core(uint32_t bg, uint32_t fg, const char *fmt, va_list ap) {
-    if (fb_available()) {
+    if (s_fb_ready) {
         fbc_set_bg(bg);
         fbc_set_fg(fg);
-        fbc_clear();
-        fbc_puts("\n\n  *** KERNEL PANIC ***\n  ");
+        fb_console_clear();
+        fb_console_puts("\n\n  *** KERNEL PANIC ***\n  ");
     } else {
         vga_set_color(VGA_WHITE, VGA_RED);
         vga_puts("\n\n  *** KERNEL PANIC ***  \n  ");
@@ -125,7 +133,11 @@ static void vkpanic_core(uint32_t bg, uint32_t fg, const char *fmt, va_list ap) 
 
     vkprintf(fmt, ap);
 
-    puts_backend("\n\n  System halted.\n");
+    if (s_fb_ready) {
+        fb_console_puts("\n\n  System halted.\n");
+    } else {
+        vga_puts("\n\n  System halted.\n");
+    }
     panic_halt();
 }
 
@@ -134,6 +146,7 @@ void kpanic(const char *fmt, ...) {
     va_start(ap, fmt);
     vkpanic_core(0x00AA0000, 0x00FFFFFF, fmt, ap);
     va_end(ap);
+    panic_halt();
 }
 
 void kpanic_color(uint32_t bg, uint32_t fg, const char *fmt, ...) {
@@ -141,4 +154,5 @@ void kpanic_color(uint32_t bg, uint32_t fg, const char *fmt, ...) {
     va_start(ap, fmt);
     vkpanic_core(bg, fg, fmt, ap);
     va_end(ap);
+    panic_halt();
 }

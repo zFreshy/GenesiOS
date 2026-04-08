@@ -1,105 +1,83 @@
-/*
- * kernel/gfx/fb_console.c
- * VT100-style text console rendered on the linear framebuffer.
- * Supports multi-colour text, scrolling, backspace, and tab.
- */
 #include "fb_console.h"
 #include "framebuffer.h"
 #include "font.h"
-#include "../include/kernel.h"
 
-/* ------------------------------------------------------------------ */
-/* State                                                               */
-/* ------------------------------------------------------------------ */
-static uint32_t s_cols = 0;   /* characters per row */
-static uint32_t s_rows = 0;   /* character rows     */
-static uint32_t s_cx   = 0;   /* cursor column      */
-static uint32_t s_cy   = 0;   /* cursor row         */
-static uint32_t s_fg   = FBC_WHITE;
-static uint32_t s_bg   = FBC_BG;
+#define BG_COLOR 0x001A1A2E /* Dark blue background */
+#define FG_COLOR 0x00FFFFFF /* White text */
 
-/* ------------------------------------------------------------------ */
-/* fbc_init                                                            */
-/* ------------------------------------------------------------------ */
-void fbc_init(void) {
-    s_cols = fb_width()  / FONT_WIDTH;
-    s_rows = fb_height() / FONT_HEIGHT;
-    s_cx   = 0;
-    s_cy   = 0;
-    s_fg   = FBC_WHITE;
-    s_bg   = FBC_BG;
-    fb_clear(s_bg);
+static uint32_t s_cursor_x = 0;
+static uint32_t s_cursor_y = 0;
+
+static uint32_t s_bg_color = BG_COLOR;
+static uint32_t s_fg_color = FG_COLOR;
+
+void fbc_set_fg(uint32_t color) { s_fg_color = color; }
+void fbc_set_bg(uint32_t color) { s_bg_color = color; }
+void fbc_clear(void) { fb_console_clear(); }
+void fbc_puts(const char *str) { fb_console_puts(str); }
+void fbc_putchar(char c) { fb_console_putchar(c); }
+
+void fb_console_init(void) {
+    s_cursor_x = 0;
+    s_cursor_y = 0;
+    fb_clear(s_bg_color);
+    fb_flip();
 }
 
-/* ------------------------------------------------------------------ */
-/* fbc_set_fg / fbc_set_bg                                             */
-/* ------------------------------------------------------------------ */
-void fbc_set_fg(uint32_t colour) { s_fg = colour; }
-void fbc_set_bg(uint32_t colour) { s_bg = colour; }
-
-/* ------------------------------------------------------------------ */
-/* fbc_clear                                                           */
-/* ------------------------------------------------------------------ */
-void fbc_clear(void) {
-    fb_clear(s_bg);
-    s_cx = 0;
-    s_cy = 0;
+void fb_console_clear(void) {
+    s_cursor_x = 0;
+    s_cursor_y = 0;
+    fb_clear(s_bg_color);
+    fb_flip();
 }
 
-/* ------------------------------------------------------------------ */
-/* Internal: advance cursor, scroll if needed                          */
-/* ------------------------------------------------------------------ */
-static void newline(void) {
-    s_cx = 0;
+static void fb_console_scroll(void) {
+    /* Copy everything up by one row of text */
+    uint32_t row_bytes = g_fb.pitch * FONT_HEIGHT;
+    uint32_t total_bytes = g_fb.pitch * g_fb.height;
     
-    /* Safeguard against being called before fbc_init */
-    if (s_rows == 0) return;
-
-    s_cy++;
-    if (s_cy >= s_rows) {
-        fb_scroll_up(s_bg);
-        s_cy = s_rows - 1;
-    }
+    kmemcpy(g_fb.buffer, (uint8_t *)g_fb.buffer + row_bytes, total_bytes - row_bytes);
+    
+    /* Clear the last line */
+    fb_fillrect(0, g_fb.height - FONT_HEIGHT, g_fb.width, FONT_HEIGHT, s_bg_color);
+    s_cursor_y -= FONT_HEIGHT;
 }
 
-/* ------------------------------------------------------------------ */
-/* fbc_putchar                                                         */
-/* ------------------------------------------------------------------ */
-void fbc_putchar(char c) {
+void fb_console_putchar(char c) {
     if (c == '\n') {
-        newline();
-        return;
-    }
-    if (c == '\r') {
-        s_cx = 0;
-        return;
-    }
-    if (c == '\b') {
-        if (s_cx > 0) {
-            s_cx--;
-            fb_draw_char(s_cx * FONT_WIDTH, s_cy * FONT_HEIGHT, ' ', s_fg, s_bg);
+        s_cursor_x = 0;
+        s_cursor_y += FONT_HEIGHT;
+    } else if (c == '\r') {
+        s_cursor_x = 0;
+    } else if (c == '\b') {
+        if (s_cursor_x >= FONT_WIDTH) {
+            s_cursor_x -= FONT_WIDTH;
+        } else if (s_cursor_y >= FONT_HEIGHT) {
+            s_cursor_y -= FONT_HEIGHT;
+            s_cursor_x = (g_fb.width / FONT_WIDTH - 1) * FONT_WIDTH;
         }
-        return;
-    }
-    if (c == '\t') {
-        uint32_t next = (s_cx + 8) & ~7u;
-        while (s_cx < next) {
-            fb_draw_char(s_cx * FONT_WIDTH, s_cy * FONT_HEIGHT, ' ', s_fg, s_bg);
-            s_cx++;
-            if (s_cx >= s_cols) newline();
-        }
-        return;
+    } else if (c == '\t') {
+        s_cursor_x = (s_cursor_x + FONT_WIDTH * 4) & ~(FONT_WIDTH * 4 - 1);
+    } else {
+        font_draw_char(s_cursor_x, s_cursor_y, c, s_fg_color, s_bg_color);
+        s_cursor_x += FONT_WIDTH;
     }
 
-    fb_draw_char(s_cx * FONT_WIDTH, s_cy * FONT_HEIGHT, c, s_fg, s_bg);
-    s_cx++;
-    if (s_cx >= s_cols) newline();
+    if (s_cursor_x >= g_fb.width) {
+        s_cursor_x = 0;
+        s_cursor_y += FONT_HEIGHT;
+    }
+
+    if (s_cursor_y >= g_fb.height) {
+        fb_console_scroll();
+    }
+    
+    fb_flip();
 }
 
-/* ------------------------------------------------------------------ */
-/* fbc_puts                                                            */
-/* ------------------------------------------------------------------ */
-void fbc_puts(const char *s) {
-    if (!s) return;
-    while (*s) fbc_putchar(*s++);
+void fb_console_puts(const char *str) {
+    while (*str) {
+        fb_console_putchar(*str++);
+    }
+    fb_flip();
 }

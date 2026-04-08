@@ -17,6 +17,7 @@
 
 void     pmm_init(uint64_t mboot_info);
 uint64_t pmm_alloc_frame(void);          /* returns physical address, 0 on OOM */
+uint64_t pmm_alloc_frames(size_t count); /* allocate contiguous frames */
 void     pmm_free_frame(uint64_t addr);
 uint64_t pmm_free_frames(void);
 uint64_t pmm_total_frames(void);

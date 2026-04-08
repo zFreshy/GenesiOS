@@ -4,11 +4,12 @@
  * Uses a static 4 MB BSS buffer — safe since identity map covers all of it.
  */
 #include "heap.h"
+#include "pmm.h"
 #include "../include/kprintf.h"
 
-#define HEAP_SIZE        (4U * 1024U * 1024U)   /* 4 MB */
-#define HEAP_MAGIC_FREE  0xDEADC0DEULL
-#define HEAP_MAGIC_USED  0xC0FFEEULL
+#define HEAP_INITIAL_SIZE (16U * 1024U * 1024U)   /* 16 MB */
+#define HEAP_MAGIC_FREE   0xDEADC0DEULL
+#define HEAP_MAGIC_USED   0xC0FFEEULL
 
 typedef struct heap_block {
     uint64_t          magic;
@@ -17,20 +18,24 @@ typedef struct heap_block {
     struct heap_block *next;
 } heap_block_t;
 
-static uint8_t       s_heap_storage[HEAP_SIZE] ALIGNED(16);
 static heap_block_t *s_head = NULL;
 
 /* ------------------------------------------------------------------ */
 /* heap_init                                                            */
 /* ------------------------------------------------------------------ */
 void heap_init(void) {
-    s_head = (heap_block_t *)s_heap_storage;
+    uint64_t pages = HEAP_INITIAL_SIZE / PAGE_SIZE;
+    uint64_t phys = pmm_alloc_frames(pages);
+    if (!phys) kpanic("Heap: failed to allocate initial memory\n");
+
+    /* Identity mapped, so virtual = physical */
+    s_head = (heap_block_t *)(uintptr_t)phys;
     s_head->magic = HEAP_MAGIC_FREE;
-    s_head->size  = HEAP_SIZE - sizeof(heap_block_t);
+    s_head->size  = HEAP_INITIAL_SIZE - sizeof(heap_block_t);
     s_head->free  = true;
     s_head->next  = NULL;
-    kprintf("[Heap] %u KB static buffer at %p\n",
-            (unsigned)(HEAP_SIZE / 1024), (void *)s_heap_storage);
+    kprintf("[Heap] %u KB dynamic buffer at %p\n",
+            (unsigned)(HEAP_INITIAL_SIZE / 1024), (void *)s_head);
 }
 
 /* ------------------------------------------------------------------ */

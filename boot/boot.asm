@@ -58,7 +58,7 @@ align 4096
 
 pml4:         resb 4096       ; Page Map Level 4
 pdp:          resb 4096       ; Page Directory Pointer Table
-pd:           resb 4096 * 4   ; Page Directory (4 PDPs x 512 entries, covers 256 MB via 2 MB pages)
+pd:           resb 4096 * 4   ; Page Directory (4 tables, 4GB)
 
 align 16
 stack_bottom: resb 16384      ; 16 KB kernel stack
@@ -170,9 +170,9 @@ cpu_check_longmode:
     jmp $
 
 ; -------------------------------------------------------
-; Set up identity-mapped page tables (first 256 MB)
-; Using 2 MB huge pages: PML4 -> PDP -> PD[0..127]
-; Each PD covers 1 GB, using entries 0-127 = 256 MB
+; Set up identity-mapped page tables (first 4 GB)
+; Using 2 MB huge pages: PML4 -> PDP[0..3] -> PD[0..2047]
+; Each PD covers 1 GB, 4 PDs = 4 GB.
 ; USER bit set (0x07 base) so ring-3 can access the range
 ; -------------------------------------------------------
 paging_setup:
@@ -187,13 +187,19 @@ paging_setup:
     or  eax, 0x07
     mov [pml4], eax
 
-    ; PDP[0] -> PD  (P + RW + U)
-    ; One PD table covers 512 x 2MB = 1GB. We use 128 entries = 256MB.
+    ; PDP[0..3] -> PD[0..3]  (P + RW + U)
+    ; Four PD tables cover 2048 x 2MB = 4GB.
     mov eax, pd
     or  eax, 0x07
-    mov [pdp], eax
+    mov [pdp + 0], eax
+    add eax, 4096
+    mov [pdp + 8], eax
+    add eax, 4096
+    mov [pdp + 16], eax
+    add eax, 4096
+    mov [pdp + 24], eax
 
-    ; PD[0..127]: identity-map 128 x 2 MB = 256 MB
+    ; PD[0..2047]: identity-map 2048 x 2 MB = 4 GB
     ; Flags: 0x87 = Present | Writable | User | PageSize(huge)
     mov ecx, 0
     mov eax, 0x87           ; present | writable | user | huge
@@ -201,7 +207,7 @@ paging_setup:
     mov [pd + ecx * 8], eax
     add eax, 0x200000       ; +2 MB
     inc ecx
-    cmp ecx, 128
+    cmp ecx, 2048
     jne .pd_loop
     ret
 

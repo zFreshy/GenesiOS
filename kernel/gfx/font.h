@@ -1,16 +1,12 @@
-/*
- * kernel/gfx/font.h
- * Bitmap font renderer — 8x16 embedded font.
- */
 #ifndef FONT_H
 #define FONT_H
 
 #include "../include/kernel.h"
 
-#define FONT_WIDTH   8
-#define FONT_HEIGHT  16
+#define FONT_WIDTH  8
+#define FONT_HEIGHT 8
 
-/* Pointer to the raw bitmap data: 256 chars × 16 bytes */
-extern const uint8_t g_font8x16[256][16];
+void font_draw_char(uint32_t x, uint32_t y, char c, uint32_t fg, uint32_t bg);
+void font_draw_string(uint32_t x, uint32_t y, const char *str, uint32_t fg, uint32_t bg);
 
-#endif /* FONT_H */
+#endif
