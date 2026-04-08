@@ -49,6 +49,15 @@ static bool    s_vmmouse = false;
 static int32_t s_max_x = 1023;
 static int32_t s_max_y = 767;
 
+void mouse_set_bounds(uint32_t w, uint32_t h) {
+    s_max_x = w - 1;
+    s_max_y = h - 1;
+    
+    /* Centraliza a seta caso estejamos em modo relativo (se absoluto, ele se corrige no primeiro pacote) */
+    s_x = w / 2;
+    s_y = h / 2;
+}
+
 /* ------------------------------------------------------------------ */
 /* VMMouse helpers                                                      */
 /* ------------------------------------------------------------------ */
@@ -188,8 +197,16 @@ void mouse_irq_handler(void) {
                     s_x -= (int32_t)x;
                     s_y += (int32_t)y;
                 } else {
-                    s_x = (int32_t)((x * fb_width()) / 0xFFFF);
-                    s_y = (int32_t)((y * fb_height()) / 0xFFFF);
+                    /* Alguns hypervisors limitam o VMMouse a retornar valores entre 0 e a resolução real 
+                     * da janela hospedada em vez de usar 0xFFFF. Se for muito menor que 0xFFFF,
+                     * podemos estar lendo as coordenadas físicas diretas sem precisar escalar. */
+                    if (x <= fb_width() && y <= fb_height()) {
+                        s_x = (int32_t)x;
+                        s_y = (int32_t)y;
+                    } else {
+                        s_x = (int32_t)((x * fb_width()) / 0xFFFF);
+                        s_y = (int32_t)((y * fb_height()) / 0xFFFF);
+                    }
                 }
             }
             

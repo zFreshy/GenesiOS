@@ -61,6 +61,9 @@ void fb_init(uint64_t mboot_info) {
     }
 
     kprintf("[GFX] Framebuffer %ux%ux%u at %p\n", g_fb.width, g_fb.height, g_fb.bpp, g_fb.buffer);
+
+    extern void mouse_set_bounds(uint32_t w, uint32_t h);
+    mouse_set_bounds(g_fb.width, g_fb.height);
 }
 
 void fb_putpixel(uint32_t x, uint32_t y, uint32_t color) {

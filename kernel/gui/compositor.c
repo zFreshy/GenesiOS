@@ -60,17 +60,41 @@ static void draw_window(window_t *win) {
 }
 
 /* ------------------------------------------------------------------ */
-/* Draw a cursor cross                                                */
+/* Draw an arrow cursor                                               */
 /* ------------------------------------------------------------------ */
 static void draw_cursor(void) {
     int32_t cx = mouse_x();
     int32_t cy = mouse_y();
-    uint32_t cursor_color = 0x00FFFFFF; /* White cursor */
 
-    /* Small cross */
-    for (int i = -4; i <= 4; i++) {
-        fb_putpixel(cx + i, cy, cursor_color);
-        fb_putpixel(cx, cy + i, cursor_color);
+    static const char *cursor_shape[17] = {
+        "X               ",
+        "XX              ",
+        "X.X             ",
+        "X..X            ",
+        "X...X           ",
+        "X....X          ",
+        "X.....X         ",
+        "X......X        ",
+        "X.......X       ",
+        "X........X      ",
+        "X.....XXXXX     ",
+        "X..X..X         ",
+        "X.X X..X        ",
+        "XX  X..X        ",
+        "X    X..X       ",
+        "     X..X       ",
+        "      XX        "
+    };
+
+    for (int y = 0; y < 17; y++) {
+        for (int x = 0; x < 16; x++) {
+            char c = cursor_shape[y][x];
+            if (c == 'X') {
+                fb_putpixel(cx + x, cy + y, 0x00000000); /* Black border */
+            } else if (c == '.') {
+                fb_putpixel(cx + x, cy + y, 0x00FFFFFF); /* White fill */
+            }
+        }
     }
 }
 
