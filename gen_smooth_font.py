@@ -1,9 +1,9 @@
 from PIL import Image, ImageDraw, ImageFont
 import sys
 
-# Tamanho desejado da fonte para ficar moderno (16x32)
-FONT_WIDTH = 12
-FONT_HEIGHT = 24
+# Aumentando a resolução da fonte base para ficar bem mais legível (16x32)
+FONT_WIDTH = 16
+FONT_HEIGHT = 32
 
 try:
     # Use any modern font available, let's download Inter or Roboto dynamically if not present
@@ -15,8 +15,8 @@ try:
         print("Downloading font...")
         urllib.request.urlretrieve("https://github.com/googlefonts/RobotoMono/raw/main/fonts/ttf/RobotoMono-Regular.ttf", font_file)
         
-    # Uma fonte Mono tamanho 20 cabe perfeitamente em 12x24
-    font = ImageFont.truetype(font_file, 20)
+    # Fonte maior, renderizada nativamente com bom anti-aliasing
+    font = ImageFont.truetype(font_file, 26)
     
     out = "#ifndef FONT_DATA_H\n#define FONT_DATA_H\n\n"
     out += f"#define FONT_WIDTH {FONT_WIDTH}\n"
@@ -24,26 +24,25 @@ try:
     out += f"static const unsigned char font_alpha[256][{FONT_WIDTH * FONT_HEIGHT}] = {{\n"
     
     for i in range(256):
-        # Cria uma imagem em escala de cinza (L) com fundo preto (0)
-        img = Image.new('L', (FONT_WIDTH, FONT_HEIGHT), 0)
-        draw = ImageDraw.Draw(img)
+        # Renderização super amostrada para melhor anti-aliasing
+        # Renderizamos 2x maior e depois damos downscale (Supersampling)
+        img_large = Image.new('L', (FONT_WIDTH * 2, FONT_HEIGHT * 2), 0)
+        draw = ImageDraw.Draw(img_large)
+        font_large = ImageFont.truetype(font_file, 52)
         
         char = chr(i) if i >= 32 and i <= 126 else '?'
         if i < 32: char = ' ' # Ignore non-printable
         
-        # Render text with white (255)
-        # We need to center the text slightly.
-        # getbbox or textlength could be used.
         try:
-            bbox = font.getbbox(char)
-            # centraliza a letra horizontalmente no bloco de 12px
+            bbox = font_large.getbbox(char)
             w = bbox[2] - bbox[0]
-            offset_x = (FONT_WIDTH - w) // 2
-            # Roboto Mono pode ficar um pouco alta, descemos ela 2 pixels
-            draw.text((offset_x, 2), char, font=font, fill=255)
+            offset_x = (FONT_WIDTH * 2 - w) // 2
+            draw.text((offset_x, 4), char, font=font_large, fill=255)
         except:
-            draw.text((0, 2), char, font=font, fill=255)
+            draw.text((0, 4), char, font=font_large, fill=255)
             
+        # Downscale com filtro LANCZOS para anti-aliasing perfeito
+        img = img_large.resize((FONT_WIDTH, FONT_HEIGHT), Image.Resampling.LANCZOS)
         pixels = list(img.getdata())
         
         row_bytes = [str(p) for p in pixels]
