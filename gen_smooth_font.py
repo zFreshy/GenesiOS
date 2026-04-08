@@ -10,12 +10,13 @@ try:
     import urllib.request
     import os
     
-    font_file = "Inter-Regular.ttf"
+    font_file = "RobotoMono-Regular.ttf"
     if not os.path.exists(font_file):
         print("Downloading font...")
-        urllib.request.urlretrieve("https://github.com/googlefonts/roboto/raw/main/src/hinted/Roboto-Regular.ttf", font_file)
+        urllib.request.urlretrieve("https://github.com/googlefonts/RobotoMono/raw/main/fonts/ttf/RobotoMono-Regular.ttf", font_file)
         
-    font = ImageFont.truetype(font_file, 15)
+    # Uma fonte Mono tamanho 20 cabe perfeitamente em 12x24
+    font = ImageFont.truetype(font_file, 20)
     
     out = "#ifndef FONT_DATA_H\n#define FONT_DATA_H\n\n"
     out += f"#define FONT_WIDTH {FONT_WIDTH}\n"
@@ -35,11 +36,13 @@ try:
         # getbbox or textlength could be used.
         try:
             bbox = font.getbbox(char)
-            # bbox is (left, top, right, bottom)
-            # just draw it centered-ish
-            draw.text((0, 0), char, font=font, fill=255)
+            # centraliza a letra horizontalmente no bloco de 12px
+            w = bbox[2] - bbox[0]
+            offset_x = (FONT_WIDTH - w) // 2
+            # Roboto Mono pode ficar um pouco alta, descemos ela 2 pixels
+            draw.text((offset_x, 2), char, font=font, fill=255)
         except:
-            draw.text((0, 0), char, font=font, fill=255)
+            draw.text((0, 2), char, font=font, fill=255)
             
         pixels = list(img.getdata())
         

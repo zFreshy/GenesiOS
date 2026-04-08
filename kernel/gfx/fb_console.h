@@ -2,6 +2,7 @@
 #define FB_CONSOLE_H
 
 #include "../include/kernel.h"
+#include "../gui/window.h"
 
 void fb_console_init(void);
 void fb_console_putchar(char c);
@@ -22,5 +23,7 @@ void fbc_set_bg(uint32_t color);
 void fbc_clear(void);
 void fbc_puts(const char *str);
 void fbc_putchar(char c);
+
+void fb_console_bind_window(window_t *win);
 
 #endif

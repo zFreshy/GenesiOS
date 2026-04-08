@@ -121,7 +121,7 @@ static void mouse_irq_wrapper(registers_t *regs) {
 
 uint64_t g_mboot_info = 0;
 
-static void shell_exec(const char *cmd) {
+void shell_exec(const char *cmd) {
     if (!cmd[0]) return;
 
     if (kstrcmp(cmd, "help") == 0) {
@@ -296,10 +296,6 @@ void kernel_main(uint32_t boot_magic, uint64_t mboot_info) {
     kprintf("      The Programming Operating System\n\n");
     ok("Framebuffer console active");
 
-    /* --- Phase 10: Desktop & Window Manager -------------------------- */
-    desktop_start();
-    ok("Desktop initialized (Compositor + WM)");
-
     /* --- Phase 4: Scheduler --------------------------------------- */
     sched_init();          ok("Scheduler initialized (PID 0 idle, PID 1 kernel)");
 
@@ -313,11 +309,21 @@ void kernel_main(uint32_t boot_magic, uint64_t mboot_info) {
     kprintf("(%zu MB RAM available)\n",
             (size_t)(pmm_free_frames() * PAGE_SIZE / (1024 * 1024)));
 
-    /* --- Phase 7 preview: basic interactive shell ----------------- */
-    /* run_shell(); */
+    kprintf("  Loading Desktop Environment...\n");
+
+    /* --- Phase 10: Desktop & Window Manager -------------------------- */
+    desktop_start();
 
     /* Enter idle loop for the GUI */
     for (;;) {
-        cpu_halt();
+        if (keyboard_has_char()) {
+            char c = keyboard_getchar();
+            window_t *top = wm_get_top();
+            if (top && top->on_key) {
+                top->on_key(top, c);
+            }
+        } else {
+            cpu_halt();
+        }
     }
 }

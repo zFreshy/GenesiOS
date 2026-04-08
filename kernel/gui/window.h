@@ -17,6 +17,8 @@ typedef struct window {
     char      title[WINDOW_MAX_TITLE];
     uint32_t *buffer;           /* Backing pixel buffer (ARGB) */
     
+    void (*on_key)(struct window *win, char c);
+    
     struct window *next;        /* Linked list for Z-order (bottom to top) */
     struct window *prev;
 } window_t;

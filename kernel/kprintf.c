@@ -112,6 +112,11 @@ void vkprintf(const char *fmt, va_list ap) {
             break;
         }
     }
+    /* Flush the framebuffer once per printf block instead of character by character */
+    if (s_fb_ready) {
+        extern void compositor_render(void);
+        compositor_render();
+    }
 }
 
 /* ------------------------------------------------------------------ */

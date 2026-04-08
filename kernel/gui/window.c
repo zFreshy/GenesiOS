@@ -44,6 +44,8 @@ window_t *wm_create_window(int32_t x, int32_t y, uint32_t width, uint32_t height
     }
     kmemset(win->buffer, 0, width * height * sizeof(uint32_t));
 
+    win->on_key = NULL;
+
     /* Add to top of Z-order */
     win->next = NULL;
     win->prev = s_top_window;
