@@ -76,22 +76,22 @@ void desktop_create_terminal(void) {
 extern uint64_t g_mboot_info;
 
 void desktop_create_explorer(void) {
-    uint32_t w = 500 * g_ui_scale;
-    uint32_t h = 350 * g_ui_scale;
+    uint32_t w = 600 * g_ui_scale;
+    uint32_t h = 420 * g_ui_scale;
     window_t *win = wm_create_window(250 * g_ui_scale, 150 * g_ui_scale, w, h, "File Explorer");
     if (win && win->buffer) {
         for (uint32_t i = 0; i < w * h; i++) {
             win->buffer[i] = 0x00F0F5FA; /* Very light frosted blue/white */
         }
         /* Top bar for File Explorer */
-        for (uint32_t y = 0; y < 40 * g_ui_scale; y++) {
+        for (uint32_t y = 0; y < 56 * g_ui_scale; y++) {
             for (uint32_t x = 0; x < w; x++) {
                 win->buffer[y * w + x] = 0x00FFFFFF; /* White header */
             }
         }
-        font_draw_string_to_buffer_scaled(win->buffer, w, h, 16 * g_ui_scale, 10 * g_ui_scale, "B:\\Modules", 0x004A5568, 0x00FFFFFF, g_ui_scale);
+        font_draw_string_to_buffer_scaled(win->buffer, w, h, 16 * g_ui_scale, 12 * g_ui_scale, "B:\\Modules", 0x004A5568, 0x00FFFFFF, g_ui_scale);
         
-        int32_t draw_y = 50 * g_ui_scale;
+        int32_t draw_y = 76 * g_ui_scale;
         
         mb2_info_t *info = (mb2_info_t *)(uintptr_t)g_mboot_info;
         if (info) {
@@ -117,9 +117,9 @@ void desktop_create_explorer(void) {
                         size_str[j] = size_str[i - 8 - j];
                         size_str[i - 8 - j] = t;
                     }
-                    font_draw_string_to_buffer_scaled(win->buffer, w, h, 350 * g_ui_scale, draw_y, size_str, 0x00A0AEC0, 0x00F0F5FA, g_ui_scale);
+                    font_draw_string_to_buffer_scaled(win->buffer, w, h, 400 * g_ui_scale, draw_y, size_str, 0x00A0AEC0, 0x00F0F5FA, g_ui_scale);
                     
-                    draw_y += 30 * g_ui_scale;
+                    draw_y += 48 * g_ui_scale;
                 }
                 tag = (mb2_tag_t *)((uint8_t *)tag + ((tag->size + 7) & ~7));
             }
@@ -128,8 +128,8 @@ void desktop_create_explorer(void) {
 }
 
 void desktop_create_sysinfo(void) {
-    uint32_t w = 300 * g_ui_scale;
-    uint32_t h = 200 * g_ui_scale;
+    uint32_t w = 440 * g_ui_scale;
+    uint32_t h = 260 * g_ui_scale;
     window_t *win = wm_create_window(400 * g_ui_scale, 200 * g_ui_scale, w, h, "System Info");
     if (win && win->buffer) {
         for (uint32_t i = 0; i < w * h; i++) {
@@ -141,10 +141,42 @@ void desktop_create_sysinfo(void) {
                 win->buffer[y * w + x] = 0x000078D7; /* Windows Blue */
             }
         }
-        font_draw_string_to_buffer_scaled(win->buffer, w, h, 16 * g_ui_scale, 24 * g_ui_scale, "Genesi OS v11", 0x00FFFFFF, 0x00202020, g_ui_scale);
-        font_draw_string_to_buffer_scaled(win->buffer, w, h, 16 * g_ui_scale, 48 * g_ui_scale, "Memory: 256 MB", 0x00AAAAAA, 0x00202020, g_ui_scale);
-        font_draw_string_to_buffer_scaled(win->buffer, w, h, 16 * g_ui_scale, 64 * g_ui_scale, "CPU: x86 64-bit", 0x00AAAAAA, 0x00202020, g_ui_scale);
-        font_draw_string_to_buffer_scaled(win->buffer, w, h, 16 * g_ui_scale, 80 * g_ui_scale, "GUI: W11 Dark Theme", 0x00AAAAAA, 0x00202020, g_ui_scale);
+        font_draw_string_to_buffer_scaled(win->buffer, w, h, 20 * g_ui_scale, 24 * g_ui_scale, "Genesi OS v11", 0x00FFFFFF, 0x00202020, g_ui_scale);
+        font_draw_string_to_buffer_scaled(win->buffer, w, h, 20 * g_ui_scale, 80 * g_ui_scale, "Memory: 256 MB", 0x00AAAAAA, 0x00202020, g_ui_scale);
+        font_draw_string_to_buffer_scaled(win->buffer, w, h, 20 * g_ui_scale, 120 * g_ui_scale, "CPU: x86 64-bit", 0x00AAAAAA, 0x00202020, g_ui_scale);
+        font_draw_string_to_buffer_scaled(win->buffer, w, h, 20 * g_ui_scale, 160 * g_ui_scale, "GUI: W11 Dark Theme", 0x00AAAAAA, 0x00202020, g_ui_scale);
+    }
+}
+
+void desktop_create_settings(void) {
+    uint32_t w = 760 * g_ui_scale;
+    uint32_t h = 500 * g_ui_scale;
+    window_t *win = wm_create_window(150 * g_ui_scale, 150 * g_ui_scale, w, h, "Settings");
+    if (win && win->buffer) {
+        for (uint32_t i = 0; i < w * h; i++) {
+            win->buffer[i] = 0x00F0F5FA; /* Light mode background */
+        }
+        /* Sidebar */
+        for (uint32_t y = 0; y < h; y++) {
+            for (uint32_t x = 0; x < 240 * g_ui_scale; x++) {
+                win->buffer[y * w + x] = 0x00E8EDF2; /* Sidebar slightly darker */
+            }
+        }
+        
+        font_draw_string_to_buffer_scaled(win->buffer, w, h, 20 * g_ui_scale, 30 * g_ui_scale, "Matheus Vinicius", 0x001A202C, 0x00E8EDF2, g_ui_scale);
+        font_draw_string_to_buffer_scaled(win->buffer, w, h, 20 * g_ui_scale, 70 * g_ui_scale, "Local Account", 0x004A5568, 0x00E8EDF2, g_ui_scale);
+        
+        font_draw_string_to_buffer_scaled(win->buffer, w, h, 20 * g_ui_scale, 140 * g_ui_scale, "System", 0x000078D7, 0x00E8EDF2, g_ui_scale);
+        font_draw_string_to_buffer_scaled(win->buffer, w, h, 20 * g_ui_scale, 190 * g_ui_scale, "Personalization", 0x004A5568, 0x00E8EDF2, g_ui_scale);
+        font_draw_string_to_buffer_scaled(win->buffer, w, h, 20 * g_ui_scale, 240 * g_ui_scale, "Network", 0x004A5568, 0x00E8EDF2, g_ui_scale);
+        
+        /* Main Area */
+        font_draw_string_to_buffer_scaled(win->buffer, w, h, 280 * g_ui_scale, 30 * g_ui_scale, "System Settings", 0x001A202C, 0x00F0F5FA, g_ui_scale);
+        font_draw_string_to_buffer_scaled(win->buffer, w, h, 280 * g_ui_scale, 100 * g_ui_scale, "Display", 0x001A202C, 0x00F0F5FA, g_ui_scale);
+        font_draw_string_to_buffer_scaled(win->buffer, w, h, 280 * g_ui_scale, 140 * g_ui_scale, "Monitors, brightness", 0x00718096, 0x00F0F5FA, g_ui_scale);
+        
+        font_draw_string_to_buffer_scaled(win->buffer, w, h, 280 * g_ui_scale, 210 * g_ui_scale, "Sound", 0x001A202C, 0x00F0F5FA, g_ui_scale);
+        font_draw_string_to_buffer_scaled(win->buffer, w, h, 280 * g_ui_scale, 250 * g_ui_scale, "Volume levels", 0x00718096, 0x00F0F5FA, g_ui_scale);
     }
 }
 

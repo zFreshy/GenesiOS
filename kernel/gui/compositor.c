@@ -192,7 +192,7 @@ static void draw_shadow(int32_t x, int32_t y, int32_t w, int32_t h) {
 static void draw_window(window_t *win) {
     if (!win) return;
 
-    int32_t title_h = 36 * g_ui_scale;
+    int32_t title_h = 56 * g_ui_scale;
     int32_t win_radius = 16 * g_ui_scale; /* Rounded corners */
 
     /* Draw window drop shadow */
@@ -215,15 +215,15 @@ static void draw_window(window_t *win) {
         font_draw_string_scaled(win->x + (20 * g_ui_scale), title_y + (12 * g_ui_scale), win->title, text_color, 0x00000000, g_ui_scale);
 
         /* Control buttons (MacOS/Aladin style traffic lights on the right) */
-        int32_t btn_y = title_y + (title_h - (12 * g_ui_scale)) / 2;
-        int32_t btn_s = 14 * g_ui_scale;
-        int32_t btn_r = 7 * g_ui_scale;
+        int32_t btn_s = 16 * g_ui_scale;
+        int32_t btn_y = title_y + (title_h - btn_s) / 2;
+        int32_t btn_r = 8 * g_ui_scale;
         
         /* Minimize (Yellow) */
-        draw_rounded_rect(win->x + win->width - (70 * g_ui_scale), btn_y, btn_s, btn_s, btn_r, 0xFFF5A623, false);
+        draw_rounded_rect(win->x + win->width - (80 * g_ui_scale), btn_y, btn_s, btn_s, btn_r, 0xFFF5A623, false);
         
         /* Maximize (Green) */
-        draw_rounded_rect(win->x + win->width - (45 * g_ui_scale), btn_y, btn_s, btn_s, btn_r, 0xFF10B981, false);
+        draw_rounded_rect(win->x + win->width - (50 * g_ui_scale), btn_y, btn_s, btn_s, btn_r, 0xFF10B981, false);
 
         /* Close (Red) */
         draw_rounded_rect(win->x + win->width - (20 * g_ui_scale), btn_y, btn_s, btn_s, btn_r, 0xFFEF4444, false);
@@ -289,7 +289,7 @@ static void draw_cursor(void) {
 static void draw_desktop_widgets(void) {
     /* Logo / System Name at Top Right */
     uint32_t brand_color = 0x00FFFFFF; /* White */
-    font_draw_string_scaled(s_width - (120 * g_ui_scale), 20 * g_ui_scale, "GENESI OS", brand_color, 0x00000000, g_ui_scale);
+    font_draw_string_scaled(s_width - (160 * g_ui_scale), 20 * g_ui_scale, "GENESI OS", brand_color, 0x00000000, g_ui_scale);
     
     /* Huge Clock at Top Center */
     uint32_t clock_x = (s_width - (5 * 16 * g_ui_scale)) / 2; /* 5 chars */
@@ -298,26 +298,26 @@ static void draw_desktop_widgets(void) {
     
     /* Date below clock */
     uint32_t date_x = (s_width - (11 * 16 * g_ui_scale)) / 2; /* 11 chars */
-    font_draw_string_scaled(date_x, 70 * g_ui_scale, "Fri, Aug 28", 0x00D0D0E0, 0x00000000, g_ui_scale);
+    font_draw_string_scaled(date_x, 80 * g_ui_scale, "Fri, Aug 28", 0x00D0D0E0, 0x00000000, g_ui_scale);
 }
 
 /* ------------------------------------------------------------------ */
 /* Draw taskbar (Floating Dock)                                       */
 /* ------------------------------------------------------------------ */
 static void draw_taskbar(void) {
-    int32_t tb_height = 56 * g_ui_scale;
-    int32_t tb_width = 400 * g_ui_scale;
+    int32_t tb_height = 64 * g_ui_scale;
+    int32_t tb_width = 500 * g_ui_scale;
     int32_t tb_x = (s_width - tb_width) / 2;
     int32_t tb_y = s_height - tb_height - (20 * g_ui_scale); /* Floating */
     
     /* Taskbar background (Light frosted glass) */
-    draw_rounded_rect(tb_x, tb_y, tb_width, tb_height, 28 * g_ui_scale, 0xD0FFFFFF, true);
+    draw_rounded_rect(tb_x, tb_y, tb_width, tb_height, 32 * g_ui_scale, 0xD0FFFFFF, true);
     
     /* Draw Start button background */
-    int32_t start_size = 40 * g_ui_scale;
-    int32_t start_x = tb_x + (12 * g_ui_scale);
+    int32_t start_size = 48 * g_ui_scale;
+    int32_t start_x = tb_x + (16 * g_ui_scale);
     int32_t start_y = tb_y + (8 * g_ui_scale);
-    draw_rounded_rect(start_x, start_y, start_size, start_size, 20 * g_ui_scale, 0xFF4A90E2, true);
+    draw_rounded_rect(start_x, start_y, start_size, start_size, 24 * g_ui_scale, 0xFF4A90E2, true);
     
     /* Draw Start button icon (SVG -> PNG -> C Array) with Bilinear Interpolation */
     extern uint32_t *fb_get_backbuffer(void);
@@ -420,19 +420,15 @@ static void draw_taskbar(void) {
     }
 
     /* Draw buttons for windows */
-    int num_windows = 0;
-    window_t *w = wm_get_bottom();
-    while(w) { num_windows++; w = w->next; }
-    
     window_t *win = wm_get_bottom();
-    int32_t btn_x = start_x + (60 * g_ui_scale);
-    int32_t btn_size = 32 * g_ui_scale;
+    int32_t btn_x = start_x + (80 * g_ui_scale);
+    int32_t btn_size = 40 * g_ui_scale;
     while (win) {
         uint32_t btn_color = (win == wm_get_top()) ? 0xFFFFFFFF : 0x80FFFFFF;
         draw_rounded_rect(btn_x, tb_y + (12 * g_ui_scale), btn_size, btn_size, 8 * g_ui_scale, btn_color, true);
         /* Draw little icon indicator */
-        font_draw_char_scaled(btn_x + (8 * g_ui_scale), tb_y + (0 * g_ui_scale), win->title[0], 0x004A90E2, 0x00000000, g_ui_scale);
-        btn_x += (44 * g_ui_scale);
+        font_draw_char_scaled(btn_x + (12 * g_ui_scale), tb_y + (4 * g_ui_scale), win->title[0], 0x004A90E2, 0x00000000, g_ui_scale);
+        btn_x += (56 * g_ui_scale);
         win = win->next;
     }
 }
@@ -441,17 +437,17 @@ static void draw_taskbar(void) {
 /* Draw System Tray                                                   */
 /* ------------------------------------------------------------------ */
 static void draw_system_tray(void) {
-    int32_t tray_w = 200 * g_ui_scale;
-    int32_t tray_h = 44 * g_ui_scale;
+    int32_t tray_w = 240 * g_ui_scale;
+    int32_t tray_h = 56 * g_ui_scale;
     int32_t tray_x = s_width - tray_w - (20 * g_ui_scale);
     int32_t tray_y = s_height - tray_h - (20 * g_ui_scale);
     
     /* Tray background */
-    draw_rounded_rect(tray_x, tray_y, tray_w, tray_h, 22 * g_ui_scale, 0xD0FFFFFF, true);
+    draw_rounded_rect(tray_x, tray_y, tray_w, tray_h, 28 * g_ui_scale, 0xD0FFFFFF, true);
     
     /* Icons and time */
-    font_draw_string_scaled(tray_x + (20 * g_ui_scale), tray_y + (10 * g_ui_scale), "[Wi-Fi]", 0x004A5568, 0x00000000, g_ui_scale);
-    font_draw_string_scaled(tray_x + (110 * g_ui_scale), tray_y + (10 * g_ui_scale), "08:20", 0x001A202C, 0x00000000, g_ui_scale);
+    font_draw_string_scaled(tray_x + (20 * g_ui_scale), tray_y + (12 * g_ui_scale), "[Wi-Fi]", 0x004A5568, 0x00000000, g_ui_scale);
+    font_draw_string_scaled(tray_x + (140 * g_ui_scale), tray_y + (12 * g_ui_scale), "08:20", 0x001A202C, 0x00000000, g_ui_scale);
 }
 
 /* ------------------------------------------------------------------ */
@@ -460,42 +456,75 @@ static void draw_system_tray(void) {
 static void draw_start_menu(void) {
     if (!s_start_menu_open) return;
     
-    int32_t sm_width = 240 * g_ui_scale;
-    int32_t sm_height = 320 * g_ui_scale;
+    int32_t sm_width = 680 * g_ui_scale;
+    int32_t sm_height = 600 * g_ui_scale;
     
     /* Calculate centered Start Menu */
     int32_t sm_x = (s_width - sm_width) / 2;
-    int32_t sm_y = s_height - (40 * g_ui_scale) - sm_height - (12 * g_ui_scale); /* Floating above taskbar */
+    int32_t sm_y = s_height - (90 * g_ui_scale) - sm_height; /* Floating above taskbar */
     
     /* Draw drop shadow behind menu */
     draw_shadow(sm_x, sm_y, sm_width, sm_height);
     
-    /* Menu border */
-    fb_fillrect(sm_x - 1, sm_y - 1, sm_width + 2, sm_height + 2, 0x00333333);
-    /* Menu background (Dark mode Acrylic) */
-    fb_fillrect(sm_x, sm_y, sm_width, sm_height, 0x00202020);
+    /* Menu background (Dark mode Acrylic) with rounded corners */
+    draw_rounded_rect(sm_x, sm_y, sm_width, sm_height, 16 * g_ui_scale, 0xF0202020, true);
     
-    font_draw_string_scaled(sm_x + (20 * g_ui_scale), sm_y + (20 * g_ui_scale), "Pinned Apps", 0x00FFFFFF, 0x00000000, g_ui_scale);
+    /* Search Bar */
+    draw_rounded_rect(sm_x + (32 * g_ui_scale), sm_y + (32 * g_ui_scale), sm_width - (64 * g_ui_scale), 48 * g_ui_scale, 24 * g_ui_scale, 0xFF303030, false);
+    font_draw_string_scaled(sm_x + (50 * g_ui_scale), sm_y + (40 * g_ui_scale), "Search apps...", 0x00A0A0A0, 0x00000000, g_ui_scale);
     
-    /* Menu items */
-    /* Item 1: Terminal */
-    fb_fillrect(sm_x + (16 * g_ui_scale), sm_y + (48 * g_ui_scale), sm_width - (32 * g_ui_scale), 32 * g_ui_scale, 0x002D2D2D);
-    font_draw_string_scaled(sm_x + (32 * g_ui_scale), sm_y + (60 * g_ui_scale), "Terminal", 0x00FFFFFF, 0x00000000, g_ui_scale);
+    /* Pinned Section Header */
+    font_draw_string_scaled(sm_x + (40 * g_ui_scale), sm_y + (100 * g_ui_scale), "Pinned", 0x00FFFFFF, 0x00000000, g_ui_scale);
     
-    /* Item 2: File Explorer */
-    fb_fillrect(sm_x + (16 * g_ui_scale), sm_y + (88 * g_ui_scale), sm_width - (32 * g_ui_scale), 32 * g_ui_scale, 0x002D2D2D);
-    font_draw_string_scaled(sm_x + (32 * g_ui_scale), sm_y + (100 * g_ui_scale), "File Explorer", 0x00FFFFFF, 0x00000000, g_ui_scale);
+    /* Grid of Pinned Apps */
+    /* Centers: 100, 260, 420, 580 */
+    /* 1. Terminal */
+    draw_rounded_rect(sm_x + (76 * g_ui_scale), sm_y + (150 * g_ui_scale), 48 * g_ui_scale, 48 * g_ui_scale, 12 * g_ui_scale, 0xFF333333, false);
+    font_draw_char_scaled(sm_x + (92 * g_ui_scale), sm_y + (158 * g_ui_scale), 'T', 0x004A90E2, 0x00000000, g_ui_scale);
+    font_draw_string_scaled(sm_x + (36 * g_ui_scale), sm_y + (206 * g_ui_scale), "Terminal", 0x00FFFFFF, 0x00000000, g_ui_scale);
     
-    /* Item 3: System Info */
-    fb_fillrect(sm_x + (16 * g_ui_scale), sm_y + (128 * g_ui_scale), sm_width - (32 * g_ui_scale), 32 * g_ui_scale, 0x002D2D2D);
-    font_draw_string_scaled(sm_x + (32 * g_ui_scale), sm_y + (140 * g_ui_scale), "System Info", 0x00FFFFFF, 0x00000000, g_ui_scale);
+    /* 2. File Explorer */
+    draw_rounded_rect(sm_x + (236 * g_ui_scale), sm_y + (150 * g_ui_scale), 48 * g_ui_scale, 48 * g_ui_scale, 12 * g_ui_scale, 0xFF333333, false);
+    font_draw_char_scaled(sm_x + (252 * g_ui_scale), sm_y + (158 * g_ui_scale), 'F', 0x00F5A623, 0x00000000, g_ui_scale);
+    font_draw_string_scaled(sm_x + (196 * g_ui_scale), sm_y + (206 * g_ui_scale), "Explorer", 0x00FFFFFF, 0x00000000, g_ui_scale);
+    
+    /* 3. System Info */
+    draw_rounded_rect(sm_x + (396 * g_ui_scale), sm_y + (150 * g_ui_scale), 48 * g_ui_scale, 48 * g_ui_scale, 12 * g_ui_scale, 0xFF333333, false);
+    font_draw_char_scaled(sm_x + (412 * g_ui_scale), sm_y + (158 * g_ui_scale), 'I', 0x0010B981, 0x00000000, g_ui_scale);
+    font_draw_string_scaled(sm_x + (356 * g_ui_scale), sm_y + (206 * g_ui_scale), "Sys Info", 0x00FFFFFF, 0x00000000, g_ui_scale);
+    
+    /* 4. Settings */
+    draw_rounded_rect(sm_x + (556 * g_ui_scale), sm_y + (150 * g_ui_scale), 48 * g_ui_scale, 48 * g_ui_scale, 12 * g_ui_scale, 0xFF333333, false);
+    font_draw_char_scaled(sm_x + (572 * g_ui_scale), sm_y + (158 * g_ui_scale), 'S', 0x009B9B9B, 0x00000000, g_ui_scale);
+    font_draw_string_scaled(sm_x + (516 * g_ui_scale), sm_y + (206 * g_ui_scale), "Settings", 0x00FFFFFF, 0x00000000, g_ui_scale);
+    
+    /* Recommended Section Header */
+    font_draw_string_scaled(sm_x + (40 * g_ui_scale), sm_y + (280 * g_ui_scale), "Recommended", 0x00FFFFFF, 0x00000000, g_ui_scale);
+    
+    /* Recommended Item 1 */
+    draw_rounded_rect(sm_x + (40 * g_ui_scale), sm_y + (330 * g_ui_scale), 32 * g_ui_scale, 32 * g_ui_scale, 8 * g_ui_scale, 0xFF4A90E2, false);
+    font_draw_string_scaled(sm_x + (84 * g_ui_scale), sm_y + (330 * g_ui_scale), "genesi.iso", 0x00FFFFFF, 0x00000000, g_ui_scale);
+    
+    /* Recommended Item 2 */
+    draw_rounded_rect(sm_x + (360 * g_ui_scale), sm_y + (330 * g_ui_scale), 32 * g_ui_scale, 32 * g_ui_scale, 8 * g_ui_scale, 0xFFF5A623, false);
+    font_draw_string_scaled(sm_x + (404 * g_ui_scale), sm_y + (330 * g_ui_scale), "kernel.c", 0x00FFFFFF, 0x00000000, g_ui_scale);
 
-    /* Separator line */
-    fb_fillrect(sm_x + (16 * g_ui_scale), sm_y + sm_height - (60 * g_ui_scale), sm_width - (32 * g_ui_scale), 1 * g_ui_scale, 0x00333333);
-
-    /* Item 4: Shut Down */
-    fb_fillrect(sm_x + (16 * g_ui_scale), sm_y + sm_height - (48 * g_ui_scale), sm_width - (32 * g_ui_scale), 32 * g_ui_scale, 0x00C42B1C); /* Red button */
-    font_draw_string_scaled(sm_x + (32 * g_ui_scale), sm_y + sm_height - (36 * g_ui_scale), "Shut Down", 0x00FFFFFF, 0x00000000, g_ui_scale);
+    /* Footer (User Profile & Power) */
+    /* Draw footer background */
+    draw_rounded_rect(sm_x, sm_y + sm_height - (64 * g_ui_scale), sm_width, 64 * g_ui_scale, 16 * g_ui_scale, 0xFF1A1A1A, false);
+    /* Fix top corners of footer to be square (overwrite rounded corners from top) */
+    fb_fillrect(sm_x, sm_y + sm_height - (64 * g_ui_scale), sm_width, 16 * g_ui_scale, 0x001A1A1A);
+    
+    /* User Avatar */
+    draw_rounded_rect(sm_x + (40 * g_ui_scale), sm_y + sm_height - (48 * g_ui_scale), 32 * g_ui_scale, 32 * g_ui_scale, 16 * g_ui_scale, 0xFF4A90E2, false);
+    font_draw_char_scaled(sm_x + (48 * g_ui_scale), sm_y + sm_height - (48 * g_ui_scale), 'U', 0x00FFFFFF, 0x00000000, g_ui_scale);
+    
+    /* Username */
+    font_draw_string_scaled(sm_x + (84 * g_ui_scale), sm_y + sm_height - (48 * g_ui_scale), "Matheus", 0x00FFFFFF, 0x00000000, g_ui_scale);
+    
+    /* Power Button */
+    draw_rounded_rect(sm_x + sm_width - (72 * g_ui_scale), sm_y + sm_height - (48 * g_ui_scale), 32 * g_ui_scale, 32 * g_ui_scale, 8 * g_ui_scale, 0xFF2D2D2D, false);
+    font_draw_char_scaled(sm_x + sm_width - (64 * g_ui_scale), sm_y + sm_height - (48 * g_ui_scale), 'O', 0x00FFFFFF, 0x00000000, g_ui_scale);
 }
 
 /* ------------------------------------------------------------------ */
@@ -534,59 +563,78 @@ void compositor_update(void) {
         bool found = false;
 
         /* Check taskbar and start menu first */
-        if (my >= (int32_t)s_height - (40 * g_ui_scale)) {
+        int32_t tb_width = 500 * g_ui_scale;
+        int32_t tb_height = 64 * g_ui_scale;
+        int32_t tb_x = (s_width - tb_width) / 2;
+        int32_t tb_y = s_height - tb_height - (20 * g_ui_scale);
+        
+        if (my >= tb_y && my <= tb_y + tb_height && mx >= tb_x && mx <= tb_x + tb_width) {
             /* Click on taskbar */
-            int num_windows = 0;
-            window_t *w = wm_get_bottom();
-            while(w) { num_windows++; w = w->next; }
+            int32_t start_x = tb_x + (16 * g_ui_scale);
+            int32_t start_size = 48 * g_ui_scale;
             
-            /* Recalculate exact total width of taskbar items just like draw_taskbar */
-            int32_t btn_width = 40 * g_ui_scale;
-            int32_t start_btn_width = 48 * g_ui_scale;
-            int32_t total_width = start_btn_width + (num_windows * (btn_width + (8 * g_ui_scale)));
-            int32_t start_x = (s_width - total_width) / 2;
-            
-            if (mx >= start_x && mx <= start_x + start_btn_width) {
+            if (mx >= start_x && mx <= start_x + start_size) {
                 s_start_menu_open = !s_start_menu_open;
             } else {
                 s_start_menu_open = false;
             }
             found = true;
-        } else if (s_start_menu_open && mx >= (int32_t)(s_width - (240 * g_ui_scale))/2 && mx <= (int32_t)(s_width + (240 * g_ui_scale))/2 && my >= (int32_t)s_height - (40 * g_ui_scale) - (320 * g_ui_scale) - (12 * g_ui_scale) && my < (int32_t)s_height - (40 * g_ui_scale)) {
-            /* Clicked inside start menu */
-            int32_t sm_y = (int32_t)s_height - (40 * g_ui_scale) - (320 * g_ui_scale) - (12 * g_ui_scale);
-            extern void desktop_create_terminal(void);
-            extern void desktop_create_explorer(void);
-            extern void desktop_create_sysinfo(void);
+        } else if (s_start_menu_open) {
+            int32_t sm_width = 680 * g_ui_scale;
+            int32_t sm_height = 600 * g_ui_scale;
+            int32_t sm_x = (s_width - sm_width) / 2;
+            int32_t sm_y = s_height - (90 * g_ui_scale) - sm_height;
             
-            if (my >= sm_y + (48 * g_ui_scale) && my < sm_y + (80 * g_ui_scale)) {
-                desktop_create_terminal();
-            } else if (my >= sm_y + (88 * g_ui_scale) && my < sm_y + (120 * g_ui_scale)) {
-                desktop_create_explorer();
-            } else if (my >= sm_y + (128 * g_ui_scale) && my < sm_y + (160 * g_ui_scale)) {
-                desktop_create_sysinfo();
-            } else if (my >= sm_y + (320 * g_ui_scale) - (48 * g_ui_scale) && my < sm_y + (320 * g_ui_scale) - (16 * g_ui_scale)) {
-                extern void system_shutdown(void);
-                system_shutdown();
+            if (mx >= sm_x && mx <= sm_x + sm_width && my >= sm_y && my <= sm_y + sm_height) {
+                /* Clicked inside start menu */
+                extern void desktop_create_terminal(void);
+                extern void desktop_create_explorer(void);
+                extern void desktop_create_sysinfo(void);
+                extern void desktop_create_settings(void);
+                
+                /* App 1: Terminal (Center 100) -> 76 to 124 */
+                if (mx >= sm_x + (76 * g_ui_scale) && mx <= sm_x + (124 * g_ui_scale) && my >= sm_y + (150 * g_ui_scale) && my <= sm_y + (198 * g_ui_scale)) {
+                    desktop_create_terminal();
+                    s_start_menu_open = false;
+                } 
+                /* App 2: Explorer (Center 260) -> 236 to 284 */
+                else if (mx >= sm_x + (236 * g_ui_scale) && mx <= sm_x + (284 * g_ui_scale) && my >= sm_y + (150 * g_ui_scale) && my <= sm_y + (198 * g_ui_scale)) {
+                    desktop_create_explorer();
+                    s_start_menu_open = false;
+                }
+                /* App 3: Sys Info (Center 420) -> 396 to 444 */
+                else if (mx >= sm_x + (396 * g_ui_scale) && mx <= sm_x + (444 * g_ui_scale) && my >= sm_y + (150 * g_ui_scale) && my <= sm_y + (198 * g_ui_scale)) {
+                    desktop_create_sysinfo();
+                    s_start_menu_open = false;
+                }
+                /* App 4: Settings (Center 580) -> 556 to 604 */
+                else if (mx >= sm_x + (556 * g_ui_scale) && mx <= sm_x + (604 * g_ui_scale) && my >= sm_y + (150 * g_ui_scale) && my <= sm_y + (198 * g_ui_scale)) {
+                    desktop_create_settings();
+                    s_start_menu_open = false;
+                }
+                /* Power Button */
+                else if (mx >= sm_x + sm_width - (72 * g_ui_scale) && mx <= sm_x + sm_width - (40 * g_ui_scale) && my >= sm_y + sm_height - (48 * g_ui_scale) && my <= sm_y + sm_height - (16 * g_ui_scale)) {
+                    extern void system_shutdown(void);
+                    system_shutdown();
+                }
+                found = true;
+            } else {
+                /* Clicked somewhere else, close start menu */
+                s_start_menu_open = false;
             }
-            s_start_menu_open = false;
-            found = true;
-        } else {
-            /* Clicked somewhere else, close start menu */
-            s_start_menu_open = false;
         }
 
         if (!found) {
             /* Check windows from top to bottom */
             window_t *win = wm_get_top();
             while (win) {
-            int32_t title_y = win->y - (24 * g_ui_scale);
+            int32_t title_y = win->y - (56 * g_ui_scale);
             /* Check title bar click */
             if (mx >= win->x && mx <= win->x + (int32_t)win->width &&
                 my >= title_y && my <= win->y) {
                 
                 /* Check if clicked the close button (width 32) */
-                if (mx >= win->x + (int32_t)win->width - (32 * g_ui_scale)) {
+                if (mx >= win->x + (int32_t)win->width - (40 * g_ui_scale)) {
                     wm_destroy_window(win);
                     s_drag_win = NULL;
                     found = true;
