@@ -18,6 +18,7 @@
 #include "arch/x86_64/pit.h"
 
 #include "drivers/keyboard.h"
+#include "drivers/mouse.h"
 
 #include "mm/pmm.h"
 #include "mm/vmm.h"
@@ -107,7 +108,13 @@ static void test_thread_c(void) {
 
 // We already have kstrcmp in kernel.h
 
-/* Global to store multiboot info pointer */
+/* Mouse IRQ wrapper */
+static void mouse_irq_wrapper(registers_t *regs) {
+    (void)regs;
+    mouse_irq_handler();
+    irq_send_eoi(IRQ_MOUSE);
+}
+
 uint64_t g_mboot_info = 0;
 
 static void shell_exec(const char *cmd) {
@@ -221,6 +228,9 @@ void kernel_main(uint32_t boot_magic, uint64_t mboot_info) {
     irq_init();       ok("PIC 8259 remapped (IRQ0-7 -> vec 32-39)");
     pit_init(100);    ok("PIT timer initialized at 100 Hz");
     keyboard_init();  ok("PS/2 keyboard driver active");
+    mouse_init();     ok("PS/2 mouse driver active");
+    irq_register_handler(IRQ_MOUSE, mouse_irq_wrapper);
+    irq_unmask(IRQ_MOUSE);
 
     /* --- Phase 3: Memory ------------------------------------------ */
     kprintf("\n");
