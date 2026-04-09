@@ -90,7 +90,7 @@ static void draw_wallpaper(void) {
             uint32_t color = (r << 16) | (g << 8) | b;
             
             for (uint32_t x = 0; x < s_width; x++) {
-                bb[y * s_width + x] = color;
+                bb[y * fb_pitch_words() + x] = color;
             }
         }
     } else {
@@ -118,7 +118,7 @@ static void draw_wallpaper(void) {
                     uint32_t src_x = cur_x >> 16;
                     if (src_x >= w_w) src_x = w_w - 1;
                     
-                    bb[y * s_width + x] = g_wallpaper_raw[row_offset + src_x] & 0xFFFFFF;
+                    bb[y * fb_pitch_words() + x] = g_wallpaper_raw[row_offset + src_x] & 0xFFFFFF;
                     cur_x += dx;
                 }
                 cur_y += dy;
@@ -187,16 +187,16 @@ static void draw_rounded_rect(int32_t x, int32_t y, int32_t w, int32_t h, int32_
             }
 
             if (blend && alpha < 255) {
-                uint32_t bg = bb[cy * s_width + cx];
+                uint32_t bg = bb[cy * fb_pitch_words() + cx];
                 uint32_t bgr = (bg >> 16) & 0xFF;
                 uint32_t bgg = (bg >> 8) & 0xFF;
                 uint32_t bgb = bg & 0xFF;
                 uint32_t nr = (cr * alpha + bgr * (255 - alpha)) / 255;
                 uint32_t ng = (cg * alpha + bgg * (255 - alpha)) / 255;
                 uint32_t nb = (cb * alpha + bgb * (255 - alpha)) / 255;
-                bb[cy * s_width + cx] = (nr << 16) | (ng << 8) | nb;
+                bb[cy * fb_pitch_words() + cx] = (nr << 16) | (ng << 8) | nb;
             } else {
-                bb[cy * s_width + cx] = color & 0xFFFFFF;
+                bb[cy * fb_pitch_words() + cx] = color & 0xFFFFFF;
             }
         }
     }
@@ -238,7 +238,7 @@ static void draw_shadow(int32_t x, int32_t y, int32_t w, int32_t h) {
             
             uint32_t intensity = 10 - dist; /* 0 to 10 */
             
-            uint32_t pitch_words = s_width;
+            uint32_t pitch_words = fb_pitch_words();
             uint32_t bg = bb[cy * pitch_words + cx];
             
             uint32_t r = ((bg >> 16) & 0xFF);
@@ -332,7 +332,7 @@ static void draw_window(window_t *win) {
                     if (dx*dx + dy*dy >= win_radius * win_radius) continue;
                 }
                 
-                bb[py * s_width + px] = win->buffer[cy * buf_w + cx] | 0xFF000000;
+                bb[py * fb_pitch_words() + px] = win->buffer[cy * buf_w + cx] | 0xFF000000;
             }
         }
     }
@@ -511,7 +511,7 @@ static void apply_blur_rounded_rect(int32_t x, int32_t y, int32_t w, int32_t h, 
             for (int32_t k = -blur_r; k <= blur_r; k++) {
                 int32_t px = cx + k;
                 if (px >= 0 && px < bw) {
-                    uint32_t color = bb[(y0 + cy) * s_width + (x0 + px)];
+                    uint32_t color = bb[(y0 + cy) * fb_pitch_words() + (x0 + px)];
                     sum_r += (color >> 16) & 0xFF;
                     sum_g += (color >> 8) & 0xFF;
                     sum_b += color & 0xFF;
@@ -549,7 +549,7 @@ static void apply_blur_rounded_rect(int32_t x, int32_t y, int32_t w, int32_t h, 
                     count++;
                 }
             }
-            bb[py * s_width + px] = ((sum_r / count) << 16) | ((sum_g / count) << 8) | (sum_b / count);
+            bb[py * fb_pitch_words() + px] = ((sum_r / count) << 16) | ((sum_g / count) << 8) | (sum_b / count);
         }
     }
     
@@ -597,9 +597,9 @@ static void draw_icon(int32_t x, int32_t y, const uint32_t *icon_data, uint32_t 
                 uint32_t fr = 255, fg = 255, fb = 255;
                 
                 if (alpha == 255) {
-                    bb[(y + iy) * s_width + (x + ix)] = (fr << 16) | (fg << 8) | fb;
+                    bb[(y + iy) * fb_pitch_words() + (x + ix)] = (fr << 16) | (fg << 8) | fb;
                 } else {
-                    uint32_t bg = bb[(y + iy) * s_width + (x + ix)];
+                    uint32_t bg = bb[(y + iy) * fb_pitch_words() + (x + ix)];
                     uint32_t bgr = (bg >> 16) & 0xFF;
                     uint32_t bgg = (bg >> 8) & 0xFF;
                     uint32_t bgb = bg & 0xFF;
@@ -608,7 +608,7 @@ static void draw_icon(int32_t x, int32_t y, const uint32_t *icon_data, uint32_t 
                     uint32_t g = (fg * alpha + bgg * (255 - alpha)) / 255;
                     uint32_t b = (fb * alpha + bgb * (255 - alpha)) / 255;
                     
-                    bb[(y + iy) * s_width + (x + ix)] = (r << 16) | (g << 8) | b;
+                    bb[(y + iy) * fb_pitch_words() + (x + ix)] = (r << 16) | (g << 8) | b;
                 }
             }
         }

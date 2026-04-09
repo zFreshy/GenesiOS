@@ -48,12 +48,12 @@ void font_draw_char_to_buffer(uint32_t *buffer, uint32_t w, uint32_t h, uint32_t
 
 void font_draw_char(uint32_t x, uint32_t y, char c, uint32_t fg, uint32_t bg) {
     extern uint32_t *fb_get_backbuffer(void);
-    extern uint32_t fb_width(void);
+    extern uint32_t fb_pitch_words(void);
     extern uint32_t fb_height(void);
     
     uint32_t *bb = fb_get_backbuffer();
     if (bb) {
-        font_draw_char_to_buffer(bb, fb_width(), fb_height(), x, y, c, fg, bg);
+        font_draw_char_to_buffer(bb, fb_pitch_words(), fb_height(), x, y, c, fg, bg);
     }
 }
 
@@ -139,10 +139,13 @@ void font_draw_char_to_buffer_scaled(uint32_t *buffer, uint32_t w, uint32_t h, u
 
 void font_draw_char_scaled(uint32_t x, uint32_t y, char c, uint32_t fg, uint32_t bg, uint32_t scale) {
     extern uint32_t *fb_get_backbuffer(void);
-    extern uint32_t fb_width(void);
+    extern uint32_t fb_pitch_words(void);
     extern uint32_t fb_height(void);
+    
     uint32_t *bb = fb_get_backbuffer();
-    if (bb) font_draw_char_to_buffer_scaled(bb, fb_width(), fb_height(), x, y, c, fg, bg, scale);
+    if (bb) {
+        font_draw_char_to_buffer_scaled(bb, fb_pitch_words(), fb_height(), x, y, c, fg, bg, scale);
+    }
 }
 
 void font_draw_string_scaled(uint32_t x, uint32_t y, const char *str, uint32_t fg, uint32_t bg, uint32_t scale) {

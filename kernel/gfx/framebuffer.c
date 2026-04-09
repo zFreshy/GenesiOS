@@ -15,7 +15,13 @@ uint32_t fb_width(void) {
 }
 
 uint32_t fb_height(void) {
+    if (!g_fb.buffer) return 0;
     return g_fb.height;
+}
+
+uint32_t fb_pitch_words(void) {
+    if (!g_fb.buffer) return 0;
+    return g_fb.pitch / 4;
 }
 
 void fb_init(uint64_t mboot_info) {
