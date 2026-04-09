@@ -232,14 +232,21 @@ void mouse_irq_handler(void) {
                     s_x -= (int32_t)x;
                     s_y += (int32_t)y;
                 } else {
-                    /* Volta para a escala oficial do VMMouse (0 a 0xFFFF)
-                     * e compensa o fato da imagem da seta começar um pouco
-                     * mais para a esquerda/cima que o hotspot do cursor do host. */
-                    int32_t offset_x = -2;
-                    int32_t offset_y = -2;
-                    
-                    s_x = (int32_t)((x * fb_width()) / 0xFFFF) + offset_x;
-                    s_y = (int32_t)((y * fb_height()) / 0xFFFF) + offset_y;
+                    /* Bug do QEMU VMMouse: Eventos de scroll (e às vezes cliques isolados) 
+                     * são enviados com x=0 e y=0 no modo absoluto, causando "teleporte" 
+                     * para o canto superior esquerdo da tela. */
+                    if (x == 0 && y == 0) {
+                        /* Ignora a atualização de X e Y, mantendo a posição atual. */
+                    } else {
+                        /* Volta para a escala oficial do VMMouse (0 a 0xFFFF)
+                         * e compensa o fato da imagem da seta começar um pouco
+                         * mais para a esquerda/cima que o hotspot do cursor do host. */
+                        int32_t offset_x = -2;
+                        int32_t offset_y = -2;
+                        
+                        s_x = (int32_t)((x * fb_width()) / 0xFFFF) + offset_x;
+                        s_y = (int32_t)((y * fb_height()) / 0xFFFF) + offset_y;
+                    }
                 }
             }
             
