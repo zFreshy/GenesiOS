@@ -46,4 +46,5 @@ enter_user_mode:
     xor rbp, rbp
 
     ; Return to user mode!
+    swapgs
     iretq

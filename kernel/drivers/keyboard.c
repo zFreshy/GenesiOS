@@ -129,7 +129,8 @@ bool keyboard_has_char(void) {
 
 char keyboard_getchar(void) {
     while (!keyboard_has_char()) {
-        __asm__ volatile ("pause");
+        extern void sched_yield(void);
+        sched_yield();
     }
     return buf_pop();
 }

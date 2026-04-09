@@ -82,7 +82,7 @@ mkdir -p build-gcc && cd build-gcc
     --target="$TARGET" \
     --prefix="$PREFIX" \
     --disable-nls \
-    --enable-languages=c \
+    --enable-languages=c,c++ \
     --without-headers \
     --quiet
 make -j"$JOBS" -s all-gcc

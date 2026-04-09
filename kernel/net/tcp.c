@@ -25,8 +25,12 @@ struct tcp_pseudo_header {
 } __attribute__((packed));
 
 static uint16_t calculate_tcp_checksum(struct tcp_pseudo_header *phdr, uint8_t *tcp_pkt, uint16_t tcp_len) {
-    uint8_t full[2048];
+    extern void *kmalloc(size_t size);
+    extern void kfree(void *ptr);
     int phdr_len = sizeof(struct tcp_pseudo_header);
+    uint8_t *full = (uint8_t *)kmalloc(phdr_len + tcp_len);
+    if (!full) return 0;
+
     kmemcpy(full, phdr, phdr_len);
     kmemcpy(full + phdr_len, tcp_pkt, tcp_len);
     
@@ -43,7 +47,9 @@ static uint16_t calculate_tcp_checksum(struct tcp_pseudo_header *phdr, uint8_t *
     while (sum >> 16) {
         sum = (sum & 0xFFFF) + (sum >> 16);
     }
-    return ~sum;
+    uint16_t cs = ~sum;
+    kfree(full);
+    return cs;
 }
 
 // Very basic single-socket state machine
@@ -83,7 +89,10 @@ char* tcp_get_rx_buffer(void) {
 static void tcp_send_packet(uint8_t flags, uint8_t *data, uint16_t data_len) {
     int opt_len = (flags == 0x02) ? 4 : 0; // Add MSS option for SYN packets
     uint16_t total_len = sizeof(struct tcp_header) + opt_len + data_len;
-    uint8_t buffer[2048];
+    extern void *kmalloc(size_t size);
+    extern void kfree(void *ptr);
+    uint8_t *buffer = (uint8_t *)kmalloc(total_len);
+    if (!buffer) return;
     kmemset(buffer, 0, total_len);
 
     struct tcp_header *tcp = (struct tcp_header *)buffer;
@@ -125,6 +134,7 @@ static void tcp_send_packet(uint8_t flags, uint8_t *data, uint16_t data_len) {
 
     extern void ipv4_send(uint8_t *dst_ip, uint8_t protocol, uint8_t *payload, uint16_t payload_len);
     ipv4_send(g_sock.remote_ip, 6, buffer, total_len);
+    kfree(buffer);
 }
 
 int tcp_connect(uint8_t *dst_ip, uint16_t dst_port) {

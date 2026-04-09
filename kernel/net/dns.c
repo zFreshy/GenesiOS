@@ -59,7 +59,10 @@ void dns_resolve(const char *domain) {
     s_dns_resolved = false;
     kmemset(s_resolved_ip, 0, 4);
     
-    uint8_t packet[512];
+    extern void *kmalloc(size_t size);
+    extern void kfree(void *ptr);
+    uint8_t *packet = (uint8_t *)kmalloc(512);
+    if (!packet) return;
     kmemset(packet, 0, 512);
     
     struct dns_header *hdr = (struct dns_header *)packet;
@@ -99,6 +102,7 @@ void dns_resolve(const char *domain) {
             domain, g_net_dev.dns[0], g_net_dev.dns[1], g_net_dev.dns[2], g_net_dev.dns[3]);
             
     udp_send(g_net_dev.dns, 53535, 53, packet, packet_len);
+    kfree(packet);
 }
 
 void dns_receive(uint8_t *packet, uint16_t len) {

@@ -17,9 +17,9 @@ Standard PS/2 Mouse (Relative) enabled.
   Initializing memory...
 [PMM] Total: 12543 MB | Free: 246 MB
   [OK] Physical Memory Manager ready
-[VMM] CR3=0x0x145000  identity map active
+[VMM] CR3=0x0x147000  identity map active
   [OK] Virtual Memory Manager (4-level paging)
-[Heap] 131072 KB dynamic buffer at 0xa1a000
+[Heap] 131072 KB dynamic buffer at 0xa45000
   [OK] Kernel heap allocator ready
 [GFX] Framebuffer 1920x1080x32 at 0xfd000000
 [FONT] Using embedded 16x32 smooth anti-aliased font data.
@@ -57,9 +57,24 @@ Standard PS/2 Mouse (Relative) enabled.
 
   System ready. (118 MB RAM available)
   Loading Desktop Environment...
-Compositor: Found wallpaper module at 0x231000
+Compositor: Found wallpaper module at 0x25c000
+  [Shell] Launching Genesi Native Browser...
+  [Browser] Iniciando aplicativo nativo...
+  [DNS] Resolving example.com via 10.0.2.3...
+  [Net] Waiting for ARP to resolve gateway MAC... (Please retry ping in a moment)
   [E1000] Packet received! Length: 594 bytes
   [UDP] Received packet on port 68 from 10.0.2.2:67
-  [E1000] Packet received! Length: 114 bytes
-  [E1000] Packet received! Length: 114 bytes
-  [E1000] Packet received! Length: 114 bytes
+  [E1000] Packet received! Length: 68 bytes
+  [ARP] Reply: 10.0.2.2 is at 52:55:A:0:2:2
+  [ARP] Gateway MAC resolved.
+  [E1000] Packet received! Length: 107 bytes
+  [UDP] Received packet on port 53535 from 10.0.2.3:53
+  [DNS] example.com is at 104.18.26.120
+  [TCP] SYN sent to 104.18.26.120:80 from port 49153
+  [E1000] Packet received! Length: 64 bytes
+  [TCP] Received packet on port 49153 from 104.18.26.120:80, flags=0x12
+  [TCP] Connection ESTABLISHED!
+  [E1000] Packet received! Length: 64 byUnhandled exception #13: General Protection Fault
+  RIP=0x181a1f00181a1f  RSP=0x1613ce0  RFLAGS=0x200006
+  ERR=0x0  RAX=0x1b4  RBX=0x181a1f00181a1f
+  CS=0x8  SS=0x10

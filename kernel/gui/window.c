@@ -23,8 +23,10 @@ window_t *wm_create_window(int32_t x, int32_t y, uint32_t width, uint32_t height
     window_t *win = (window_t *)kmalloc(sizeof(window_t));
     if (!win) return NULL;
 
-    win->x      = x;
-    win->y      = y;
+    kmemset(win, 0, sizeof(window_t));
+
+    win->x = x;
+    win->y = y;
     win->width  = width;
     win->height = height;
     win->is_minimized = false;
@@ -73,6 +75,9 @@ window_t *wm_create_window(int32_t x, int32_t y, uint32_t width, uint32_t height
 /* ------------------------------------------------------------------ */
 void wm_destroy_window(window_t *win) {
     if (!win) return;
+
+    extern void fb_console_detach_window(window_t *win);
+    fb_console_detach_window(win);
 
     if (win->prev) win->prev->next = win->next;
     else s_bottom_window = win->next;

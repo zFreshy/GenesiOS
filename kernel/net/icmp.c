@@ -49,7 +49,10 @@ void icmp_receive(uint8_t *packet, uint16_t len, uint8_t *src_ip) {
 
 void icmp_send_reply(uint8_t *dst_ip, uint16_t id, uint16_t seq, uint8_t *payload, uint16_t payload_len) {
     uint16_t total_len = sizeof(struct icmp_header) + payload_len;
-    uint8_t buffer[2048];
+    extern void *kmalloc(size_t size);
+    extern void kfree(void *ptr);
+    uint8_t *buffer = (uint8_t *)kmalloc(total_len);
+    if (!buffer) return;
     kmemset(buffer, 0, total_len);
     
     struct icmp_header *icmp = (struct icmp_header *)buffer;
@@ -66,11 +69,15 @@ void icmp_send_reply(uint8_t *dst_ip, uint16_t id, uint16_t seq, uint8_t *payloa
     icmp->checksum = calculate_checksum(buffer, total_len);
     
     ipv4_send(dst_ip, 1 /* ICMP */, buffer, total_len);
+    kfree(buffer);
 }
 
 void icmp_send_request(uint8_t *dst_ip, uint16_t id, uint16_t seq, uint8_t *payload, uint16_t payload_len) {
     uint16_t total_len = sizeof(struct icmp_header) + payload_len;
-    uint8_t buffer[2048];
+    extern void *kmalloc(size_t size);
+    extern void kfree(void *ptr);
+    uint8_t *buffer = (uint8_t *)kmalloc(total_len);
+    if (!buffer) return;
     kmemset(buffer, 0, total_len);
     
     struct icmp_header *icmp = (struct icmp_header *)buffer;
@@ -87,4 +94,5 @@ void icmp_send_request(uint8_t *dst_ip, uint16_t id, uint16_t seq, uint8_t *payl
     icmp->checksum = calculate_checksum(buffer, total_len);
     
     ipv4_send(dst_ip, 1 /* ICMP */, buffer, total_len);
+    kfree(buffer);
 }

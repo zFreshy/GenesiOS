@@ -1,3 +1,9 @@
 .verdent
 
 *.iso
+build/
+iso/
+*.o
+*.elf
+*.txt
+*.log

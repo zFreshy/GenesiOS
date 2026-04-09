@@ -37,7 +37,10 @@ void udp_receive(uint8_t *packet, uint16_t len, uint8_t *src_ip) {
 void udp_send(uint8_t *dst_ip, uint16_t src_port, uint16_t dst_port, uint8_t *payload, uint16_t payload_len) {
     uint16_t total_len = sizeof(struct udp_header) + payload_len;
     
-    uint8_t buffer[2048];
+    extern void *kmalloc(size_t size);
+    extern void kfree(void *ptr);
+    uint8_t *buffer = (uint8_t *)kmalloc(total_len);
+    if (!buffer) return;
     kmemset(buffer, 0, total_len);
     
     struct udp_header *udp = (struct udp_header *)buffer;
@@ -51,4 +54,5 @@ void udp_send(uint8_t *dst_ip, uint16_t src_port, uint16_t dst_port, uint8_t *pa
     }
     
     ipv4_send(dst_ip, 17, buffer, total_len);
+    kfree(buffer);
 }

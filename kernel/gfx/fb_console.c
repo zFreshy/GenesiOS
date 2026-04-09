@@ -27,6 +27,18 @@ void fb_console_bind_window(window_t *win) {
     s_win = win;
 }
 
+void fb_console_detach_window(window_t *win) {
+    if (s_win == win) {
+        s_win = NULL;
+    }
+}
+
+void fb_console_force_fullscreen(void) {
+    s_win = NULL;
+    s_cursor_x = get_pad_x();
+    s_cursor_y = get_pad_y();
+}
+
 void fbc_set_fg(uint32_t color) { s_fg_color = color; }
 void fbc_set_bg(uint32_t color) { s_bg_color = color; }
 void fbc_clear(void) { fb_console_clear(); }
@@ -68,26 +80,30 @@ static void fb_console_scroll(void) {
         uint32_t total_bytes = s_win->width * s_win->height * 4;
         
         /* Ensure we don't scroll padding itself */
-        uint32_t copy_size = total_bytes - top_pad_bytes - row_bytes;
-        
-        kmemcpy(
-            (uint8_t *)s_win->buffer + top_pad_bytes, 
-            (uint8_t *)s_win->buffer + top_pad_bytes + row_bytes, 
-            copy_size
-        );
-        
-        /* Clear the newly exposed bottom line */
-        for (uint32_t y = s_win->height - fh; y < s_win->height; y++) {
-            for (uint32_t x = 0; x < s_win->width; x++) {
-                s_win->buffer[y * s_win->width + x] = s_bg_color;
+        if (total_bytes > top_pad_bytes + row_bytes) {
+            uint32_t copy_size = total_bytes - top_pad_bytes - row_bytes;
+            
+            kmemcpy(
+                (uint8_t *)s_win->buffer + top_pad_bytes, 
+                (uint8_t *)s_win->buffer + top_pad_bytes + row_bytes, 
+                copy_size
+            );
+            
+            /* Clear the newly exposed bottom line */
+            for (uint32_t y = s_win->height - fh; y < s_win->height; y++) {
+                for (uint32_t x = 0; x < s_win->width; x++) {
+                    s_win->buffer[y * s_win->width + x] = s_bg_color;
+                }
             }
         }
         s_cursor_y -= fh;
     } else {
         uint32_t row_bytes = g_fb.pitch * fh;
         uint32_t total_bytes = g_fb.pitch * g_fb.height;
-        kmemcpy(g_fb.buffer, (uint8_t *)g_fb.buffer + row_bytes, total_bytes - row_bytes);
-        fb_fillrect(0, g_fb.height - fh, g_fb.width, fh, s_bg_color);
+        if (total_bytes > row_bytes) {
+            kmemcpy(g_fb.buffer, (uint8_t *)g_fb.buffer + row_bytes, total_bytes - row_bytes);
+            fb_fillrect(0, g_fb.height - fh, g_fb.width, fh, s_bg_color);
+        }
         s_cursor_y -= fh;
     }
 }

@@ -77,6 +77,9 @@ void vmm_map(uint64_t virt, uint64_t phys, uint64_t flags) {
 void vmm_map_user(uint64_t pml4_phys, uint64_t virt, uint64_t phys, uint64_t flags) {
     pte_t *pml4 = (pte_t *)(uintptr_t)(pml4_phys & ~0xFFFULL);
 
+    /* For user pages, we MUST ensure the VMM_USER bit is set at the lowest level too */
+    flags |= VMM_USER;
+
     pte_t *pdp = get_or_create_table(pml4, PML4_IDX(virt), VMM_PRESENT | VMM_WRITABLE | VMM_USER);
     if (!pdp) return; /* Already mapped as huge page */
     pte_t *pd  = get_or_create_table(pdp,  PDP_IDX(virt),  VMM_PRESENT | VMM_WRITABLE | VMM_USER);
@@ -128,7 +131,7 @@ uint64_t vmm_create_address_space(void) {
      * Keep kernel-only access for safety (no VMM_USER at PML4 level);
      * user mappings get USER bit applied at the PD/PT level.
      */
-    new_pml4[0] = new_pdp_phys | VMM_PRESENT | VMM_WRITABLE;
+    new_pml4[0] = new_pdp_phys | VMM_PRESENT | VMM_WRITABLE | VMM_USER;
 
     return pml4_phys;
 }

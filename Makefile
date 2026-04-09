@@ -5,6 +5,7 @@
 # =============================================================
 
 CC     := x86_64-elf-gcc
+CXX    := x86_64-elf-gcc
 LD     := x86_64-elf-ld
 AS     := nasm
 GRUB   := grub-mkrescue
@@ -29,6 +30,11 @@ CFLAGS := \
 	-g \
 	-Ikernel/include
 
+CXXFLAGS := $(CFLAGS) \
+	-fno-exceptions \
+	-fno-rtti \
+	-fno-use-cxa-atexit
+
 ASFLAGS := -f elf64 -g -F dwarf
 
 LDFLAGS := -T linker.ld -nostdlib -z max-page-size=0x1000
@@ -36,6 +42,7 @@ LDFLAGS := -T linker.ld -nostdlib -z max-page-size=0x1000
 # -------------------------------------------------------------
 # Source discovery
 # -------------------------------------------------------------
+# Automatically find all C and ASM source files in the kernel directory
 C_SRCS   := $(shell find kernel -name '*.c'   2>/dev/null)
 ASM_SRCS := $(shell find kernel -name '*.asm' 2>/dev/null)
 
@@ -87,10 +94,13 @@ $(KERNEL_ELF): $(ALL_OBJS)
 	@size $@
 
 # -------------------------------------------------------------
-# User Space Test Program
+# User Space Test Program & Browser
 # -------------------------------------------------------------
 USER_DIR := user/test
 USER_ELF := $(BUILD_DIR)/user_test.elf
+
+BROWSER_DIR := user/browser
+BROWSER_ELF := $(BUILD_DIR)/browser.elf
 
 $(USER_ELF): $(USER_DIR)/main.c
 	@mkdir -p $(dir $@)
@@ -98,13 +108,19 @@ $(USER_ELF): $(USER_DIR)/main.c
 	$(LD) -T $(USER_DIR)/linker.ld -nostdlib -z max-page-size=0x1000 $(BUILD_DIR)/user_main.o -o $@
 	@echo "  [Genesi] User test linked: $@"
 
+$(BROWSER_ELF): $(BROWSER_DIR)/main.cpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(CXXFLAGS) -c $< -o $(BUILD_DIR)/browser_main.o
+	$(LD) -T $(USER_DIR)/linker.ld -nostdlib -z max-page-size=0x1000 $(BUILD_DIR)/browser_main.o -o $@
+	@echo "  [Genesi] Browser linked: $@"
+
 # -------------------------------------------------------------
 # ISO image
 # -------------------------------------------------------------
 iso: $(KERNEL_ELF) $(USER_ELF)
 	@mkdir -p iso/boot/grub iso/modules
-	@cp $(KERNEL_ELF) iso/boot/genesi.elf
-	@cp $(USER_ELF) iso/modules/test.elf
+	@cp -f $(KERNEL_ELF) iso/boot/genesi.elf
+	@cp -f $(USER_ELF) iso/modules/test.elf
 	@python3 tools/img2raw.py public/images/wallpaper1.png iso/modules/wallpaper.raw
 	@cp tools/grub.cfg iso/boot/grub/grub.cfg
 	@$(GRUB) -o $(ISO_FILE) iso/ 2>/dev/null

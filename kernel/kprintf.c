@@ -112,10 +112,10 @@ void vkprintf(const char *fmt, va_list ap) {
             break;
         }
     }
-    /* Flush the framebuffer once per printf block instead of character by character */
+    /* Tell the GUI it needs to redraw later, instead of rendering synchronously */
     if (s_fb_ready) {
-        extern void compositor_render(void);
-        compositor_render();
+        extern volatile bool g_gui_needs_update;
+        g_gui_needs_update = true;
     }
 }
 
@@ -134,6 +134,8 @@ void kprintf(const char *fmt, ...) {
 /* ------------------------------------------------------------------ */
 static void vkpanic_core(uint32_t bg, uint32_t fg, const char *fmt, va_list ap) {
     if (s_fb_ready) {
+        extern void fb_console_force_fullscreen(void);
+        fb_console_force_fullscreen();
         fbc_set_bg(bg);
         fbc_set_fg(fg);
         fb_console_clear();
@@ -147,6 +149,9 @@ static void vkpanic_core(uint32_t bg, uint32_t fg, const char *fmt, va_list ap) 
 
     if (s_fb_ready) {
         fb_console_puts("\n\n  System halted.\n");
+        /* Flush the backbuffer to the actual screen */
+        extern void fb_flip(void);
+        fb_flip();
     } else {
         vga_puts("\n\n  System halted.\n");
     }

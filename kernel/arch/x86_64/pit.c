@@ -56,6 +56,7 @@ uint64_t pit_get_ticks(void) {
 void pit_sleep(uint64_t ms) {
     uint64_t target = g_pit_ticks + (ms * s_hz / 1000);
     while (g_pit_ticks < target) {
-        __asm__ volatile ("pause");
+        extern void sched_yield(void);
+        sched_yield();
     }
 }

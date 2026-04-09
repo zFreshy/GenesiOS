@@ -72,7 +72,10 @@ void ipv4_receive(uint8_t *packet, uint16_t len) {
 void ipv4_send(uint8_t *dst_ip, uint8_t protocol, uint8_t *payload, uint16_t payload_len) {
     uint16_t total_len = sizeof(struct ipv4_header) + payload_len;
     
-    uint8_t buffer[2048];
+    extern void *kmalloc(size_t size);
+    extern void kfree(void *ptr);
+    uint8_t *buffer = (uint8_t *)kmalloc(total_len);
+    if (!buffer) return;
     kmemset(buffer, 0, total_len);
     
     struct ipv4_header *ipv4 = (struct ipv4_header *)buffer;
@@ -128,4 +131,5 @@ void ipv4_send(uint8_t *dst_ip, uint8_t protocol, uint8_t *payload, uint16_t pay
     }
     
     ethernet_send(dst_mac, ETHERTYPE_IPV4, buffer, total_len);
+    kfree(buffer);
 }

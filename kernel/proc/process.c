@@ -27,6 +27,7 @@ extern void enter_user_mode(uint64_t rip, uint64_t rsp);
  * ------------------------------------------------------------------ */
 static void user_mode_trampoline(void) {
     task_t *t = sched_current();
+    kprintf("[PROC] user_mode_trampoline for PID %llu starting...\n", (unsigned long long)t->pid);
 
     /*
      * Set up the kernel stack pointer that syscall_entry.asm will use when
@@ -39,6 +40,10 @@ static void user_mode_trampoline(void) {
 
     /* Switch to the process's own page table */
     vmm_load_cr3(t->cr3);
+
+    kprintf("[PROC] Jumping to user mode at RIP=0x%llx RSP=0x%llx\n",
+            (unsigned long long)t->user_entry,
+            (unsigned long long)t->user_rsp);
 
     /* Jump to ring 3 */
     enter_user_mode(t->user_entry, t->user_rsp);
@@ -78,7 +83,7 @@ void process_create_user(const char *name, const uint8_t *elf_data) {
      *    We map 4 pages (16 KB) below that address.
      */
     uint64_t user_stack_top    = 0x00007FFFFFFFF000ULL;
-    uint64_t user_stack_pages  = 4;
+    uint64_t user_stack_pages  = 16; /* Aumentado para 64 KB de stack */
     uint64_t user_stack_bottom = user_stack_top - (user_stack_pages * PAGE_SIZE);
 
     for (uint64_t i = 0; i < user_stack_pages; i++) {

@@ -30,8 +30,10 @@ void ethernet_send(uint8_t *dst_mac, uint16_t ethertype, uint8_t *payload, uint1
     uint16_t total_len = sizeof(struct eth_header) + payload_len;
     if (total_len < 60) total_len = 60; /* Padding for minimum Ethernet frame size */
     
-    /* TODO: Allocate dynamically or use a proper packet buffer system */
-    uint8_t buffer[2048]; 
+    extern void *kmalloc(size_t size);
+    extern void kfree(void *ptr);
+    uint8_t *buffer = (uint8_t *)kmalloc(total_len);
+    if (!buffer) return;
     kmemset(buffer, 0, total_len);
     
     struct eth_header *hdr = (struct eth_header *)buffer;
@@ -47,4 +49,5 @@ void ethernet_send(uint8_t *dst_mac, uint16_t ethertype, uint8_t *payload, uint1
     
     extern int e1000_send_packet(const void *data, uint16_t len);
     e1000_send_packet(buffer, total_len);
+    kfree(buffer);
 }

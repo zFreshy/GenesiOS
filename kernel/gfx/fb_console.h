@@ -25,5 +25,6 @@ void fbc_puts(const char *str);
 void fbc_putchar(char c);
 
 void fb_console_bind_window(window_t *win);
+void fb_console_detach_window(window_t *win);
 
 #endif

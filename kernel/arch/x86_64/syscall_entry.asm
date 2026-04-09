@@ -63,7 +63,13 @@ syscall_entry:
     mov rsi, rdi
     mov rdi, rax
     
+    ; Align stack to 16 bytes before calling C function
+    ; We pushed 15 registers (120 bytes). We need 8 more to reach 128 (multiple of 16).
+    push 0
+    sti    ; Enable interrupts so syscalls can block/sleep and be preempted
     call syscall_handler
+    cli    ; Disable interrupts before returning to user mode
+    add rsp, 8
     
     ; RAX has return value. Restore original registers except RAX
     pop r9

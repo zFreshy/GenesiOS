@@ -139,6 +139,7 @@ void shell_exec(const char *cmd) {
         kprintf("  host      - resolve a domain name (e.g., host google.com)\n");
         kprintf("  wget      - fetch an HTTP page (e.g., wget google.com)\n");
         kprintf("  ls        - list directory contents (e.g., ls /bin)\n");
+        kprintf("  browser   - launch the C++ user-space browser\n");
         kprintf("  halt      - halt the system\n");
     } else if (kstrcmp(cmd, "mem") == 0) {
         kprintf("  Free  : %zu MB\n",
@@ -399,6 +400,10 @@ void shell_exec(const char *cmd) {
             tag = (mb2_tag_t *)((uint8_t *)tag + ((tag->size + 7) & ~7));
         }
         kprintf("  Error: Could not find an ELF module in Multiboot info.\n");
+    } else if (kstrcmp(cmd, "browser") == 0) {
+        kprintf("  [Shell] Launching Genesi Native Browser...\n");
+        extern void launch_browser_app(void);
+        launch_browser_app();
     } else if (kstrcmp(cmd, "halt") == 0) {
         kprintf("  Halting...\n");
         irq_disable();
@@ -549,6 +554,9 @@ void kernel_main(uint32_t boot_magic, uint64_t mboot_info) {
 
     /* --- Phase 10: Desktop & Window Manager -------------------------- */
     desktop_start();
+
+    /* Auto-launch browser for testing */
+    shell_exec("browser");
 
     /* Enter idle loop for the GUI */
     for (;;) {
