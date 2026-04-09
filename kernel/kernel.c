@@ -132,6 +132,7 @@ void shell_exec(const char *cmd) {
         kprintf("  version   - show OS info\n");
         kprintf("  test      - spawn 3 test threads (A, B, C)\n");
         kprintf("  ipconfig  - show network interfaces\n");
+        kprintf("  nettest   - test E1000 sending a raw packet\n");
         kprintf("  halt      - halt the system\n");
     } else if (kstrcmp(cmd, "mem") == 0) {
         kprintf("  Free  : %zu MB\n",
@@ -180,6 +181,40 @@ void shell_exec(const char *cmd) {
             }
         }
         kprintf("\n");
+    } else if (kstrcmp(cmd, "nettest") == 0) {
+        extern net_device_t g_net_dev;
+        if (!g_net_dev.present) {
+            kprintf("  Error: No network device available to test.\n");
+        } else {
+            kprintf("  [NetTest] Preparing test packet...\n");
+            
+            /* Basic raw Ethernet frame for testing (Broadcast ping basically) */
+            uint8_t test_packet[64];
+            kmemset(test_packet, 0, sizeof(test_packet));
+            
+            /* Destination MAC (Broadcast) */
+            for (int i = 0; i < 6; i++) test_packet[i] = 0xFF;
+            /* Source MAC */
+            for (int i = 0; i < 6; i++) test_packet[6+i] = g_net_dev.mac[i];
+            /* EtherType (IPv4 = 0x0800) */
+            test_packet[12] = 0x08; test_packet[13] = 0x00;
+            
+            /* Fake payload */
+            const char* payload = "GENESI_NET_TEST_PACKET";
+            for (int i = 0; payload[i] && i < 40; i++) {
+                test_packet[14+i] = payload[i];
+            }
+            
+            kprintf("  [NetTest] Sending 64-byte raw frame via E1000...\n");
+            extern int e1000_send_packet(const void *data, uint16_t len);
+            int res = e1000_send_packet(test_packet, 64);
+            
+            if (res == 0) {
+                kprintf("  [NetTest] SUCCESS! Packet sent to the wire (DD bit set).\n");
+            } else {
+                kprintf("  [NetTest] FAILED! e1000_send_packet returned %d.\n", res);
+            }
+        }
     } else if (kstrcmp(cmd, "run") == 0) {
         kprintf("  Running test user process...\n");
         extern void process_create_user(const char *name, const uint8_t *elf_data);

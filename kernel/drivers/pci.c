@@ -5,6 +5,7 @@
 #include "../include/pci.h"
 #include "../include/kprintf.h"
 #include "../include/net.h"
+#include "../include/e1000.h"
 
 net_device_t g_net_dev = {0};
 
@@ -93,6 +94,7 @@ static void check_device(uint8_t bus, uint8_t slot, uint8_t func) {
             
             if (vendor_id == 0x8086 && device_id == 0x100E) {
                 g_net_dev.name = "Intel PRO/1000 (e1000)";
+                e1000_init(bus, slot, func);
             } else if (vendor_id == 0x10EC && device_id == 0x8139) {
                 g_net_dev.name = "Realtek RTL8139";
             } else if (vendor_id == 0x1022 && device_id == 0x2000) {
@@ -101,10 +103,7 @@ static void check_device(uint8_t bus, uint8_t slot, uint8_t func) {
                 g_net_dev.name = "Unknown Generic NIC";
             }
             
-            /* Fill with fake MAC/IP for now just for UI purposes until driver is complete */
-            g_net_dev.mac[0] = 0x52; g_net_dev.mac[1] = 0x54; g_net_dev.mac[2] = 0x00;
-            g_net_dev.mac[3] = 0x12; g_net_dev.mac[4] = 0x34; g_net_dev.mac[5] = 0x56;
-            
+            /* Fill with 0 for now until driver is complete */
             g_net_dev.ip[0] = 0; g_net_dev.ip[1] = 0; g_net_dev.ip[2] = 0; g_net_dev.ip[3] = 0;
             g_net_dev.mask[0] = 0; g_net_dev.mask[1] = 0; g_net_dev.mask[2] = 0; g_net_dev.mask[3] = 0;
             g_net_dev.gateway[0] = 0; g_net_dev.gateway[1] = 0; g_net_dev.gateway[2] = 0; g_net_dev.gateway[3] = 0;

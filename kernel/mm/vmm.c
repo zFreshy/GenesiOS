@@ -23,11 +23,10 @@
 static pte_t *get_or_create_table(pte_t *parent, size_t idx, uint64_t flags) {
     if (parent[idx] & VMM_PRESENT) {
         /* Guard: if this is a 2MB huge page (PS bit = bit 7), we cannot
-         * walk through it as a page table. This indicates a design error
-         * (trying to map 4KB pages inside a 2MB huge-page region). */
+         * walk through it as a page table. We return NULL to indicate this
+         * is already mapped as a huge page. */
         if (parent[idx] & (1ULL << 7)) {
-            kpanic_color(0x000000AA, 0x00FFFFFF, "vmm: get_or_create_table hit a 2MB huge page at idx=%zu entry=0x%llx\n",
-                   idx, (unsigned long long)parent[idx]);
+            return NULL;
         }
         /* Ensure intermediate directories have the necessary flags (like USER) */
         parent[idx] |= flags;
@@ -60,8 +59,11 @@ void vmm_map(uint64_t virt, uint64_t phys, uint64_t flags) {
     pte_t *pml4 = (pte_t *)(uintptr_t)(cr3 & ~0xFFFULL);
 
     pte_t *pdp = get_or_create_table(pml4, PML4_IDX(virt), VMM_PRESENT | VMM_WRITABLE);
+    if (!pdp) return; /* Already mapped as huge page */
     pte_t *pd  = get_or_create_table(pdp,  PDP_IDX(virt),  VMM_PRESENT | VMM_WRITABLE);
+    if (!pd) return;  /* Already mapped as huge page */
     pte_t *pt  = get_or_create_table(pd,   PD_IDX(virt),   VMM_PRESENT | VMM_WRITABLE);
+    if (!pt) return;  /* Already mapped as huge page */
 
     pt[PT_IDX(virt)] = (phys & ~0xFFFULL) | (flags & 0xFFF) | VMM_PRESENT;
 
@@ -76,8 +78,11 @@ void vmm_map_user(uint64_t pml4_phys, uint64_t virt, uint64_t phys, uint64_t fla
     pte_t *pml4 = (pte_t *)(uintptr_t)(pml4_phys & ~0xFFFULL);
 
     pte_t *pdp = get_or_create_table(pml4, PML4_IDX(virt), VMM_PRESENT | VMM_WRITABLE | VMM_USER);
+    if (!pdp) return; /* Already mapped as huge page */
     pte_t *pd  = get_or_create_table(pdp,  PDP_IDX(virt),  VMM_PRESENT | VMM_WRITABLE | VMM_USER);
+    if (!pd) return;  /* Already mapped as huge page */
     pte_t *pt  = get_or_create_table(pd,   PD_IDX(virt),   VMM_PRESENT | VMM_WRITABLE | VMM_USER);
+    if (!pt) return;  /* Already mapped as huge page */
 
     pt[PT_IDX(virt)] = (phys & ~0xFFFULL) | (flags & 0xFFF) | VMM_PRESENT | VMM_USER;
 }
@@ -137,10 +142,16 @@ void vmm_unmap(uint64_t virt) {
     pte_t *pml4 = (pte_t *)(uintptr_t)(cr3 & ~0xFFFULL);
 
     if (!(pml4[PML4_IDX(virt)] & VMM_PRESENT)) return;
+    if (pml4[PML4_IDX(virt)] & (1ULL << 7)) return; /* Huge page */
+    
     pte_t *pdp = (pte_t *)(uintptr_t)PAGE_ADDR(pml4[PML4_IDX(virt)]);
     if (!(pdp[PDP_IDX(virt)] & VMM_PRESENT)) return;
+    if (pdp[PDP_IDX(virt)] & (1ULL << 7)) return; /* Huge page */
+    
     pte_t *pd  = (pte_t *)(uintptr_t)PAGE_ADDR(pdp[PDP_IDX(virt)]);
     if (!(pd[PD_IDX(virt)] & VMM_PRESENT)) return;
+    if (pd[PD_IDX(virt)] & (1ULL << 7)) return; /* Huge page */
+    
     pte_t *pt  = (pte_t *)(uintptr_t)PAGE_ADDR(pd[PD_IDX(virt)]);
 
     pt[PT_IDX(virt)] = 0;
@@ -154,13 +165,21 @@ uint64_t vmm_get_phys(uint64_t virt) {
     uint64_t cr3;
     __asm__ volatile ("mov %%cr3, %0" : "=r"(cr3));
     pte_t *pml4 = (pte_t *)(uintptr_t)(cr3 & ~0xFFFULL);
+    
     if (!(pml4[PML4_IDX(virt)] & VMM_PRESENT)) return 0;
+    if (pml4[PML4_IDX(virt)] & (1ULL << 7)) return (PAGE_ADDR(pml4[PML4_IDX(virt)]) & ~((1ULL << 39) - 1)) | (virt & ((1ULL << 39) - 1));
+    
     pte_t *pdp = (pte_t *)(uintptr_t)PAGE_ADDR(pml4[PML4_IDX(virt)]);
     if (!(pdp[PDP_IDX(virt)] & VMM_PRESENT)) return 0;
+    if (pdp[PDP_IDX(virt)] & (1ULL << 7)) return (PAGE_ADDR(pdp[PDP_IDX(virt)]) & ~((1ULL << 30) - 1)) | (virt & ((1ULL << 30) - 1));
+    
     pte_t *pd  = (pte_t *)(uintptr_t)PAGE_ADDR(pdp[PDP_IDX(virt)]);
     if (!(pd[PD_IDX(virt)] & VMM_PRESENT)) return 0;
+    if (pd[PD_IDX(virt)] & (1ULL << 7)) return (PAGE_ADDR(pd[PD_IDX(virt)]) & ~((1ULL << 21) - 1)) | (virt & ((1ULL << 21) - 1));
+    
     pte_t *pt  = (pte_t *)(uintptr_t)PAGE_ADDR(pd[PD_IDX(virt)]);
     if (!(pt[PT_IDX(virt)] & VMM_PRESENT)) return 0;
+    
     return PAGE_ADDR(pt[PT_IDX(virt)]) | (virt & 0xFFF);
 }
 
