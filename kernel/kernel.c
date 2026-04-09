@@ -296,6 +296,10 @@ void kernel_main(uint32_t boot_magic, uint64_t mboot_info) {
     kprintf("      The Programming Operating System\n\n");
     ok("Framebuffer console active");
 
+    /* --- Phase 9: PCI & Devices ----------------------------------- */
+    #include "include/pci.h"
+    pci_init();
+
     /* --- Phase 4: Scheduler --------------------------------------- */
     sched_init();          ok("Scheduler initialized (PID 0 idle, PID 1 kernel)");
 

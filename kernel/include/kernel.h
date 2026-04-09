@@ -39,6 +39,14 @@ ALWAYS_INLINE uint16_t inw(uint16_t port) {
     __asm__ volatile ("inw %1, %0" : "=a"(val) : "Nd"(port) : "memory");
     return val;
 }
+ALWAYS_INLINE void outl(uint16_t port, uint32_t val) {
+    __asm__ volatile ("outl %0, %1" : : "a"(val), "Nd"(port) : "memory");
+}
+ALWAYS_INLINE uint32_t inl(uint16_t port) {
+    uint32_t val;
+    __asm__ volatile ("inl %1, %0" : "=a"(val) : "Nd"(port) : "memory");
+    return val;
+}
 /* Short I/O delay — write to unused port 0x80 */
 ALWAYS_INLINE void io_wait(void) { outb(0x80, 0x00); }
 
