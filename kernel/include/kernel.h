@@ -67,21 +67,48 @@ ALWAYS_INLINE NORETURN void panic_halt(void) {
 /* Memory helpers (no libc available yet)                              */
 /* ------------------------------------------------------------------ */
 static inline void *kmemset(void *dst, int val, size_t n) {
-    uint64_t d0, d1;
+    size_t qwords = n / 8;
+    size_t bytes = n % 8;
+    uint64_t v = (uint8_t)val;
+    v |= v << 8;
+    v |= v << 16;
+    v |= v << 32;
+    uint64_t dummy1, dummy2;
     __asm__ volatile (
+        "rep stosq\n\t"
+        "mov %4, %%rcx\n\t"
         "rep stosb"
-        : "=&c"(d0), "=&D"(d1)
-        : "0"(n), "1"(dst), "a"(val)
+        : "=c"(dummy1), "=D"(dummy2)
+        : "0"(qwords), "r"(bytes), "1"(dst), "a"(v)
+        : "memory"
+    );
+    return dst;
+}
+static inline void *kmemset32(void *dst, uint32_t val, size_t count32) {
+    size_t qwords = count32 / 2;
+    size_t dwords = count32 % 2;
+    uint64_t qval = ((uint64_t)val << 32) | val;
+    uint64_t dummy1, dummy2;
+    __asm__ volatile (
+        "rep stosq\n\t"
+        "mov %4, %%rcx\n\t"
+        "rep stosl"
+        : "=c"(dummy1), "=D"(dummy2)
+        : "0"(qwords), "r"(dwords), "1"(dst), "a"(qval)
         : "memory"
     );
     return dst;
 }
 static inline void *kmemcpy(void *dst, const void *src, size_t n) {
-    uint64_t d0, d1, d2;
+    size_t qwords = n / 8;
+    size_t bytes = n % 8;
+    uint64_t dummy1, dummy2, dummy3;
     __asm__ volatile (
+        "rep movsq\n\t"
+        "mov %4, %%rcx\n\t"
         "rep movsb"
-        : "=&c"(d0), "=&D"(d1), "=&S"(d2)
-        : "0"(n), "1"(dst), "2"(src)
+        : "=c"(dummy1), "=D"(dummy2), "=S"(dummy3)
+        : "0"(qwords), "r"(bytes), "1"(dst), "2"(src)
         : "memory"
     );
     return dst;

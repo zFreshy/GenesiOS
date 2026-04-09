@@ -42,9 +42,6 @@ static void terminal_on_key(window_t *win, char c) {
             fbc_putchar(c);
         }
     }
-    
-    /* Atualiza a janela para refletir a digitação atual */
-    compositor_render();
 }
 
 static void terminal_on_resize(window_t *win) {

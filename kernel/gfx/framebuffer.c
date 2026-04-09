@@ -78,21 +78,19 @@ void fb_putpixel(uint32_t x, uint32_t y, uint32_t color) {
 }
 
 void fb_fillrect(uint32_t x, uint32_t y, uint32_t w, uint32_t h, uint32_t color) {
+    if (x >= g_fb.width || y >= g_fb.height) return;
+    if (x + w > g_fb.width) w = g_fb.width - x;
+    if (y + h > g_fb.height) h = g_fb.height - y;
+    
     for (uint32_t cy = y; cy < y + h; cy++) {
-        if (cy >= g_fb.height) break;
-        uint32_t *row = &s_backbuffer[cy * (g_fb.pitch / 4)];
-        for (uint32_t cx = x; cx < x + w; cx++) {
-            if (cx >= g_fb.width) break;
-            row[cx] = color;
-        }
+        uint32_t *row = &s_backbuffer[cy * (g_fb.pitch / 4) + x];
+        kmemset32(row, color, w);
     }
 }
 
 void fb_clear(uint32_t color) {
     uint32_t total = (g_fb.height * g_fb.pitch) / 4;
-    for (uint32_t i = 0; i < total; i++) {
-        s_backbuffer[i] = color;
-    }
+    kmemset32(s_backbuffer, color, total);
 }
 
 void fb_flip(void) {

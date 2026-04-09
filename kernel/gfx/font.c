@@ -91,32 +91,12 @@ void font_draw_char_to_buffer_scaled(uint32_t *buffer, uint32_t w, uint32_t h, u
     uint32_t scaled_h = FONT_HEIGHT * scale;
 
     for (uint32_t dy = 0; dy < scaled_h; dy++) {
+        uint32_t src_y = dy / scale;
         for (uint32_t dx = 0; dx < scaled_w; dx++) {
             if (x + dx >= w || y + dy >= h) continue;
 
-            /* Bilinear Interpolation for smooth scaling */
-            uint32_t src_x = (dx * 256) / scale;
-            uint32_t src_y = (dy * 256) / scale;
-            
-            uint32_t x0 = src_x >> 8;
-            uint32_t y0 = src_y >> 8;
-            uint32_t x1 = x0 + 1;
-            uint32_t y1 = y0 + 1;
-            
-            if (x1 >= FONT_WIDTH) x1 = FONT_WIDTH - 1;
-            if (y1 >= FONT_HEIGHT) y1 = FONT_HEIGHT - 1;
-            
-            uint32_t fx = src_x & 0xFF;
-            uint32_t fy = src_y & 0xFF;
-            
-            uint8_t p00 = font_alpha[(unsigned char)c][y0 * FONT_WIDTH + x0];
-            uint8_t p01 = font_alpha[(unsigned char)c][y0 * FONT_WIDTH + x1];
-            uint8_t p10 = font_alpha[(unsigned char)c][y1 * FONT_WIDTH + x0];
-            uint8_t p11 = font_alpha[(unsigned char)c][y1 * FONT_WIDTH + x1];
-            
-            uint32_t top = (p00 * (256 - fx) + p01 * fx) >> 8;
-            uint32_t bot = (p10 * (256 - fx) + p11 * fx) >> 8;
-            uint8_t alpha = (top * (256 - fy) + bot * fy) >> 8;
+            uint32_t src_x = dx / scale;
+            uint8_t alpha = font_alpha[(unsigned char)c][src_y * FONT_WIDTH + src_x];
 
             if (alpha == 255) {
                 buffer[(y + dy) * w + (x + dx)] = fg;

@@ -31,8 +31,14 @@ static bool      s_start_menu_open = false;
 
 void compositor_render(void);
 
+static void fb_clear_buffer(uint32_t *bb, uint32_t color) {
+    extern void *kmemset32(void *dst, uint32_t val, size_t count32);
+    uint32_t total = s_width * s_height;
+    kmemset32(bb, color, total);
+}
+
 /* ------------------------------------------------------------------ */
-/* Initialize compositor                                              */
+/* Initialize the compositor                                          */
 /* ------------------------------------------------------------------ */
 void compositor_init(void) {
     if (!fb_available()) return;
@@ -100,28 +106,22 @@ static void draw_wallpaper(void) {
         uint32_t w_h = 1080;
         
         if (s_width == w_w && s_height == w_h) {
-            /* Fast path: exact match, just memcpy */
-            kmemcpy(bb, g_wallpaper_raw, w_w * w_h * 4);
+            /* Exact match, just copy row by row to respect pitch */
+            for (uint32_t y = 0; y < w_h; y++) {
+                kmemcpy(&bb[y * fb_pitch_words()], &g_wallpaper_raw[y * w_w], w_w * 4);
+            }
         } else {
-            /* Fallback Fixed-point math for scaling without division in loop */
-            uint32_t dx = (w_w << 16) / s_width;
-            uint32_t dy = (w_h << 16) / s_height;
+            /* Center or crop the wallpaper instead of slow per-pixel scaling */
+            uint32_t copy_w = (s_width < w_w) ? s_width : w_w;
+            uint32_t copy_h = (s_height < w_h) ? s_height : w_h;
             
-            uint32_t cur_y = 0;
-            for (uint32_t y = 0; y < s_height; y++) {
-                uint32_t src_y = cur_y >> 16;
-                if (src_y >= w_h) src_y = w_h - 1;
-                uint32_t row_offset = src_y * w_w;
-                
-                uint32_t cur_x = 0;
-                for (uint32_t x = 0; x < s_width; x++) {
-                    uint32_t src_x = cur_x >> 16;
-                    if (src_x >= w_w) src_x = w_w - 1;
-                    
-                    bb[y * fb_pitch_words() + x] = g_wallpaper_raw[row_offset + src_x] & 0xFFFFFF;
-                    cur_x += dx;
-                }
-                cur_y += dy;
+            /* Fill background with black first in case screen is larger */
+            if (s_width > w_w || s_height > w_h) {
+                fb_clear_buffer(bb, 0xFF000000);
+            }
+            
+            for (uint32_t y = 0; y < copy_h; y++) {
+                kmemcpy(&bb[y * fb_pitch_words()], &g_wallpaper_raw[y * w_w], copy_w * 4);
             }
         }
     }
@@ -160,8 +160,22 @@ static void draw_rounded_rect(int32_t x, int32_t y, int32_t w, int32_t h, int32_
     uint32_t cb = color & 0xFF;
 
     for (int32_t cy = y; cy < y + h; cy++) {
+        if (cy < 0 || cy >= (int32_t)s_height) continue;
+        
+        /* If we are completely inside the rectangle vertically, and there is no blending, 
+           we can fast fill the inner horizontal row */
+        if (!blend && (cy >= y + r) && (cy < y + h - r)) {
+            int32_t cx_start = (x < 0) ? 0 : x;
+            int32_t cx_end = (x + w > (int32_t)s_width) ? (int32_t)s_width : x + w;
+            if (cx_end > cx_start) {
+                extern void *kmemset32(void *dst, uint32_t val, size_t count32);
+                kmemset32(&bb[cy * fb_pitch_words() + cx_start], color & 0xFFFFFF, cx_end - cx_start);
+            }
+            continue;
+        }
+        
         for (int32_t cx = x; cx < x + w; cx++) {
-            if (cx < 0 || cx >= (int32_t)s_width || cy < 0 || cy >= (int32_t)s_height) continue;
+            if (cx < 0 || cx >= (int32_t)s_width) continue;
 
             /* Distância até a quina mais próxima para desenhar o círculo */
             int32_t dx = 0, dy = 0;
@@ -171,19 +185,21 @@ static void draw_rounded_rect(int32_t x, int32_t y, int32_t w, int32_t h, int32_
             if (cy < y + r) dy = (y + r - 1) - cy;
             else if (cy >= y + h - r) dy = cy - (y + h - r);
             
-            uint32_t dist_sq = dx*dx + dy*dy;
-            uint32_t rr = r*r;
             uint32_t alpha = base_alpha;
-            
-            if (dist_sq >= rr) {
-                continue; /* Fora do círculo */
-            } else if (dist_sq > (r - 2)*(r - 2)) {
-                /* Borda do círculo: aplica Anti-Aliasing (suavização) */
-                uint32_t dist = fast_sqrt(dist_sq);
-                if (dist >= r) continue;
-                /* Calcula opacidade baseada em quão perto do sub-pixel está (0 a 255) */
-                uint32_t edge_alpha = 255 - ((dist - (r - 2)) * 255 / 2);
-                alpha = (alpha * edge_alpha) / 255;
+            if (dx > 0 || dy > 0) {
+                uint32_t dist_sq = dx*dx + dy*dy;
+                uint32_t rr = r*r;
+                
+                if (dist_sq >= rr) {
+                    continue; /* Fora do círculo */
+                } else if (dist_sq > (r - 2)*(r - 2)) {
+                    /* Borda do círculo: aplica Anti-Aliasing (suavização) */
+                    uint32_t dist = fast_sqrt(dist_sq);
+                    if (dist >= r) continue;
+                    /* Calcula opacidade baseada em quão perto do sub-pixel está (0 a 255) */
+                    uint32_t edge_alpha = 255 - ((dist - (r - 2)) * 255 / 2);
+                    alpha = (alpha * edge_alpha) / 255;
+                }
             }
 
             if (blend && alpha < 255) {
@@ -312,27 +328,42 @@ static void draw_window(window_t *win) {
         int32_t buf_h = win->height;
         
         for (int32_t cy = 0; cy < buf_h; cy++) {
-            for (int32_t cx = 0; cx < buf_w; cx++) {
-                int32_t px = win->x + cx;
-                int32_t py = win->y + cy;
+            int32_t py = win->y + cy;
+            if (py < 0 || py >= (int32_t)s_height) continue;
+            
+            /* If we are not in the rounded bottom corner area, we can fast-copy the whole row */
+            if (win_radius == 0 || cy < buf_h - win_radius) {
+                int32_t cx_start = 0;
+                int32_t cx_end = buf_w;
                 
-                if (px < 0 || px >= (int32_t)s_width || py < 0 || py >= (int32_t)s_height) continue;
+                /* Clip horizontally */
+                if (win->x < 0) cx_start = -win->x;
+                if (win->x + buf_w > (int32_t)s_width) cx_end = s_width - win->x;
                 
-                /* Bottom corners rounding */
-                if (win_radius > 0) {
+                if (cx_end > cx_start) {
+                    kmemcpy(&bb[py * fb_pitch_words() + (win->x + cx_start)], 
+                            &win->buffer[cy * buf_w + cx_start], 
+                            (cx_end - cx_start) * 4);
+                }
+            } else {
+                /* Bottom corners - draw pixel by pixel */
+                for (int32_t cx = 0; cx < buf_w; cx++) {
+                    int32_t px = win->x + cx;
+                    if (px < 0 || px >= (int32_t)s_width) continue;
+                    
                     int32_t dx = 0, dy = 0;
-                    if (cx < win_radius && cy >= buf_h - win_radius) {
+                    if (cx < win_radius) {
                         dx = (win_radius - 1) - cx;
                         dy = cy - (buf_h - win_radius);
-                    } else if (cx >= buf_w - win_radius && cy >= buf_h - win_radius) {
+                    } else if (cx >= buf_w - win_radius) {
                         dx = cx - (buf_w - win_radius);
                         dy = cy - (buf_h - win_radius);
                     }
                     
                     if (dx*dx + dy*dy >= win_radius * win_radius) continue;
+                    
+                    bb[py * fb_pitch_words() + px] = win->buffer[cy * buf_w + cx] | 0xFF000000;
                 }
-                
-                bb[py * fb_pitch_words() + px] = win->buffer[cy * buf_w + cx] | 0xFF000000;
             }
         }
     }
@@ -486,74 +517,10 @@ static void draw_desktop_widgets(void) {
 /* Draw taskbar (Floating Dock)                                       */
 /* ------------------------------------------------------------------ */
 static void apply_blur_rounded_rect(int32_t x, int32_t y, int32_t w, int32_t h, int32_t blur_r, int32_t border_r) {
-    extern uint32_t *fb_get_backbuffer(void);
-    uint32_t *bb = fb_get_backbuffer();
-    if (!bb) return;
-    
-    int32_t x0 = x < 0 ? 0 : x;
-    int32_t y0 = y < 0 ? 0 : y;
-    int32_t x1 = x + w > (int32_t)s_width ? (int32_t)s_width : x + w;
-    int32_t y1 = y + h > (int32_t)s_height ? (int32_t)s_height : y + h;
-    
-    int32_t bw = x1 - x0;
-    int32_t bh = y1 - y0;
-    if (bw <= 0 || bh <= 0) return;
-
-    /* A simple fast 2-pass box blur */
-    uint32_t *temp = kmalloc(bw * bh * sizeof(uint32_t));
-    if (!temp) return;
-    
-    /* Horizontal pass */
-    for (int32_t cy = 0; cy < bh; cy++) {
-        for (int32_t cx = 0; cx < bw; cx++) {
-            uint32_t sum_r = 0, sum_g = 0, sum_b = 0;
-            int32_t count = 0;
-            for (int32_t k = -blur_r; k <= blur_r; k++) {
-                int32_t px = cx + k;
-                if (px >= 0 && px < bw) {
-                    uint32_t color = bb[(y0 + cy) * fb_pitch_words() + (x0 + px)];
-                    sum_r += (color >> 16) & 0xFF;
-                    sum_g += (color >> 8) & 0xFF;
-                    sum_b += color & 0xFF;
-                    count++;
-                }
-            }
-            temp[cy * bw + cx] = ((sum_r / count) << 16) | ((sum_g / count) << 8) | (sum_b / count);
-        }
-    }
-    
-    /* Vertical pass */
-    for (int32_t cx = 0; cx < bw; cx++) {
-        for (int32_t cy = 0; cy < bh; cy++) {
-            int32_t px = x0 + cx;
-            int32_t py = y0 + cy;
-            
-            /* Clip to rounded corners */
-            int32_t dx = 0, dy = 0;
-            if (px < x + border_r) dx = (x + border_r - 1) - px;
-            else if (px >= x + w - border_r) dx = px - (x + w - border_r);
-            if (py < y + border_r) dy = (y + border_r - 1) - py;
-            else if (py >= y + h - border_r) dy = py - (y + h - border_r);
-            
-            if (dx*dx + dy*dy >= border_r * border_r) continue;
-            
-            uint32_t sum_r = 0, sum_g = 0, sum_b = 0;
-            int32_t count = 0;
-            for (int32_t k = -blur_r; k <= blur_r; k++) {
-                int32_t py_k = cy + k;
-                if (py_k >= 0 && py_k < bh) {
-                    uint32_t color = temp[py_k * bw + cx];
-                    sum_r += (color >> 16) & 0xFF;
-                    sum_g += (color >> 8) & 0xFF;
-                    sum_b += color & 0xFF;
-                    count++;
-                }
-            }
-            bb[py * fb_pitch_words() + px] = ((sum_r / count) << 16) | ((sum_g / count) << 8) | (sum_b / count);
-        }
-    }
-    
-    kfree(temp);
+    /* For performance on real hardware, blur is disabled and replaced with a solid translucent fill.
+       Software blur of large areas with divisions in inner loops causes severe lag when moving windows. */
+    (void)blur_r;
+    draw_rounded_rect(x, y, w, h, border_r, 0x801A1C23, true);
 }
 
 static void draw_icon(int32_t x, int32_t y, const uint32_t *icon_data, uint32_t icon_w, uint32_t icon_h) {

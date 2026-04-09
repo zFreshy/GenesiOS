@@ -198,9 +198,8 @@ void fb_console_puts(const char *str) {
         }
     }
     
-    if (s_win) {
-        compositor_render();
-    } else {
-        fb_flip();
-    }
+    /* Just mark the GUI for update, don't render synchronously here!
+       Rendering here would cause O(N) full-screen redraws for a string of length N! */
+    extern volatile bool g_gui_needs_update;
+    g_gui_needs_update = true;
 }
