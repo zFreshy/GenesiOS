@@ -7,12 +7,15 @@
 #include "../include/net.h"
 #include "../mm/vmm.h"
 #include "../mm/heap.h"
+#include "../arch/x86_64/irq.h"
+#include "../net/ethernet.h"
 
 static uint8_t *s_e1000_mmio;
 static struct e1000_rx_desc *s_rx_descs;
 static struct e1000_tx_desc *s_tx_descs;
 static uint16_t s_rx_cur = 0;
 static uint16_t s_tx_cur = 0;
+static uint8_t  s_e1000_irq = 0;
 
 static void e1000_write_reg(uint16_t reg, uint32_t val) {
     *(volatile uint32_t *)(s_e1000_mmio + reg) = val;
@@ -99,6 +102,38 @@ int e1000_send_packet(const void *data, uint16_t len) {
     return 0;
 }
 
+static void e1000_irq_handler(registers_t *regs) {
+    (void)regs;
+    
+    /* Read Interrupt Cause Read to find out what happened */
+    uint32_t status = e1000_read_reg(E1000_REG_ICR);
+    
+    /* Check if it was a Receiver Timer Interrupt (Packet arrived) */
+    if (status & 0x80) { /* RXT0 = bit 7 */
+        /* Poll the RX ring until we process all received packets */
+        while ((s_rx_descs[s_rx_cur].status & 0x1)) { /* DD bit = bit 0 */
+            uint8_t *pkt = (uint8_t *)(uintptr_t)s_rx_descs[s_rx_cur].addr;
+            uint16_t len = s_rx_descs[s_rx_cur].length;
+            
+            kprintf("  [E1000] Packet received! Length: %d bytes\n", len);
+            
+            /* Send packet to network stack (Ethernet layer) */
+            ethernet_receive(pkt, len);
+            
+            /* Reset descriptor for next packet */
+            s_rx_descs[s_rx_cur].status = 0;
+            uint16_t old_cur = s_rx_cur;
+            s_rx_cur = (s_rx_cur + 1) % E1000_NUM_RX_DESC;
+            
+            /* Update hardware tail pointer */
+            e1000_write_reg(E1000_REG_RXDESCTAIL, old_cur);
+        }
+    }
+    
+    /* Acknowledge interrupt to the PIC */
+    irq_send_eoi(s_e1000_irq);
+}
+
 void e1000_init(uint8_t bus, uint8_t slot, uint8_t func) {
     kprintf("  [E1000] Initializing driver...\n");
     
@@ -132,8 +167,16 @@ void e1000_init(uint8_t bus, uint8_t slot, uint8_t func) {
     e1000_init_tx();
     
     /* Enable interrupts (clear mask and then set desired) */
-    e1000_write_reg(0x00D8, 0xFFFFFFFF); /* IMC: disable all */
-    e1000_write_reg(0x00D0, (1 << 7));   /* IMS: RXT0 (Receiver Timer Interrupt) */
+    e1000_write_reg(E1000_REG_IMC, 0xFFFFFFFF); /* IMC: disable all */
+    e1000_write_reg(E1000_REG_IMS, (1 << 7));   /* IMS: RXT0 (Receiver Timer Interrupt) */
+    
+    /* Read interrupt line from PCI */
+    s_e1000_irq = pci_config_read_dword(bus, slot, func, 0x3C) & 0xFF;
+    kprintf("  [E1000] Registered on IRQ %d\n", s_e1000_irq);
+    
+    /* Register handler and unmask PIC */
+    irq_register_handler(s_e1000_irq, e1000_irq_handler);
+    irq_unmask(s_e1000_irq);
     
     kprintf("  [E1000] Driver init OK (RX/TX rings configured)...\n");
 }

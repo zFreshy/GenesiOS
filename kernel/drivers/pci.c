@@ -104,9 +104,9 @@ static void check_device(uint8_t bus, uint8_t slot, uint8_t func) {
             }
             
             /* Fill with 0 for now until driver is complete */
-            g_net_dev.ip[0] = 0; g_net_dev.ip[1] = 0; g_net_dev.ip[2] = 0; g_net_dev.ip[3] = 0;
-            g_net_dev.mask[0] = 0; g_net_dev.mask[1] = 0; g_net_dev.mask[2] = 0; g_net_dev.mask[3] = 0;
-            g_net_dev.gateway[0] = 0; g_net_dev.gateway[1] = 0; g_net_dev.gateway[2] = 0; g_net_dev.gateway[3] = 0;
+            g_net_dev.ip[0] = 10; g_net_dev.ip[1] = 0; g_net_dev.ip[2] = 2; g_net_dev.ip[3] = 15;
+            g_net_dev.mask[0] = 255; g_net_dev.mask[1] = 255; g_net_dev.mask[2] = 255; g_net_dev.mask[3] = 0;
+            g_net_dev.gateway[0] = 10; g_net_dev.gateway[1] = 0; g_net_dev.gateway[2] = 2; g_net_dev.gateway[3] = 2;
         }
     }
 }
