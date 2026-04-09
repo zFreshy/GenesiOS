@@ -17,6 +17,7 @@ extern framebuffer_t g_fb;
 bool fb_available(void);
 uint32_t fb_width(void);
 uint32_t fb_height(void);
+uint32_t fb_pitch_words(void);
 
 void fb_init(uint64_t mboot_info);
 void fb_putpixel(uint32_t x, uint32_t y, uint32_t color);

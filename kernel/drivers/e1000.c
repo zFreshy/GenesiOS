@@ -95,10 +95,18 @@ int e1000_send_packet(const void *data, uint16_t len) {
     
     e1000_write_reg(E1000_REG_TXDESCTAIL, s_tx_cur);
     
-    /* Wait for transmission to finish (DD bit in status) */
-    while (!(s_tx_descs[old_cur].status & 0xFF)) {
+    /* Wait for transmission to finish (DD bit in status) with timeout */
+    int timeout = 1000000;
+    while (!(s_tx_descs[old_cur].status & 0xFF) && timeout > 0) {
+        timeout--;
         /* Busy wait */
     }
+    
+    if (timeout <= 0) {
+        kprintf("  [E1000] TX Timeout!\n");
+        return -1;
+    }
+    
     return 0;
 }
 

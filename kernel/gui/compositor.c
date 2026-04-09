@@ -517,10 +517,86 @@ static void draw_desktop_widgets(void) {
 /* Draw taskbar (Floating Dock)                                       */
 /* ------------------------------------------------------------------ */
 static void apply_blur_rounded_rect(int32_t x, int32_t y, int32_t w, int32_t h, int32_t blur_r, int32_t border_r) {
-    /* For performance on real hardware, blur is disabled and replaced with a solid translucent fill.
-       Software blur of large areas with divisions in inner loops causes severe lag when moving windows. */
-    (void)blur_r;
-    draw_rounded_rect(x, y, w, h, border_r, 0x801A1C23, true);
+    extern uint32_t *fb_get_backbuffer(void);
+    uint32_t *bb = fb_get_backbuffer();
+    if (!bb) return;
+    
+    int32_t x0 = x < 0 ? 0 : x;
+    int32_t y0 = y < 0 ? 0 : y;
+    int32_t x1 = x + w > (int32_t)s_width ? (int32_t)s_width : x + w;
+    int32_t y1 = y + h > (int32_t)s_height ? (int32_t)s_height : y + h;
+    
+    int32_t bw = x1 - x0;
+    int32_t bh = y1 - y0;
+    if (bw <= 0 || bh <= 0) return;
+
+    /* A simple fast 2-pass box blur */
+    uint32_t *temp = kmalloc(bw * bh * sizeof(uint32_t));
+    if (!temp) return;
+    
+    /* Horizontal pass */
+    for (int32_t cy = 0; cy < bh; cy++) {
+        for (int32_t cx = 0; cx < bw; cx++) {
+            uint32_t sum_r = 0, sum_g = 0, sum_b = 0;
+            int32_t count = 0;
+            for (int32_t k = -blur_r; k <= blur_r; k++) {
+                int32_t px = cx + k;
+                if (px >= 0 && px < bw) {
+                    uint32_t color = bb[(y0 + cy) * fb_pitch_words() + (x0 + px)];
+                    sum_r += (color >> 16) & 0xFF;
+                    sum_g += (color >> 8) & 0xFF;
+                    sum_b += color & 0xFF;
+                    count++;
+                }
+            }
+            temp[cy * bw + cx] = ((sum_r / count) << 16) | ((sum_g / count) << 8) | (sum_b / count);
+        }
+    }
+    
+    /* Vertical pass and darken */
+    for (int32_t cx = 0; cx < bw; cx++) {
+        for (int32_t cy = 0; cy < bh; cy++) {
+            int32_t px = x0 + cx;
+            int32_t py = y0 + cy;
+            
+            /* Clip to rounded corners */
+            int32_t dx = 0, dy = 0;
+            if (px < x + border_r) dx = (x + border_r - 1) - px;
+            else if (px >= x + w - border_r) dx = px - (x + w - border_r);
+            if (py < y + border_r) dy = (y + border_r - 1) - py;
+            else if (py >= y + h - border_r) dy = py - (y + h - border_r);
+            
+            if (dx*dx + dy*dy >= border_r * border_r) continue;
+            
+            uint32_t sum_r = 0, sum_g = 0, sum_b = 0;
+            int32_t count = 0;
+            for (int32_t k = -blur_r; k <= blur_r; k++) {
+                int32_t py_k = cy + k;
+                if (py_k >= 0 && py_k < bh) {
+                    uint32_t color = temp[py_k * bw + cx];
+                    sum_r += (color >> 16) & 0xFF;
+                    sum_g += (color >> 8) & 0xFF;
+                    sum_b += color & 0xFF;
+                    count++;
+                }
+            }
+            
+            /* Apply darkened translucent effect over the blur (Glassmorphism) */
+            uint32_t br = sum_r / count;
+            uint32_t bg = sum_g / count;
+            uint32_t bb_col = sum_b / count;
+            
+            /* Blend with 0x1A1C23 at 50% opacity */
+            uint32_t tint_r = 0x1A, tint_g = 0x1C, tint_b = 0x23;
+            uint32_t fr = (tint_r * 128 + br * 128) / 256;
+            uint32_t fg = (tint_g * 128 + bg * 128) / 256;
+            uint32_t fb = (tint_b * 128 + bb_col * 128) / 256;
+            
+            bb[py * fb_pitch_words() + px] = (fr << 16) | (fg << 8) | fb;
+        }
+    }
+    
+    kfree(temp);
 }
 
 static void draw_icon(int32_t x, int32_t y, const uint32_t *icon_data, uint32_t icon_w, uint32_t icon_h) {

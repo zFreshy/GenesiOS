@@ -7,8 +7,8 @@
 #include "pmm.h"
 #include "../include/kprintf.h"
 
-/* Aumentado de 16MB para 32MB para suportar o backbuffer de monitores Full HD (1920x1080x32 = ~8.3MB) */
-#define HEAP_INITIAL_SIZE (32U * 1024U * 1024U)   /* 32 MB */
+/* Aumentado de 32MB para 128MB para suportar monitores 4K (3840x2160x32 = ~33MB) */
+#define HEAP_INITIAL_SIZE (128U * 1024U * 1024U)   /* 128 MB */
 #define HEAP_MAGIC_FREE   0xDEADC0DEULL
 #define HEAP_MAGIC_USED   0xC0FFEEULL
 

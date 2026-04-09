@@ -67,50 +67,41 @@ ALWAYS_INLINE NORETURN void panic_halt(void) {
 /* Memory helpers (no libc available yet)                              */
 /* ------------------------------------------------------------------ */
 static inline void *kmemset(void *dst, int val, size_t n) {
+    uint8_t *d = (uint8_t *)dst;
     size_t qwords = n / 8;
     size_t bytes = n % 8;
     uint64_t v = (uint8_t)val;
     v |= v << 8;
     v |= v << 16;
     v |= v << 32;
-    uint64_t dummy1, dummy2;
-    __asm__ volatile (
-        "rep stosq\n\t"
-        "mov %4, %%rcx\n\t"
-        "rep stosb"
-        : "=c"(dummy1), "=D"(dummy2)
-        : "0"(qwords), "r"(bytes), "1"(dst), "a"(v)
-        : "memory"
-    );
+    uint64_t *d64 = (uint64_t *)d;
+    while (qwords--) *d64++ = v;
+    d = (uint8_t *)d64;
+    while (bytes--) *d++ = (uint8_t)val;
     return dst;
 }
 static inline void *kmemset32(void *dst, uint32_t val, size_t count32) {
+    uint32_t *d = (uint32_t *)dst;
     size_t qwords = count32 / 2;
     size_t dwords = count32 % 2;
     uint64_t qval = ((uint64_t)val << 32) | val;
-    uint64_t dummy1, dummy2;
-    __asm__ volatile (
-        "rep stosq\n\t"
-        "mov %4, %%rcx\n\t"
-        "rep stosl"
-        : "=c"(dummy1), "=D"(dummy2)
-        : "0"(qwords), "r"(dwords), "1"(dst), "a"(qval)
-        : "memory"
-    );
+    uint64_t *d64 = (uint64_t *)d;
+    while (qwords--) *d64++ = qval;
+    d = (uint32_t *)d64;
+    while (dwords--) *d++ = val;
     return dst;
 }
 static inline void *kmemcpy(void *dst, const void *src, size_t n) {
+    uint8_t *d = (uint8_t *)dst;
+    const uint8_t *s = (const uint8_t *)src;
     size_t qwords = n / 8;
     size_t bytes = n % 8;
-    uint64_t dummy1, dummy2, dummy3;
-    __asm__ volatile (
-        "rep movsq\n\t"
-        "mov %4, %%rcx\n\t"
-        "rep movsb"
-        : "=c"(dummy1), "=D"(dummy2), "=S"(dummy3)
-        : "0"(qwords), "r"(bytes), "1"(dst), "2"(src)
-        : "memory"
-    );
+    uint64_t *d64 = (uint64_t *)d;
+    const uint64_t *s64 = (const uint64_t *)s;
+    while (qwords--) *d64++ = *s64++;
+    d = (uint8_t *)d64;
+    s = (const uint8_t *)s64;
+    while (bytes--) *d++ = *s++;
     return dst;
 }
 static inline int kmemcmp(const void *a, const void *b, size_t n) {
