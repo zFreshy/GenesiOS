@@ -94,8 +94,26 @@ void ipv4_send(uint8_t *dst_ip, uint8_t protocol, uint8_t *payload, uint16_t pay
         kmemcpy(buffer + sizeof(struct ipv4_header), payload, payload_len);
     }
     
-    /* TODO: Routing table to find correct gateway MAC or broadcast */
-    /* For now, just broadcast everything for simplicity (especially DHCP) */
+    /* Routing: Use gateway MAC if we have it, else broadcast and request ARP */
     uint8_t dst_mac[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+    bool is_broadcast = (dst_ip[0] == 255 && dst_ip[1] == 255 && dst_ip[2] == 255 && dst_ip[3] == 255);
+    
+    if (!is_broadcast) {
+        extern uint8_t g_gateway_mac[6];
+        bool has_gw = false;
+        for (int i = 0; i < 6; i++) {
+            if (g_gateway_mac[i] != 0) has_gw = true;
+        }
+        
+        if (has_gw) {
+            for (int i = 0; i < 6; i++) dst_mac[i] = g_gateway_mac[i];
+        } else {
+            extern void arp_send_request(uint8_t *target_ip);
+            arp_send_request(g_net_dev.gateway);
+            kprintf("  [Net] Waiting for ARP to resolve gateway MAC... (Please retry ping in a moment)\n");
+            /* Still send it as broadcast, it might drop, but next time it will work */
+        }
+    }
+    
     ethernet_send(dst_mac, ETHERTYPE_IPV4, buffer, total_len);
 }

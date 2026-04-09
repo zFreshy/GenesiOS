@@ -10,6 +10,8 @@ static inline uint16_t ntohs(uint16_t netshort) {
     return htons(netshort);
 }
 
+uint8_t g_gateway_mac[6] = {0};
+
 void arp_receive(uint8_t *packet, uint16_t len) {
     if (len < sizeof(struct arp_header)) return;
     
@@ -43,7 +45,16 @@ void arp_receive(uint8_t *packet, uint16_t len) {
                 arp->src_mac[0], arp->src_mac[1], arp->src_mac[2], 
                 arp->src_mac[3], arp->src_mac[4], arp->src_mac[5]);
                 
-        /* TODO: Update our ARP Cache table here! */
+        /* Save gateway MAC if it matches */
+        if (arp->src_ip[0] == g_net_dev.gateway[0] &&
+            arp->src_ip[1] == g_net_dev.gateway[1] &&
+            arp->src_ip[2] == g_net_dev.gateway[2] &&
+            arp->src_ip[3] == g_net_dev.gateway[3]) {
+            for (int i = 0; i < 6; i++) {
+                g_gateway_mac[i] = arp->src_mac[i];
+            }
+            kprintf("  [ARP] Gateway MAC resolved.\n");
+        }
     }
 }
 

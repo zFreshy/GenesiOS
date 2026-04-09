@@ -112,11 +112,20 @@ static void test_thread_c(void) {
 // We already have kstrcmp in kernel.h
 
 /* Mouse IRQ wrapper */
+static uint64_t s_last_mouse_update = 0;
 static void mouse_irq_wrapper(registers_t *regs) {
     (void)regs;
     mouse_irq_handler();
-    /* Update GUI when mouse moves */
-    if (fb_available()) compositor_update();
+    /* Update GUI when mouse moves, rate limited to avoid lag */
+    if (fb_available()) {
+        extern uint64_t pit_get_ticks(void);
+        uint64_t now = pit_get_ticks();
+        /* Limit updates to ~60 FPS (16ms) to avoid CPU hogging */
+        if (now - s_last_mouse_update > 16) {
+            compositor_update();
+            s_last_mouse_update = now;
+        }
+    }
     irq_send_eoi(IRQ_MOUSE);
 }
 

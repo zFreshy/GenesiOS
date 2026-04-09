@@ -19,6 +19,8 @@ struct arp_header {
     uint8_t  dst_ip[4];
 } __attribute__((packed));
 
+extern uint8_t g_gateway_mac[6];
+
 void arp_receive(uint8_t *packet, uint16_t len);
 void arp_send_reply(uint8_t *dst_mac, uint8_t *dst_ip);
 void arp_send_request(uint8_t *target_ip);
