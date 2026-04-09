@@ -47,51 +47,60 @@ static void terminal_on_key(window_t *win, char c) {
     compositor_render();
 }
 
+static void terminal_on_resize(window_t *win) {
+    if (!win || !win->buffer) return;
+    uint32_t w = win->width;
+    uint32_t h = win->height;
+    
+    for (uint32_t i = 0; i < w * h; i++) {
+        win->buffer[i] = 0x00181A1F; /* Dark blueish grey */
+    }
+    
+    fb_console_bind_window(win);
+    fbc_set_bg(0x00181A1F);
+    fbc_clear(); 
+    
+    fbc_set_fg(0x00FFFFFF);
+    fbc_puts("\n genesi-os login: ");
+    fbc_set_fg(0x0080C080);
+    fbc_puts("success\n\n");
+    fbc_set_fg(0x00555555);
+    fbc_puts(" astral-kernel initialized in 12ms...\n\n");
+    
+    fbc_set_fg(0x0055AAFF);
+    fbc_puts(" \x1A neural-core ");
+    fbc_set_fg(0x00555555);
+    fbc_puts("git:(main) ");
+    fbc_set_fg(0x00FFFFFF);
+    fbc_puts("yarn dev\n");
+    
+    fbc_set_fg(0x00AAAAAA);
+    fbc_puts(" yarn run v1.22.19\n $ next dev\n");
+    fbc_puts(" ready - started server on 0.0.0.0:3000, url: http://localhost:3000\n");
+    
+    fbc_set_fg(0x0000FFCC);
+    fbc_puts(" event - compiled client and server successfully in 1432 ms (169 modules)\n");
+    
+    fbc_set_fg(0x00AAAAAA);
+    fbc_puts(" wait - compiling...\n");
+    
+    fbc_set_fg(0x0000FFCC);
+    fbc_puts(" event - compiled successfully\n\n");
+    
+    fbc_set_fg(0x0055AAFF);
+    fbc_puts(" \x1A neural-core ");
+    fbc_set_fg(0x00FFFFFF);
+    fbc_puts("");
+}
+
 void desktop_create_terminal(void) {
     uint32_t w = 680 * g_ui_scale;
     uint32_t h = 500 * g_ui_scale;
     window_t *win = wm_create_window(350 * g_ui_scale, 200 * g_ui_scale, w, h, "root@genesi-os: ~/dev/neural-core");
     if (win && win->buffer) {
-        for (uint32_t i = 0; i < w * h; i++) {
-            win->buffer[i] = 0x00181A1F; /* Dark blueish grey */
-        }
         win->on_key = terminal_on_key;
-        
-        fb_console_bind_window(win);
-        fbc_set_bg(0x00181A1F);
-        fbc_clear(); 
-        
-        fbc_set_fg(0x00FFFFFF);
-        fbc_puts("\n genesi-os login: ");
-        fbc_set_fg(0x0080C080);
-        fbc_puts("success\n\n");
-        fbc_set_fg(0x00555555);
-        fbc_puts(" astral-kernel initialized in 12ms...\n\n");
-        
-        fbc_set_fg(0x0055AAFF);
-        fbc_puts(" \x1A neural-core ");
-        fbc_set_fg(0x00555555);
-        fbc_puts("git:(main) ");
-        fbc_set_fg(0x00FFFFFF);
-        fbc_puts("yarn dev\n");
-        
-        fbc_set_fg(0x00AAAAAA);
-        fbc_puts(" yarn run v1.22.19\n $ next dev\n");
-        fbc_puts(" ready - started server on 0.0.0.0:3000, url: http://localhost:3000\n");
-        
-        fbc_set_fg(0x0000FFCC);
-        fbc_puts(" event - compiled client and server successfully in 1432 ms (169 modules)\n");
-        
-        fbc_set_fg(0x00AAAAAA);
-        fbc_puts(" wait - compiling...\n");
-        
-        fbc_set_fg(0x0000FFCC);
-        fbc_puts(" event - compiled successfully\n\n");
-        
-        fbc_set_fg(0x0055AAFF);
-        fbc_puts(" \x1A neural-core ");
-        fbc_set_fg(0x00FFFFFF);
-        fbc_puts("");
+        win->on_resize = terminal_on_resize;
+        terminal_on_resize(win);
     }
 }
 
@@ -179,52 +188,68 @@ static void draw_rounded_rect_buffer(uint32_t *buffer, uint32_t buf_w, uint32_t 
     }
 }
 
+static void explorer_on_resize(window_t *win) {
+    if (!win || !win->buffer) return;
+    uint32_t w = win->width;
+    uint32_t h = win->height;
+    
+    /* Dark mode background */
+    for (uint32_t i = 0; i < w * h; i++) {
+        win->buffer[i] = 0x001C1E23;
+    }
+    
+    /* Header (Seamless) */
+    /* The title is drawn by compositor. We just draw the search icon. */
+    draw_icon_to_buffer(win->buffer, w, h, w - (48 * g_ui_scale), 12 * g_ui_scale, icon_search, ICON_SEARCH_WIDTH, ICON_SEARCH_HEIGHT);
+    
+    /* Grid properties */
+    int32_t start_x = 40 * g_ui_scale;
+    int32_t start_y = 80 * g_ui_scale;
+    int32_t item_w = 120 * g_ui_scale;
+    int32_t item_h = 140 * g_ui_scale;
+    int32_t box_size = 80 * g_ui_scale;
+    
+    /* Items (Projects, Graphics, Invoices, Backup, Renders, New) */
+    struct { const char* name; const uint32_t* icon; uint32_t icon_w; uint32_t icon_h; uint32_t color; } items[] = {
+        {"Projects", icon_folder, ICON_FOLDER_WIDTH, ICON_FOLDER_HEIGHT, 0xFF3B4455},
+        {"Graphics", icon_image, ICON_IMAGE_WIDTH, ICON_IMAGE_HEIGHT, 0xFF2A3F3F},
+        {"Invoices.pdf", icon_doc, ICON_DOC_WIDTH, ICON_DOC_HEIGHT, 0xFF3F2A3F},
+        {"Backup", icon_folder, ICON_FOLDER_WIDTH, ICON_FOLDER_HEIGHT, 0xFF3B4455},
+        {"Renders", icon_video, ICON_VIDEO_WIDTH, ICON_VIDEO_HEIGHT, 0xFF2A3F3F},
+        {"New", icon_add, ICON_ADD_WIDTH, ICON_ADD_HEIGHT, 0xFF2A3F30}
+    };
+    
+    for (int i = 0; i < 6; i++) {
+        int col = i % 4;
+        int row = i / 4;
+        
+        /* Adjust layout based on width */
+        int cols = (w - start_x) / item_w;
+        if (cols < 1) cols = 1;
+        col = i % cols;
+        row = i / cols;
+        
+        int32_t cx = start_x + col * item_w;
+        int32_t cy = start_y + row * item_h;
+        
+        /* Draw rounded box */
+        draw_rounded_rect_buffer(win->buffer, w, h, cx, cy, box_size, box_size, 16 * g_ui_scale, items[i].color & 0xFFFFFF);
+        
+        /* Draw icon */
+        draw_icon_to_buffer(win->buffer, w, h, cx + (box_size - items[i].icon_w*g_ui_scale)/2, cy + (box_size - items[i].icon_h*g_ui_scale)/2, items[i].icon, items[i].icon_w, items[i].icon_h);
+        
+        /* Draw text */
+        font_draw_string_to_buffer_scaled(win->buffer, w, h, cx + (box_size - kstrlen(items[i].name)*8*g_ui_scale)/2, cy + box_size + 12*g_ui_scale, items[i].name, 0x00A0A0A0, 0x001C1E23, g_ui_scale);
+    }
+}
+
 void desktop_create_explorer(void) {
     uint32_t w = 680 * g_ui_scale;
     uint32_t h = 500 * g_ui_scale;
     window_t *win = wm_create_window(250 * g_ui_scale, 150 * g_ui_scale, w, h, "Files / root / documents");
     if (win && win->buffer) {
-        /* Dark mode background */
-        for (uint32_t i = 0; i < w * h; i++) {
-            win->buffer[i] = 0x001C1E23;
-        }
-        
-        /* Header (Seamless) */
-        /* The title is drawn by compositor. We just draw the search icon. */
-        draw_icon_to_buffer(win->buffer, w, h, w - (48 * g_ui_scale), 12 * g_ui_scale, icon_search, ICON_SEARCH_WIDTH, ICON_SEARCH_HEIGHT);
-        
-        /* Grid properties */
-        int32_t start_x = 40 * g_ui_scale;
-        int32_t start_y = 80 * g_ui_scale;
-        int32_t item_w = 120 * g_ui_scale;
-        int32_t item_h = 140 * g_ui_scale;
-        int32_t box_size = 80 * g_ui_scale;
-        
-        /* Items (Projects, Graphics, Invoices, Backup, Renders, New) */
-        struct { const char* name; const uint32_t* icon; uint32_t icon_w; uint32_t icon_h; uint32_t color; } items[] = {
-            {"Projects", icon_folder, ICON_FOLDER_WIDTH, ICON_FOLDER_HEIGHT, 0xFF3B4455},
-            {"Graphics", icon_image, ICON_IMAGE_WIDTH, ICON_IMAGE_HEIGHT, 0xFF2A3F3F},
-            {"Invoices.pdf", icon_doc, ICON_DOC_WIDTH, ICON_DOC_HEIGHT, 0xFF3F2A3F},
-            {"Backup", icon_folder, ICON_FOLDER_WIDTH, ICON_FOLDER_HEIGHT, 0xFF3B4455},
-            {"Renders", icon_video, ICON_VIDEO_WIDTH, ICON_VIDEO_HEIGHT, 0xFF2A3F3F},
-            {"New", icon_add, ICON_ADD_WIDTH, ICON_ADD_HEIGHT, 0xFF2A3F30}
-        };
-        
-        for (int i = 0; i < 6; i++) {
-            int col = i % 4;
-            int row = i / 4;
-            int32_t cx = start_x + col * item_w;
-            int32_t cy = start_y + row * item_h;
-            
-            /* Draw rounded box */
-            draw_rounded_rect_buffer(win->buffer, w, h, cx, cy, box_size, box_size, 16 * g_ui_scale, items[i].color & 0xFFFFFF);
-            
-            /* Draw icon */
-            draw_icon_to_buffer(win->buffer, w, h, cx + (box_size - items[i].icon_w*g_ui_scale)/2, cy + (box_size - items[i].icon_h*g_ui_scale)/2, items[i].icon, items[i].icon_w, items[i].icon_h);
-            
-            /* Draw text */
-            font_draw_string_to_buffer_scaled(win->buffer, w, h, cx + (box_size - kstrlen(items[i].name)*8*g_ui_scale)/2, cy + box_size + 12*g_ui_scale, items[i].name, 0x00A0A0A0, 0x001C1E23, g_ui_scale);
-        }
+        win->on_resize = explorer_on_resize;
+        explorer_on_resize(win);
     }
 }
 

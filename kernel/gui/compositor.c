@@ -16,10 +16,17 @@ int g_ui_scale = 1;
 int g_current_wallpaper = 1; /* 0 = Gradient, 1 = Image */
 uint32_t *g_wallpaper_raw = NULL;
 
-static window_t *s_drag_win   = NULL;
-static int32_t   s_drag_off_x = 0;
-static int32_t   s_drag_off_y = 0;
-static bool      s_mouse_was_down = false;
+static window_t *s_drag_win = NULL;
+static int32_t s_drag_off_x = 0;
+static int32_t s_drag_off_y = 0;
+static bool s_mouse_was_down = false;
+
+static window_t *s_resizing_win = NULL;
+static int s_resize_dir = 0;
+static int32_t s_resize_start_w = 0;
+static int32_t s_resize_start_h = 0;
+static int32_t s_resize_start_mx = 0;
+static int32_t s_resize_start_my = 0;
 static bool      s_start_menu_open = false;
 
 void compositor_render(void);
@@ -253,6 +260,7 @@ static void draw_shadow(int32_t x, int32_t y, int32_t w, int32_t h) {
 /* ------------------------------------------------------------------ */
 static void draw_window(window_t *win) {
     if (!win) return;
+    if (win->is_minimized) return;
 
     int32_t title_h = 56 * g_ui_scale;
     int32_t win_radius = 16 * g_ui_scale; /* Rounded corners */
@@ -771,6 +779,32 @@ void compositor_toggle_start_menu(void) {
 }
 
 /* ------------------------------------------------------------------ */
+/* Toggle fullscreen for active window from keyboard (F11)            */
+/* ------------------------------------------------------------------ */
+void compositor_toggle_fullscreen(void) {
+    if (!fb_available()) return;
+    window_t *win = wm_get_top();
+    if (!win) return;
+    
+    if (win->is_maximized) {
+        win->is_maximized = false;
+        win->x = win->saved_x;
+        win->y = win->saved_y;
+        wm_resize_window(win, win->saved_w, win->saved_h);
+    } else {
+        win->is_maximized = true;
+        win->saved_x = win->x;
+        win->saved_y = win->y;
+        win->saved_w = win->width;
+        win->saved_h = win->height;
+        win->x = 0;
+        win->y = 56 * g_ui_scale; /* Title bar height */
+        wm_resize_window(win, s_width, s_height - (56 * g_ui_scale) - (84 * g_ui_scale));
+    }
+    compositor_render();
+}
+
+/* ------------------------------------------------------------------ */
 /* Update GUI logic (mouse clicks, dragging, etc.)                    */
 /* ------------------------------------------------------------------ */
 void compositor_update(void) {
@@ -877,11 +911,45 @@ void compositor_update(void) {
                     found = true;
                     break;
                 }
+                
+                /* Minimize (x: 44, w: 14) */
+                if (mx >= win->x + (44 * g_ui_scale) && mx <= win->x + (58 * g_ui_scale)) {
+                    win->is_minimized = true;
+                    s_drag_win = NULL;
+                    found = true;
+                    break;
+                }
+                
+                /* Maximize (x: 68, w: 14) */
+                if (mx >= win->x + (68 * g_ui_scale) && mx <= win->x + (82 * g_ui_scale)) {
+                    if (win->is_maximized) {
+                        win->is_maximized = false;
+                        win->x = win->saved_x;
+                        win->y = win->saved_y;
+                        wm_resize_window(win, win->saved_w, win->saved_h);
+                    } else {
+                        win->is_maximized = true;
+                        win->saved_x = win->x;
+                        win->saved_y = win->y;
+                        win->saved_w = win->width;
+                        win->saved_h = win->height;
+                        win->x = 0;
+                        win->y = 56 * g_ui_scale; /* Title bar height */
+                        wm_resize_window(win, s_width, s_height - (56 * g_ui_scale) - (84 * g_ui_scale));
+                    }
+                    wm_bring_to_front(win);
+                    s_drag_win = NULL;
+                    found = true;
+                    break;
+                }
 
+                /* If double click on title bar? No double click yet. */
                 wm_bring_to_front(win);
-                s_drag_win = win;
-                s_drag_off_x = mx - win->x;
-                s_drag_off_y = my - win->y;
+                if (!win->is_maximized) {
+                    s_drag_win = win;
+                    s_drag_off_x = mx - win->x;
+                    s_drag_off_y = my - win->y;
+                }
                 found = true;
                 break;
             }
@@ -890,6 +958,27 @@ void compositor_update(void) {
                 my >= win->y && my <= win->y + (int32_t)win->height) {
                 
                 wm_bring_to_front(win);
+                
+                if (!win->is_maximized) {
+                    int32_t edge = 8 * g_ui_scale;
+                    bool on_right = (mx >= win->x + win->width - edge);
+                    bool on_bottom = (my >= win->y + win->height - edge);
+                    
+                    if (on_right || on_bottom) {
+                        s_resizing_win = win;
+                        if (on_right && on_bottom) s_resize_dir = 3;
+                        else if (on_right) s_resize_dir = 1;
+                        else if (on_bottom) s_resize_dir = 2;
+                        
+                        s_resize_start_w = win->width;
+                        s_resize_start_h = win->height;
+                        s_resize_start_mx = mx;
+                        s_resize_start_my = my;
+                        
+                        found = true;
+                        break;
+                    }
+                }
                 
                 /* Hack for Settings app: check if clicking wallpaper buttons */
                 if (win->title[0] == 'S' && win->title[1] == 'e' && win->title[2] == 't') {
@@ -918,6 +1007,21 @@ void compositor_update(void) {
             }
         }
     } 
+    /* If mouse is held down and resizing a window */
+    else if (mdown && s_resizing_win) {
+        int32_t new_w = s_resize_start_w;
+        int32_t new_h = s_resize_start_h;
+        
+        if (s_resize_dir & 1) new_w += (mx - s_resize_start_mx);
+        if (s_resize_dir & 2) new_h += (my - s_resize_start_my);
+        
+        if (new_w < 100 * g_ui_scale) new_w = 100 * g_ui_scale;
+        if (new_h < 50 * g_ui_scale) new_h = 50 * g_ui_scale;
+        
+        /* Just update the state variables to draw the outline in render() */
+        /* Wait, we can't store the outline size in s_resizing_win without affecting draw_window.
+           We'll just use s_resize_start_w/h + mouse diff in the render loop. */
+    }
     /* If mouse is held down and dragging a window */
     else if (mdown && s_drag_win) {
         s_drag_win->x = mx - s_drag_off_x;
@@ -925,6 +1029,19 @@ void compositor_update(void) {
     } 
     /* If mouse was released */
     else if (!mdown) {
+        if (s_resizing_win) {
+            int32_t new_w = s_resize_start_w;
+            int32_t new_h = s_resize_start_h;
+            
+            if (s_resize_dir & 1) new_w += (mx - s_resize_start_mx);
+            if (s_resize_dir & 2) new_h += (my - s_resize_start_my);
+            
+            if (new_w < 100 * g_ui_scale) new_w = 100 * g_ui_scale;
+            if (new_h < 50 * g_ui_scale) new_h = 50 * g_ui_scale;
+            
+            wm_resize_window(s_resizing_win, new_w, new_h);
+            s_resizing_win = NULL;
+        }
         s_drag_win = NULL;
     }
 
@@ -961,6 +1078,32 @@ void compositor_render(void) {
 
     /* 6. Draw Start Menu */
     draw_start_menu();
+    
+    /* Draw resize outline */
+    if (s_resizing_win) {
+        extern int32_t mouse_x(void);
+        extern int32_t mouse_y(void);
+        int32_t mx = mouse_x();
+        int32_t my = mouse_y();
+        
+        int32_t new_w = s_resize_start_w;
+        int32_t new_h = s_resize_start_h;
+        
+        if (s_resize_dir & 1) new_w += (mx - s_resize_start_mx);
+        if (s_resize_dir & 2) new_h += (my - s_resize_start_my);
+        
+        if (new_w < 100 * g_ui_scale) new_w = 100 * g_ui_scale;
+        if (new_h < 50 * g_ui_scale) new_h = 50 * g_ui_scale;
+        
+        int32_t title_h = 56 * g_ui_scale;
+        
+        /* Draw hollow outline */
+        int32_t t = 4 * g_ui_scale; /* thickness */
+        draw_rounded_rect(s_resizing_win->x, s_resizing_win->y - title_h, new_w, t, 0, 0x80FFFFFF, true); /* top */
+        draw_rounded_rect(s_resizing_win->x, s_resizing_win->y - title_h + new_h + title_h - t, new_w, t, 0, 0x80FFFFFF, true); /* bottom */
+        draw_rounded_rect(s_resizing_win->x, s_resizing_win->y - title_h, t, new_h + title_h, 0, 0x80FFFFFF, true); /* left */
+        draw_rounded_rect(s_resizing_win->x + new_w - t, s_resizing_win->y - title_h, t, new_h + title_h, 0, 0x80FFFFFF, true); /* right */
+    }
 
     /* 5. Draw mouse cursor overlay */
     draw_cursor();

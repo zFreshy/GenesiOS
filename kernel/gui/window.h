@@ -17,7 +17,13 @@ typedef struct window {
     char      title[WINDOW_MAX_TITLE];
     uint32_t *buffer;           /* Backing pixel buffer (ARGB) */
     
+    bool      is_minimized;
+    bool      is_maximized;
+    int32_t   saved_x, saved_y; /* Saved geometry before maximize */
+    uint32_t  saved_w, saved_h;
+    
     void (*on_key)(struct window *win, char c);
+    void (*on_resize)(struct window *win);
     
     struct window *next;        /* Linked list for Z-order (bottom to top) */
     struct window *prev;
@@ -43,5 +49,8 @@ void wm_bring_to_front(window_t *win);
 
 /* Update a region of the window's buffer (placeholder for future partial redraws) */
 void wm_invalidate(window_t *win, int32_t x, int32_t y, uint32_t w, uint32_t h);
+
+/* Resize window and trigger redraw */
+void wm_resize_window(window_t *win, uint32_t new_w, uint32_t new_h);
 
 #endif /* WINDOW_H */

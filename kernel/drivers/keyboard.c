@@ -76,6 +76,14 @@ static void kb_irq_handler(registers_t *regs) {
         return;
     }
 
+    /* Handle F11 Fullscreen toggle */
+    if (sc == 0x57) {
+        extern void compositor_toggle_fullscreen(void);
+        compositor_toggle_fullscreen();
+        irq_send_eoi(IRQ_KEYBOARD);
+        return;
+    }
+
     /* Handle Windows Key (Left GUI = 0x5B, Right GUI = 0x5C) or F12 (0x58) */
     if ((is_e0 && (sc == 0x5B || sc == 0x5C)) || sc == 0x58) {
         extern void compositor_toggle_start_menu(void);

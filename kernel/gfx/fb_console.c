@@ -92,6 +92,15 @@ void fb_console_putchar(char c) {
     } else if (c == '\t') {
         s_cursor_x = (s_cursor_x + fw * 4) & ~(fw * 4 - 1);
     } else {
+        if (s_cursor_x >= max_w) {
+            s_cursor_x = 0;
+            s_cursor_y += fh;
+        }
+
+        if (s_cursor_y + fh > max_h) {
+            fb_console_scroll();
+        }
+        
         if (s_win) {
             font_draw_char_to_buffer_scaled(s_win->buffer, max_w, max_h, s_cursor_x, s_cursor_y, c, s_fg_color, s_bg_color, g_ui_scale);
         } else {
@@ -105,7 +114,7 @@ void fb_console_putchar(char c) {
         s_cursor_y += fh;
     }
 
-    if (s_cursor_y >= max_h) {
+    if (s_cursor_y + fh > max_h) {
         fb_console_scroll();
     }
     
@@ -140,6 +149,15 @@ void fb_console_puts(const char *str) {
         } else if (c == '\t') {
             s_cursor_x = (s_cursor_x + fw * 4) & ~(fw * 4 - 1);
         } else {
+            if (s_cursor_x >= max_w) {
+                s_cursor_x = 0;
+                s_cursor_y += fh;
+            }
+
+            if (s_cursor_y + fh > max_h) {
+                fb_console_scroll();
+            }
+            
             if (s_win) {
                 font_draw_char_to_buffer_scaled(s_win->buffer, max_w, max_h, s_cursor_x, s_cursor_y, c, s_fg_color, s_bg_color, g_ui_scale);
             } else {
@@ -153,7 +171,7 @@ void fb_console_puts(const char *str) {
             s_cursor_y += fh;
         }
 
-        if (s_cursor_y >= max_h) {
+        if (s_cursor_y + fh > max_h) {
             fb_console_scroll();
         }
     }
