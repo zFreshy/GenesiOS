@@ -61,3 +61,5 @@ Compositor: Found wallpaper module at 0x231000
   [E1000] Packet received! Length: 594 bytes
   [UDP] Received packet on port 68 from 10.0.2.2:67
   [E1000] Packet received! Length: 114 bytes
+  [E1000] Packet received! Length: 114 bytes
+  [E1000] Packet received! Length: 114 bytes

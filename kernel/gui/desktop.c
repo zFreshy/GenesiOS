@@ -8,6 +8,7 @@
 #include "../gfx/framebuffer.h"
 #include "../gfx/fb_console.h"
 #include "../mm/heap.h"
+#include "../mm/pmm.h"
 #include "../gfx/font.h"
 
 extern void shell_exec(const char *cmd);
@@ -242,10 +243,12 @@ static void explorer_draw_path(window_t *win) {
     uint32_t w = win->width;
     uint32_t h = win->height;
     int s = g_ui_scale;
+    int32_t fw = FONT_WIDTH * s;  /* char width in pixels */
+    int32_t fh = FONT_HEIGHT * s; /* char height in pixels */
     
     int32_t sidebar_w = data->sidebar_width;
-    int32_t navbar_h = 48 * s;
-    int32_t statusbar_h = 28 * s;
+    int32_t navbar_h = fh + 16 * s;
+    int32_t statusbar_h = fh + 4 * s;
     
     /* ============================================================ */
     /* 1. Fill entire background                                     */
@@ -287,35 +290,35 @@ static void explorer_draw_path(window_t *win) {
     /* ============================================================ */
     /* 2. Navbar: Back arrow + Breadcrumb path + Search icon         */
     /* ============================================================ */
-    int32_t nav_text_y = (navbar_h - 16 * s) / 2;
-    int32_t nav_x = 12 * s;
+    int32_t nav_text_y = (navbar_h - fh) / 2;
+    int32_t nav_x = 8 * s;
     
     /* Back button (always visible, dimmed if at root) */
     {
         uint32_t back_color = (kstrcmp(data->current_path, "/") != 0) ? col_text_white : col_text_dim;
         font_draw_string_to_buffer_scaled(win->buffer, w, h, nav_x, nav_text_y, "<", back_color, bg_navbar, s);
-        nav_x += 16 * s;
+        nav_x += fw + 4 * s;
     }
     
     /* Separator */
-    fill_rect_buffer(win->buffer, w, h, nav_x, 10 * s, 1 * s, navbar_h - 20 * s, col_separator);
-    nav_x += 8 * s;
+    fill_rect_buffer(win->buffer, w, h, nav_x, 8 * s, 1 * s, navbar_h - 16 * s, col_separator);
+    nav_x += 6 * s;
     
     /* Folder icon in navbar */
-    draw_mini_folder(win->buffer, w, h, nav_x, nav_text_y, 0x00F5A623);
+    draw_mini_folder(win->buffer, w, h, nav_x, nav_text_y + 8*s, 0x00F5A623);
     nav_x += 18 * s;
     
-    /* Breadcrumb: "Este Computador > home > documents" */
+    /* Breadcrumb: "Este PC > home > documents" */
     {
-        font_draw_string_to_buffer_scaled(win->buffer, w, h, nav_x, nav_text_y, "Este Computador", col_text_grey, bg_navbar, s);
-        nav_x += 15 * 8 * s + 4 * s;
+        font_draw_string_to_buffer_scaled(win->buffer, w, h, nav_x, nav_text_y, "Este PC", col_text_grey, bg_navbar, s);
+        nav_x += 7 * fw + 4 * s;
         
         if (kstrcmp(data->current_path, "/") != 0) {
             /* Parse path components */
             const char *p = data->current_path + 1; /* skip leading / */
             while (*p) {
                 font_draw_string_to_buffer_scaled(win->buffer, w, h, nav_x, nav_text_y, ">", col_text_dim, bg_navbar, s);
-                nav_x += 12 * s;
+                nav_x += fw + 4 * s;
                 
                 char component[64];
                 int ci = 0;
@@ -326,7 +329,7 @@ static void explorer_draw_path(window_t *win) {
                 if (*p == '/') p++;
                 
                 font_draw_string_to_buffer_scaled(win->buffer, w, h, nav_x, nav_text_y, component, col_text_white, bg_navbar, s);
-                nav_x += ci * 8 * s + 4 * s;
+                nav_x += ci * fw + 4 * s;
             }
         }
     }
@@ -337,17 +340,17 @@ static void explorer_draw_path(window_t *win) {
     /* ============================================================ */
     /* 3. Sidebar: Quick Access + This PC                            */
     /* ============================================================ */
-    int32_t sy = navbar_h + 12 * s; /* current Y for sidebar items */
-    int32_t sx = 8 * s;             /* left padding */
-    int32_t item_height = 28 * s;   /* height of each sidebar item */
+    int32_t sy = navbar_h + 8 * s;  /* current Y for sidebar items */
+    int32_t sx = 6 * s;             /* left padding */
+    int32_t item_height = fh + 8 * s; /* height of each sidebar item */
     
     /* --- Quick Access Header --- */
     if (data->qa_open)
-        draw_chevron_down(win->buffer, w, h, sx + 2*s, sy + 5*s, col_text_dim);
+        draw_chevron_down(win->buffer, w, h, sx + 2*s, sy + fh/2 - 2*s, col_text_dim);
     else
-        draw_chevron_right(win->buffer, w, h, sx + 2*s, sy + 4*s, col_text_dim);
+        draw_chevron_right(win->buffer, w, h, sx + 2*s, sy + fh/2 - 2*s, col_text_dim);
     
-    font_draw_string_to_buffer_scaled(win->buffer, w, h, sx + 14 * s, sy + 2 * s, "Acesso Rapido", col_text_grey, bg_sidebar, s);
+    font_draw_string_to_buffer_scaled(win->buffer, w, h, sx + 14 * s, sy + 4 * s, "Acesso Rapido", col_text_grey, bg_sidebar, s);
     sy += item_height;
     
     if (data->qa_open) {
@@ -368,11 +371,11 @@ static void explorer_draw_path(window_t *win) {
             }
             
             /* Small folder icon */
-            draw_mini_folder(win->buffer, w, h, sx + 10 * s, sy + 4 * s, 0x00F5A623);
+            draw_mini_folder(win->buffer, w, h, sx + 10 * s, sy + fh/2 - 2*s, 0x00F5A623);
             
             /* Label */
             uint32_t lcol = (is_sel || is_cur) ? col_text_white : col_text_grey;
-            font_draw_string_to_buffer_scaled(win->buffer, w, h, sx + 28 * s, sy + 4 * s, qa_items[i].label, lcol, (is_sel || is_cur) ? col_highlight : bg_sidebar, s);
+            font_draw_string_to_buffer_scaled(win->buffer, w, h, sx + 28 * s, sy + 4 * s, qa_items[i].label, lcol, 0x00000000, s);
             
             sy += item_height;
         }
@@ -385,35 +388,42 @@ static void explorer_draw_path(window_t *win) {
     
     /* --- This PC Header --- */
     if (data->pc_open)
-        draw_chevron_down(win->buffer, w, h, sx + 2*s, sy + 5*s, col_text_dim);
+        draw_chevron_down(win->buffer, w, h, sx + 2*s, sy + fh/2 - 2*s, col_text_dim);
     else
-        draw_chevron_right(win->buffer, w, h, sx + 2*s, sy + 4*s, col_text_dim);
+        draw_chevron_right(win->buffer, w, h, sx + 2*s, sy + fh/2 - 2*s, col_text_dim);
     
-    font_draw_string_to_buffer_scaled(win->buffer, w, h, sx + 14 * s, sy + 2 * s, "Este Computador", col_text_grey, bg_sidebar, s);
+    font_draw_string_to_buffer_scaled(win->buffer, w, h, sx + 14 * s, sy + 4 * s, "Este PC", col_text_grey, bg_sidebar, s);
     sy += item_height;
     
     if (data->pc_open) {
-        /* Disk C: entry */
+        /* Disk C: entry - use real memory from PMM */
+        uint64_t total_frames = pmm_total_frames();
+        uint64_t free_fr = pmm_free_frames();
+        uint64_t total_mb = (total_frames * PAGE_SIZE) / (1024 * 1024);
+        uint64_t free_mb = (free_fr * PAGE_SIZE) / (1024 * 1024);
+        uint64_t used_mb = total_mb - free_mb;
+        
+        int32_t disk_entry_h = fh * 2 + 20 * s; /* height for disk entry */
+        
         bool is_disk_sel = (data->selected_sidebar == 10);
         bool is_disk_cur = (kstrcmp(data->current_path, "/") == 0);
         
         if (is_disk_sel || is_disk_cur) {
-            draw_rounded_rect_buffer(win->buffer, w, h, sx, sy, sidebar_w - 16 * s, 68 * s, 6 * s, col_highlight);
+            draw_rounded_rect_buffer(win->buffer, w, h, sx, sy, sidebar_w - 12 * s, disk_entry_h, 6 * s, col_highlight);
         }
         
         /* Disk icon */
-        draw_mini_disk(win->buffer, w, h, sx + 10 * s, sy + 4 * s, 0x006688AA);
+        draw_mini_disk(win->buffer, w, h, sx + 10 * s, sy + 6 * s, 0x006688AA);
         
         /* Disk name */
-        uint32_t disk_bg = (is_disk_sel || is_disk_cur) ? col_highlight : bg_sidebar;
-        font_draw_string_to_buffer_scaled(win->buffer, w, h, sx + 28 * s, sy + 4 * s, "Genesi (C:)", col_text_white, disk_bg, s);
+        font_draw_string_to_buffer_scaled(win->buffer, w, h, sx + 28 * s, sy + 4 * s, "Genesi (C:)", col_text_white, 0x00000000, s);
         
-        /* Progress bar: 120 GB total, 80 GB free => 40 GB used => 33% used */
+        /* Progress bar */
         int32_t bar_x = sx + 10 * s;
-        int32_t bar_y = sy + 24 * s;
-        int32_t bar_w = sidebar_w - 36 * s;
+        int32_t bar_y = sy + fh + 8 * s;
+        int32_t bar_w = sidebar_w - 32 * s;
         int32_t bar_h = 10 * s;
-        int32_t used_pct = 33; /* 40/120 ~ 33% */
+        int32_t used_pct = (total_mb > 0) ? (int32_t)((used_mb * 100) / total_mb) : 0;
         int32_t used_w = (bar_w * used_pct) / 100;
         
         /* Bar background (empty) */
@@ -422,10 +432,29 @@ static void explorer_draw_path(window_t *win) {
         if (used_w > 0)
             draw_rounded_rect_buffer(win->buffer, w, h, bar_x, bar_y, used_w, bar_h, 3 * s, col_accent);
         
-        /* Space text */
-        font_draw_string_to_buffer_scaled(win->buffer, w, h, sx + 10 * s, sy + 40 * s, "80 GB livre de 120 GB", col_text_dim, disk_bg, s);
+        /* Build space text: "XXX MB livre de YYY MB" */
+        {
+            char space_str[64];
+            int si = 0;
+            /* free_mb to string */
+            { uint64_t n = free_mb; char tmp[20]; int ti = 0;
+              if (n == 0) tmp[ti++] = '0';
+              else while (n > 0) { tmp[ti++] = '0' + (n % 10); n /= 10; }
+              for (int j = ti - 1; j >= 0; j--) space_str[si++] = tmp[j]; }
+            const char *mid = " MB livre de ";
+            for (int j = 0; mid[j]; j++) space_str[si++] = mid[j];
+            /* total_mb to string */
+            { uint64_t n = total_mb; char tmp[20]; int ti = 0;
+              if (n == 0) tmp[ti++] = '0';
+              else while (n > 0) { tmp[ti++] = '0' + (n % 10); n /= 10; }
+              for (int j = ti - 1; j >= 0; j--) space_str[si++] = tmp[j]; }
+            const char *suf = " MB";
+            for (int j = 0; suf[j]; j++) space_str[si++] = suf[j];
+            space_str[si] = '\0';
+            font_draw_string_to_buffer_scaled(win->buffer, w, h, sx + 10 * s, sy + fh + 20 * s, space_str, col_text_dim, 0x00000000, s);
+        }
         
-        sy += 72 * s;
+        sy += disk_entry_h + 4 * s;
     }
     
     /* ============================================================ */
@@ -441,9 +470,9 @@ static void explorer_draw_path(window_t *win) {
     if (!dir || dir->type != 2) {
         font_draw_string_to_buffer_scaled(win->buffer, w, h, content_x, content_y + 20 * s, "Diretorio nao encontrado.", 0x00FF4444, bg_content, s);
     } else {
-        int32_t grid_item_w = 110 * s;
-        int32_t grid_item_h = 120 * s;
-        int32_t box_size = 72 * s;
+        int32_t grid_item_w = 100 * s;
+        int32_t grid_item_h = 100 * s + fh;
+        int32_t box_size = 64 * s;
         
         int cols = content_w / grid_item_w;
         if (cols < 1) cols = 1;
@@ -483,19 +512,22 @@ static void explorer_draw_path(window_t *win) {
                 draw_icon_to_buffer(win->buffer, w, h, cx + (box_size - icon_width*s)/2, cy + (box_size - icon_height*s)/2, icon_ptr, icon_width, icon_height);
             }
             
-            /* Draw text (truncate if too long) */
-            char short_name[16];
+            /* Draw text (truncate based on box width) */
+            int max_chars = box_size / fw;
+            if (max_chars < 3) max_chars = 3;
+            char short_name[32];
             int len = kstrlen(child->name);
-            if (len > 11) {
-                kmemcpy(short_name, child->name, 9);
-                short_name[9] = '.'; short_name[10] = '.'; short_name[11] = '\0';
+            if (len > max_chars) {
+                kmemcpy(short_name, child->name, max_chars - 2);
+                short_name[max_chars - 2] = '.'; short_name[max_chars - 1] = '.'; short_name[max_chars] = '\0';
             } else {
                 kmemcpy(short_name, child->name, len + 1);
             }
             
-            int32_t text_w = kstrlen(short_name) * 8 * s;
+            int32_t text_w = kstrlen(short_name) * fw;
             int32_t text_x = cx + (box_size - text_w) / 2;
-            font_draw_string_to_buffer_scaled(win->buffer, w, h, text_x, cy + box_size + 8 * s, short_name, col_text_grey, bg_content, s);
+            if (text_x < cx) text_x = cx;
+            font_draw_string_to_buffer_scaled(win->buffer, w, h, text_x, cy + box_size + 4 * s, short_name, col_text_grey, 0x00000000, s);
         }
         
         /* ============================================================ */
@@ -578,10 +610,11 @@ static void explorer_on_mouse(window_t *win, int32_t mx, int32_t my, bool mdown)
     uint32_t w = win->width;
     uint32_t h = win->height;
     int s = g_ui_scale;
+    int32_t fh = FONT_HEIGHT * s;
     
     int32_t sidebar_w = data->sidebar_width;
-    int32_t navbar_h = 48 * s;
-    int32_t statusbar_h = 28 * s;
+    int32_t navbar_h = fh + 16 * s;
+    int32_t statusbar_h = fh + 4 * s;
     
     /* ---- Click on navbar ---- */
     if (my < navbar_h) {
@@ -596,9 +629,9 @@ static void explorer_on_mouse(window_t *win, int32_t mx, int32_t my, bool mdown)
     
     /* ---- Click on sidebar ---- */
     if (mx < sidebar_w && my >= navbar_h && my < (int32_t)(h - statusbar_h)) {
-        int32_t sy = navbar_h + 12 * s;
-        int32_t item_height = 28 * s;
-        int32_t sx = 8 * s;
+        int32_t sy = navbar_h + 8 * s;
+        int32_t item_height = fh + 8 * s;
+        int32_t sx = 6 * s;
         
         /* Quick Access header */
         if (my >= sy && my < sy + item_height) {
@@ -633,8 +666,8 @@ static void explorer_on_mouse(window_t *win, int32_t mx, int32_t my, bool mdown)
         sy += item_height;
         
         if (data->pc_open) {
-            /* Disk C: item (68*s tall) */
-            if (my >= sy && my < sy + 68 * s) {
+            /* Disk C: item */
+            if (my >= sy && my < sy + fh * 2 + 20 * s) {
                 data->selected_sidebar = 10;
                 explorer_navigate_to(win, "/");
                 return;
@@ -653,9 +686,11 @@ static void explorer_on_mouse(window_t *win, int32_t mx, int32_t my, bool mdown)
         int32_t content_y = navbar_h + 12 * s;
         int32_t content_w = w - sidebar_w - 16 * s;
         
-        int32_t grid_item_w = 110 * s;
-        int32_t grid_item_h = 120 * s;
-        int32_t box_size = 72 * s;
+        int32_t fw2 = FONT_WIDTH * s;
+        int32_t fh2 = FONT_HEIGHT * s;
+        int32_t grid_item_w = 100 * s;
+        int32_t grid_item_h = 100 * s + fh2;
+        int32_t box_size = 64 * s;
         
         int cols = content_w / grid_item_w;
         if (cols < 1) cols = 1;
@@ -691,16 +726,16 @@ static void explorer_on_mouse(window_t *win, int32_t mx, int32_t my, bool mdown)
 }
 
 void desktop_create_explorer(void) {
-    uint32_t w = 820 * g_ui_scale;
-    uint32_t h = 560 * g_ui_scale;
-    window_t *win = wm_create_window(200 * g_ui_scale, 120 * g_ui_scale, w, h, "Files - /");
+    uint32_t w = 1100 * g_ui_scale;
+    uint32_t h = 600 * g_ui_scale;
+    window_t *win = wm_create_window(100 * g_ui_scale, 80 * g_ui_scale, w, h, "Files - /");
     if (win && win->buffer) {
         extern void *kmalloc(size_t size);
         struct explorer_data *data = (struct explorer_data *)kmalloc(sizeof(struct explorer_data));
         kmemset(data, 0, sizeof(struct explorer_data));
         data->current_path[0] = '/';
         data->current_path[1] = '\0';
-        data->sidebar_width = 200 * g_ui_scale;
+        data->sidebar_width = 320 * g_ui_scale;
         data->selected_sidebar = -1;
         data->qa_open = true;
         data->pc_open = true;
