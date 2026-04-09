@@ -281,7 +281,7 @@ static void draw_window(window_t *win) {
         }
 
         /* Draw title bar background (rounded top) */
-        draw_rounded_rect(win->x, title_y, win->width, title_h + win_radius, win_radius, tb_color, false);
+        draw_rounded_rect(win->x, title_y, win->width, title_h + win_radius, win_radius, tb_color, true);
 
         /* Control buttons (MacOS style traffic lights on the LEFT) */
         int32_t btn_s = 14 * g_ui_scale;
@@ -289,13 +289,13 @@ static void draw_window(window_t *win) {
         int32_t btn_r = 7 * g_ui_scale;
         
         /* Close (Red) */
-        draw_rounded_rect(win->x + (20 * g_ui_scale), btn_y, btn_s, btn_s, btn_r, 0xFFEF4444, false);
+        draw_rounded_rect(win->x + (20 * g_ui_scale), btn_y, btn_s, btn_s, btn_r, 0xFFEF4444, true);
         
         /* Minimize (Yellow) */
-        draw_rounded_rect(win->x + (44 * g_ui_scale), btn_y, btn_s, btn_s, btn_r, 0xFFF5A623, false);
+        draw_rounded_rect(win->x + (44 * g_ui_scale), btn_y, btn_s, btn_s, btn_r, 0xFFF5A623, true);
         
         /* Maximize (Green) */
-        draw_rounded_rect(win->x + (68 * g_ui_scale), btn_y, btn_s, btn_s, btn_r, 0xFF10B981, false);
+        draw_rounded_rect(win->x + (68 * g_ui_scale), btn_y, btn_s, btn_s, btn_r, 0xFF10B981, true);
 
         /* Title text */
         uint32_t text_color = 0x00808080; /* Subtle grey text */
@@ -319,16 +319,18 @@ static void draw_window(window_t *win) {
                 if (px < 0 || px >= (int32_t)s_width || py < 0 || py >= (int32_t)s_height) continue;
                 
                 /* Bottom corners rounding */
-                int32_t dx = 0, dy = 0;
-                if (cx < win_radius && cy >= buf_h - win_radius) {
-                    dx = (win_radius - 1) - cx;
-                    dy = cy - (buf_h - win_radius);
-                } else if (cx >= buf_w - win_radius && cy >= buf_h - win_radius) {
-                    dx = cx - (buf_w - win_radius);
-                    dy = cy - (buf_h - win_radius);
+                if (win_radius > 0) {
+                    int32_t dx = 0, dy = 0;
+                    if (cx < win_radius && cy >= buf_h - win_radius) {
+                        dx = (win_radius - 1) - cx;
+                        dy = cy - (buf_h - win_radius);
+                    } else if (cx >= buf_w - win_radius && cy >= buf_h - win_radius) {
+                        dx = cx - (buf_w - win_radius);
+                        dy = cy - (buf_h - win_radius);
+                    }
+                    
+                    if (dx*dx + dy*dy >= win_radius * win_radius) continue;
                 }
-                
-                if (dx*dx + dy*dy >= win_radius * win_radius) continue;
                 
                 bb[py * s_width + px] = win->buffer[cy * buf_w + cx] | 0xFF000000;
             }
