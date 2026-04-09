@@ -369,6 +369,77 @@ static void draw_desktop_widgets(void) {
 /* ------------------------------------------------------------------ */
 /* Draw taskbar (Floating Dock)                                       */
 /* ------------------------------------------------------------------ */
+static void apply_blur_rounded_rect(int32_t x, int32_t y, int32_t w, int32_t h, int32_t blur_r, int32_t border_r) {
+    extern uint32_t *fb_get_backbuffer(void);
+    uint32_t *bb = fb_get_backbuffer();
+    if (!bb) return;
+    
+    int32_t x0 = x < 0 ? 0 : x;
+    int32_t y0 = y < 0 ? 0 : y;
+    int32_t x1 = x + w > (int32_t)s_width ? (int32_t)s_width : x + w;
+    int32_t y1 = y + h > (int32_t)s_height ? (int32_t)s_height : y + h;
+    
+    int32_t bw = x1 - x0;
+    int32_t bh = y1 - y0;
+    if (bw <= 0 || bh <= 0) return;
+
+    /* A simple fast 2-pass box blur */
+    uint32_t *temp = kmalloc(bw * bh * sizeof(uint32_t));
+    if (!temp) return;
+    
+    /* Horizontal pass */
+    for (int32_t cy = 0; cy < bh; cy++) {
+        for (int32_t cx = 0; cx < bw; cx++) {
+            uint32_t sum_r = 0, sum_g = 0, sum_b = 0;
+            int32_t count = 0;
+            for (int32_t k = -blur_r; k <= blur_r; k++) {
+                int32_t px = cx + k;
+                if (px >= 0 && px < bw) {
+                    uint32_t color = bb[(y0 + cy) * s_width + (x0 + px)];
+                    sum_r += (color >> 16) & 0xFF;
+                    sum_g += (color >> 8) & 0xFF;
+                    sum_b += color & 0xFF;
+                    count++;
+                }
+            }
+            temp[cy * bw + cx] = ((sum_r / count) << 16) | ((sum_g / count) << 8) | (sum_b / count);
+        }
+    }
+    
+    /* Vertical pass */
+    for (int32_t cx = 0; cx < bw; cx++) {
+        for (int32_t cy = 0; cy < bh; cy++) {
+            int32_t px = x0 + cx;
+            int32_t py = y0 + cy;
+            
+            /* Clip to rounded corners */
+            int32_t dx = 0, dy = 0;
+            if (px < x + border_r) dx = (x + border_r - 1) - px;
+            else if (px >= x + w - border_r) dx = px - (x + w - border_r);
+            if (py < y + border_r) dy = (y + border_r - 1) - py;
+            else if (py >= y + h - border_r) dy = py - (y + h - border_r);
+            
+            if (dx*dx + dy*dy >= border_r * border_r) continue;
+            
+            uint32_t sum_r = 0, sum_g = 0, sum_b = 0;
+            int32_t count = 0;
+            for (int32_t k = -blur_r; k <= blur_r; k++) {
+                int32_t py_k = cy + k;
+                if (py_k >= 0 && py_k < bh) {
+                    uint32_t color = temp[py_k * bw + cx];
+                    sum_r += (color >> 16) & 0xFF;
+                    sum_g += (color >> 8) & 0xFF;
+                    sum_b += color & 0xFF;
+                    count++;
+                }
+            }
+            bb[py * s_width + px] = ((sum_r / count) << 16) | ((sum_g / count) << 8) | (sum_b / count);
+        }
+    }
+    
+    kfree(temp);
+}
+
 static void draw_icon(int32_t x, int32_t y, const uint32_t *icon_data, uint32_t icon_w, uint32_t icon_h) {
     extern uint32_t *fb_get_backbuffer(void);
     uint32_t *bb = fb_get_backbuffer();
@@ -406,23 +477,8 @@ static void draw_icon(int32_t x, int32_t y, const uint32_t *icon_data, uint32_t 
             uint32_t alpha = (top_a * (256 - fy) + bot_a * fy) >> 8;
             
             if (alpha > 0) {
-                uint32_t r00 = (c00 >> 16) & 0xFF, r01 = (c01 >> 16) & 0xFF;
-                uint32_t r10 = (c10 >> 16) & 0xFF, r11 = (c11 >> 16) & 0xFF;
-                uint32_t top_r = (r00 * (256 - fx) + r01 * fx) >> 8;
-                uint32_t bot_r = (r10 * (256 - fx) + r11 * fx) >> 8;
-                uint32_t fr = (top_r * (256 - fy) + bot_r * fy) >> 8;
-                
-                uint32_t g00 = (c00 >> 8) & 0xFF, g01 = (c01 >> 8) & 0xFF;
-                uint32_t g10 = (c10 >> 8) & 0xFF, g11 = (c11 >> 8) & 0xFF;
-                uint32_t top_g = (g00 * (256 - fx) + g01 * fx) >> 8;
-                uint32_t bot_g = (g10 * (256 - fx) + g11 * fx) >> 8;
-                uint32_t fg = (top_g * (256 - fy) + bot_g * fy) >> 8;
-                
-                uint32_t b00 = c00 & 0xFF, b01 = c01 & 0xFF;
-                uint32_t b10 = c10 & 0xFF, b11 = c11 & 0xFF;
-                uint32_t top_b = (b00 * (256 - fx) + b01 * fx) >> 8;
-                uint32_t bot_b = (b10 * (256 - fx) + b11 * fx) >> 8;
-                uint32_t fb = (top_b * (256 - fy) + bot_b * fy) >> 8;
+                /* For white tinted SVG icons, we just use alpha directly */
+                uint32_t fr = 255, fg = 255, fb = 255;
                 
                 if (alpha == 255) {
                     bb[(y + iy) * s_width + (x + ix)] = (fr << 16) | (fg << 8) | fb;
@@ -457,7 +513,8 @@ static void draw_taskbar(void) {
     int32_t tb_y = s_height - tb_height - (20 * g_ui_scale); /* Floating */
     
     /* Taskbar background (Dark frosted glass, matching design) */
-    draw_rounded_rect(tb_x, tb_y, tb_width, tb_height, 32 * g_ui_scale, 0xC02A2E33, true);
+    apply_blur_rounded_rect(tb_x, tb_y, tb_width, tb_height, 6 * g_ui_scale, 32 * g_ui_scale);
+    draw_rounded_rect(tb_x, tb_y, tb_width, tb_height, 32 * g_ui_scale, 0x602A2E33, true);
     
     /* Calculate icon spacing */
     int32_t item_count = 6;
@@ -502,11 +559,12 @@ static void draw_system_tray(void) {
     int32_t tray_y = s_height - tray_h - (20 * g_ui_scale);
     
     /* Tray background (Match taskbar transparency) */
-    draw_rounded_rect(tray_x, tray_y, tray_w, tray_h, 28 * g_ui_scale, 0x70FFFFFF, true);
+    apply_blur_rounded_rect(tray_x, tray_y, tray_w, tray_h, 6 * g_ui_scale, 28 * g_ui_scale);
+    draw_rounded_rect(tray_x, tray_y, tray_w, tray_h, 28 * g_ui_scale, 0x602A2E33, true);
     
     /* Icons and time */
-    font_draw_string_scaled(tray_x + (20 * g_ui_scale), tray_y + (12 * g_ui_scale), "[Wi-Fi]", 0x004A5568, 0x00000000, g_ui_scale);
-    font_draw_string_scaled(tray_x + (140 * g_ui_scale), tray_y + (12 * g_ui_scale), "08:20", 0x001A202C, 0x00000000, g_ui_scale);
+    font_draw_string_scaled(tray_x + (20 * g_ui_scale), tray_y + (12 * g_ui_scale), "[Wi-Fi]", 0x00FFFFFF, 0x00000000, g_ui_scale);
+    font_draw_string_scaled(tray_x + (140 * g_ui_scale), tray_y + (12 * g_ui_scale), "08:20", 0x00FFFFFF, 0x00000000, g_ui_scale);
 }
 
 /* ------------------------------------------------------------------ */

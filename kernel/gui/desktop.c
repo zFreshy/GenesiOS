@@ -140,23 +140,8 @@ static void draw_icon_to_buffer(uint32_t *buffer, uint32_t buf_w, uint32_t buf_h
             uint32_t alpha = (top_a * (256 - fy) + bot_a * fy) >> 8;
             
             if (alpha > 0) {
-                uint32_t r00 = (c00 >> 16) & 0xFF, r01 = (c01 >> 16) & 0xFF;
-                uint32_t r10 = (c10 >> 16) & 0xFF, r11 = (c11 >> 16) & 0xFF;
-                uint32_t top_r = (r00 * (256 - fx) + r01 * fx) >> 8;
-                uint32_t bot_r = (r10 * (256 - fx) + r11 * fx) >> 8;
-                uint32_t fr = (top_r * (256 - fy) + bot_r * fy) >> 8;
-                
-                uint32_t g00 = (c00 >> 8) & 0xFF, g01 = (c01 >> 8) & 0xFF;
-                uint32_t g10 = (c10 >> 8) & 0xFF, g11 = (c11 >> 8) & 0xFF;
-                uint32_t top_g = (g00 * (256 - fx) + g01 * fx) >> 8;
-                uint32_t bot_g = (g10 * (256 - fx) + g11 * fx) >> 8;
-                uint32_t fg = (top_g * (256 - fy) + bot_g * fy) >> 8;
-                
-                uint32_t b00 = c00 & 0xFF, b01 = c01 & 0xFF;
-                uint32_t b10 = c10 & 0xFF, b11 = c11 & 0xFF;
-                uint32_t top_b = (b00 * (256 - fx) + b01 * fx) >> 8;
-                uint32_t bot_b = (b10 * (256 - fx) + b11 * fx) >> 8;
-                uint32_t fb = (top_b * (256 - fy) + bot_b * fy) >> 8;
+                /* For white tinted SVG icons */
+                uint32_t fr = 255, fg = 255, fb = 255;
                 
                 if (alpha == 255) {
                     buffer[(y + iy) * buf_w + (x + ix)] = (fr << 16) | (fg << 8) | fb;
