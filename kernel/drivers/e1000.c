@@ -120,6 +120,10 @@ static void e1000_irq_handler(registers_t *regs) {
             /* Send packet to network stack (Ethernet layer) */
             ethernet_receive(pkt, len);
             
+            /* Tell GUI to redraw if terminal was updated */
+            extern volatile bool g_gui_needs_update;
+            g_gui_needs_update = true;
+            
             /* Reset descriptor for next packet */
             s_rx_descs[s_rx_cur].status = 0;
             uint16_t old_cur = s_rx_cur;
