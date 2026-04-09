@@ -95,6 +95,10 @@ static void check_device(uint8_t bus, uint8_t slot, uint8_t func) {
             if (vendor_id == 0x8086 && device_id == 0x100E) {
                 g_net_dev.name = "Intel PRO/1000 (e1000)";
                 e1000_init(bus, slot, func);
+                
+                /* Start DHCP once driver is initialized */
+                extern void dhcp_init(void);
+                dhcp_init();
             } else if (vendor_id == 0x10EC && device_id == 0x8139) {
                 g_net_dev.name = "Realtek RTL8139";
             } else if (vendor_id == 0x1022 && device_id == 0x2000) {

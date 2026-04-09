@@ -41,9 +41,10 @@
 static int32_t s_x       = 0;
 static int32_t s_y       = 0;
 static uint8_t s_buttons = 0;
-static uint8_t s_packet[3];
+static uint8_t s_packet[4];
 static uint8_t s_phase   = 0;
 static bool    s_vmmouse = false;
+static bool    s_has_wheel = false;
 
 /* Mouse screen bounds (updated on init from framebuffer size) */
 static int32_t s_max_x = 1023;
@@ -166,6 +167,29 @@ void mouse_init(void) {
     mouse_write(0xF6);
     mouse_read();   /* ACK */
 
+    /* Try to enable IntelliMouse extensions (scroll wheel) */
+    mouse_write(0xF3); /* Set sample rate */
+    mouse_read();
+    mouse_write(200);
+    mouse_read();
+    
+    mouse_write(0xF3); /* Set sample rate */
+    mouse_read();
+    mouse_write(100);
+    mouse_read();
+    
+    mouse_write(0xF3); /* Set sample rate */
+    mouse_read();
+    mouse_write(80);
+    mouse_read();
+    
+    mouse_write(0xF2); /* Get device ID */
+    mouse_read(); /* ACK */
+    uint8_t id = mouse_read(); /* Device ID */
+    if (id == 3 || id == 4) {
+        s_has_wheel = true;
+    }
+
     /* Enable mouse packet streaming */
     mouse_write(0xF4);
     mouse_read();   /* ACK */
@@ -236,8 +260,6 @@ void mouse_irq_handler(void) {
         return; /* Skip standard PS/2 processing */
     }
 
-    s_packet[s_phase] = data;
-
     if (s_phase == 0) {
         /* First byte must have bit 3 set; discard if not (re-sync).
          * Also discard ACK bytes (0xFA) that sometimes sneak in and shift the state machine.
@@ -245,8 +267,11 @@ void mouse_irq_handler(void) {
         if (data == 0xFA || !(data & 0x08)) return;
     }
 
+    s_packet[s_phase] = data;
     s_phase++;
-    if (s_phase < 3) return;
+    
+    int expected_bytes = s_has_wheel ? 4 : 3;
+    if (s_phase < expected_bytes) return;
 
     /* Full packet received */
     s_phase = 0;
@@ -254,6 +279,12 @@ void mouse_irq_handler(void) {
     uint8_t  flags = s_packet[0];
     int32_t  dx    = (int32_t)(int8_t)s_packet[1];
     int32_t  dy    = (int32_t)(int8_t)s_packet[2];
+    int32_t  dz    = 0;
+    
+    if (s_has_wheel) {
+        dz = (int32_t)(int8_t)s_packet[3];
+        /* The scroll wheel data is here in dz, but for now we just read it to keep the packet sync. */
+    }
 
     /* Discard overflowed packets */
     if (flags & 0xC0) return;
