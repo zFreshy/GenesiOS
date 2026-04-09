@@ -266,29 +266,32 @@ static void draw_window(window_t *win) {
     if (win->y >= title_h) {
         int32_t title_y = win->y - title_h;
         
-        /* Light theme: Frosty white title bar */
-        uint32_t tb_color = (win == wm_get_top()) ? 0xE0F0F5FA : 0xD0E8EDF2;
+        /* Seamless theme: sample color from window buffer or default to dark */
+        uint32_t tb_color = 0xFF1C1E23;
+        if (win->buffer) {
+            tb_color = win->buffer[0] | 0xFF000000; /* Ensure opaque */
+        }
 
         /* Draw title bar background (rounded top) */
-        draw_rounded_rect(win->x, title_y, win->width, title_h + win_radius, win_radius, tb_color, true);
+        draw_rounded_rect(win->x, title_y, win->width, title_h + win_radius, win_radius, tb_color, false);
 
-        /* Title text */
-        uint32_t text_color = 0x004A5568; /* Dark greyish blue */
-        font_draw_string_scaled(win->x + (20 * g_ui_scale), title_y + (12 * g_ui_scale), win->title, text_color, 0x00000000, g_ui_scale);
-
-        /* Control buttons (MacOS/Aladin style traffic lights on the right) */
-        int32_t btn_s = 16 * g_ui_scale;
+        /* Control buttons (MacOS style traffic lights on the LEFT) */
+        int32_t btn_s = 14 * g_ui_scale;
         int32_t btn_y = title_y + (title_h - btn_s) / 2;
-        int32_t btn_r = 8 * g_ui_scale;
+        int32_t btn_r = 7 * g_ui_scale;
+        
+        /* Close (Red) */
+        draw_rounded_rect(win->x + (20 * g_ui_scale), btn_y, btn_s, btn_s, btn_r, 0xFFEF4444, false);
         
         /* Minimize (Yellow) */
-        draw_rounded_rect(win->x + win->width - (80 * g_ui_scale), btn_y, btn_s, btn_s, btn_r, 0xFFF5A623, false);
+        draw_rounded_rect(win->x + (44 * g_ui_scale), btn_y, btn_s, btn_s, btn_r, 0xFFF5A623, false);
         
         /* Maximize (Green) */
-        draw_rounded_rect(win->x + win->width - (50 * g_ui_scale), btn_y, btn_s, btn_s, btn_r, 0xFF10B981, false);
+        draw_rounded_rect(win->x + (68 * g_ui_scale), btn_y, btn_s, btn_s, btn_r, 0xFF10B981, false);
 
-        /* Close (Red) */
-        draw_rounded_rect(win->x + win->width - (20 * g_ui_scale), btn_y, btn_s, btn_s, btn_r, 0xFFEF4444, false);
+        /* Title text */
+        uint32_t text_color = 0x00808080; /* Subtle grey text */
+        font_draw_string_scaled(win->x + (100 * g_ui_scale), title_y + (12 * g_ui_scale), win->title, text_color, 0x00000000, g_ui_scale);
     }
 
     /* Draw window content buffer (rounded bottom) */
@@ -366,136 +369,130 @@ static void draw_desktop_widgets(void) {
 /* ------------------------------------------------------------------ */
 /* Draw taskbar (Floating Dock)                                       */
 /* ------------------------------------------------------------------ */
-static void draw_taskbar(void) {
-    int32_t tb_height = 64 * g_ui_scale;
-    int32_t tb_width = 500 * g_ui_scale;
-    int32_t tb_x = (s_width - tb_width) / 2;
-    int32_t tb_y = s_height - tb_height - (20 * g_ui_scale); /* Floating */
-    
-    /* Taskbar background (Light frosted glass, more transparent) */
-    draw_rounded_rect(tb_x, tb_y, tb_width, tb_height, 32 * g_ui_scale, 0x70FFFFFF, true);
-    
-    /* Draw Start button background */
-    int32_t start_size = 48 * g_ui_scale;
-    int32_t start_x = tb_x + (16 * g_ui_scale);
-    int32_t start_y = tb_y + (8 * g_ui_scale);
-    draw_rounded_rect(start_x, start_y, start_size, start_size, 24 * g_ui_scale, 0xFF4A90E2, true);
-    
-    /* Draw Start button icon (SVG -> PNG -> C Array) with Bilinear Interpolation */
+static void draw_icon(int32_t x, int32_t y, const uint32_t *icon_data, uint32_t icon_w, uint32_t icon_h) {
     extern uint32_t *fb_get_backbuffer(void);
     uint32_t *bb = fb_get_backbuffer();
-    if (bb) {
-        int32_t scaled_iw = ICON_START_WIDTH * g_ui_scale;
-        int32_t scaled_ih = ICON_START_HEIGHT * g_ui_scale;
-        int32_t icon_x = start_x + (start_size - scaled_iw) / 2;
-        int32_t icon_y = start_y + (start_size - scaled_ih) / 2;
-        
-        for (int32_t iy = 0; iy < scaled_ih; iy++) {
-            for (int32_t ix = 0; ix < scaled_iw; ix++) {
-                if (icon_x + ix < 0 || icon_x + ix >= (int32_t)s_width ||
-                    icon_y + iy < 0 || icon_y + iy >= (int32_t)s_height) {
-                    continue;
-                }
+    if (!bb) return;
+    
+    int32_t scaled_w = icon_w * g_ui_scale;
+    int32_t scaled_h = icon_h * g_ui_scale;
+    
+    for (int32_t iy = 0; iy < scaled_h; iy++) {
+        for (int32_t ix = 0; ix < scaled_w; ix++) {
+            if (x + ix < 0 || x + ix >= (int32_t)s_width || y + iy < 0 || y + iy >= (int32_t)s_height) continue;
+            
+            uint32_t src_x = (ix << 8) / g_ui_scale;
+            uint32_t src_y = (iy << 8) / g_ui_scale;
+            
+            uint32_t x0 = src_x >> 8;
+            uint32_t y0 = src_y >> 8;
+            uint32_t x1 = x0 + 1;
+            uint32_t y1 = y0 + 1;
+            if (x1 >= icon_w) x1 = icon_w - 1;
+            if (y1 >= icon_h) y1 = icon_h - 1;
+            
+            uint32_t fx = src_x & 0xFF;
+            uint32_t fy = src_y & 0xFF;
+            
+            uint32_t c00 = icon_data[y0 * icon_w + x0];
+            uint32_t c01 = icon_data[y0 * icon_w + x1];
+            uint32_t c10 = icon_data[y1 * icon_w + x0];
+            uint32_t c11 = icon_data[y1 * icon_w + x1];
+            
+            uint32_t a00 = (c00 >> 24) & 0xFF, a01 = (c01 >> 24) & 0xFF;
+            uint32_t a10 = (c10 >> 24) & 0xFF, a11 = (c11 >> 24) & 0xFF;
+            uint32_t top_a = (a00 * (256 - fx) + a01 * fx) >> 8;
+            uint32_t bot_a = (a10 * (256 - fx) + a11 * fx) >> 8;
+            uint32_t alpha = (top_a * (256 - fy) + bot_a * fy) >> 8;
+            
+            if (alpha > 0) {
+                uint32_t r00 = (c00 >> 16) & 0xFF, r01 = (c01 >> 16) & 0xFF;
+                uint32_t r10 = (c10 >> 16) & 0xFF, r11 = (c11 >> 16) & 0xFF;
+                uint32_t top_r = (r00 * (256 - fx) + r01 * fx) >> 8;
+                uint32_t bot_r = (r10 * (256 - fx) + r11 * fx) >> 8;
+                uint32_t fr = (top_r * (256 - fy) + bot_r * fy) >> 8;
                 
-                if (g_ui_scale == 1) {
-                    uint32_t color = icon_start[iy * ICON_START_WIDTH + ix];
-                    uint32_t alpha = (color >> 24) & 0xFF;
-                    if (alpha == 255) {
-                        bb[(icon_y + iy) * s_width + (icon_x + ix)] = color & 0xFFFFFF;
-                    } else if (alpha > 0) {
-                        uint32_t bg = bb[(icon_y + iy) * s_width + (icon_x + ix)];
-                        uint32_t bgr = (bg >> 16) & 0xFF;
-                        uint32_t bgg = (bg >> 8) & 0xFF;
-                        uint32_t bgb = bg & 0xFF;
-                        uint32_t fr = (color >> 16) & 0xFF;
-                        uint32_t fg = (color >> 8) & 0xFF;
-                        uint32_t fb = color & 0xFF;
-                        uint32_t r = (fr * alpha + bgr * (255 - alpha)) / 255;
-                        uint32_t g = (fg * alpha + bgg * (255 - alpha)) / 255;
-                        uint32_t b = (fb * alpha + bgb * (255 - alpha)) / 255;
-                        bb[(icon_y + iy) * s_width + (icon_x + ix)] = (r << 16) | (g << 8) | b;
-                    }
-                    continue;
-                }
+                uint32_t g00 = (c00 >> 8) & 0xFF, g01 = (c01 >> 8) & 0xFF;
+                uint32_t g10 = (c10 >> 8) & 0xFF, g11 = (c11 >> 8) & 0xFF;
+                uint32_t top_g = (g00 * (256 - fx) + g01 * fx) >> 8;
+                uint32_t bot_g = (g10 * (256 - fx) + g11 * fx) >> 8;
+                uint32_t fg = (top_g * (256 - fy) + bot_g * fy) >> 8;
                 
-                uint32_t src_x = (ix * 256) / g_ui_scale;
-                uint32_t src_y = (iy * 256) / g_ui_scale;
-                uint32_t x0 = src_x >> 8;
-                uint32_t y0 = src_y >> 8;
-                uint32_t x1 = x0 + 1;
-                uint32_t y1 = y0 + 1;
-                if (x1 >= ICON_START_WIDTH) x1 = ICON_START_WIDTH - 1;
-                if (y1 >= ICON_START_HEIGHT) y1 = ICON_START_HEIGHT - 1;
+                uint32_t b00 = c00 & 0xFF, b01 = c01 & 0xFF;
+                uint32_t b10 = c10 & 0xFF, b11 = c11 & 0xFF;
+                uint32_t top_b = (b00 * (256 - fx) + b01 * fx) >> 8;
+                uint32_t bot_b = (b10 * (256 - fx) + b11 * fx) >> 8;
+                uint32_t fb = (top_b * (256 - fy) + bot_b * fy) >> 8;
                 
-                uint32_t fx = src_x & 0xFF;
-                uint32_t fy = src_y & 0xFF;
-                
-                uint32_t c00 = icon_start[y0 * ICON_START_WIDTH + x0];
-                uint32_t c01 = icon_start[y0 * ICON_START_WIDTH + x1];
-                uint32_t c10 = icon_start[y1 * ICON_START_WIDTH + x0];
-                uint32_t c11 = icon_start[y1 * ICON_START_WIDTH + x1];
-                
-                /* Bilinear blend of alpha */
-                uint32_t a00 = (c00 >> 24) & 0xFF, a01 = (c01 >> 24) & 0xFF;
-                uint32_t a10 = (c10 >> 24) & 0xFF, a11 = (c11 >> 24) & 0xFF;
-                uint32_t top_a = (a00 * (256 - fx) + a01 * fx) >> 8;
-                uint32_t bot_a = (a10 * (256 - fx) + a11 * fx) >> 8;
-                uint32_t alpha = (top_a * (256 - fy) + bot_a * fy) >> 8;
-                
-                if (alpha > 0) {
-                    /* Bilinear blend of RGB */
-                    uint32_t r00 = (c00 >> 16) & 0xFF, r01 = (c01 >> 16) & 0xFF;
-                    uint32_t r10 = (c10 >> 16) & 0xFF, r11 = (c11 >> 16) & 0xFF;
-                    uint32_t top_r = (r00 * (256 - fx) + r01 * fx) >> 8;
-                    uint32_t bot_r = (r10 * (256 - fx) + r11 * fx) >> 8;
-                    uint32_t fr = (top_r * (256 - fy) + bot_r * fy) >> 8;
+                if (alpha == 255) {
+                    bb[(y + iy) * s_width + (x + ix)] = (fr << 16) | (fg << 8) | fb;
+                } else {
+                    uint32_t bg = bb[(y + iy) * s_width + (x + ix)];
+                    uint32_t bgr = (bg >> 16) & 0xFF;
+                    uint32_t bgg = (bg >> 8) & 0xFF;
+                    uint32_t bgb = bg & 0xFF;
                     
-                    uint32_t g00 = (c00 >> 8) & 0xFF, g01 = (c01 >> 8) & 0xFF;
-                    uint32_t g10 = (c10 >> 8) & 0xFF, g11 = (c11 >> 8) & 0xFF;
-                    uint32_t top_g = (g00 * (256 - fx) + g01 * fx) >> 8;
-                    uint32_t bot_g = (g10 * (256 - fx) + g11 * fx) >> 8;
-                    uint32_t fg = (top_g * (256 - fy) + bot_g * fy) >> 8;
+                    uint32_t r = (fr * alpha + bgr * (255 - alpha)) / 255;
+                    uint32_t g = (fg * alpha + bgg * (255 - alpha)) / 255;
+                    uint32_t b = (fb * alpha + bgb * (255 - alpha)) / 255;
                     
-                    uint32_t b00 = c00 & 0xFF, b01 = c01 & 0xFF;
-                    uint32_t b10 = c10 & 0xFF, b11 = c11 & 0xFF;
-                    uint32_t top_b = (b00 * (256 - fx) + b01 * fx) >> 8;
-                    uint32_t bot_b = (b10 * (256 - fx) + b11 * fx) >> 8;
-                    uint32_t fb = (top_b * (256 - fy) + bot_b * fy) >> 8;
-                    
-                    if (alpha == 255) {
-                        bb[(icon_y + iy) * s_width + (icon_x + ix)] = (fr << 16) | (fg << 8) | fb;
-                    } else {
-                        uint32_t bg = bb[(icon_y + iy) * s_width + (icon_x + ix)];
-                        uint32_t bgr = (bg >> 16) & 0xFF;
-                        uint32_t bgg = (bg >> 8) & 0xFF;
-                        uint32_t bgb = bg & 0xFF;
-                        
-                        uint32_t r = (fr * alpha + bgr * (255 - alpha)) / 255;
-                        uint32_t g = (fg * alpha + bgg * (255 - alpha)) / 255;
-                        uint32_t b = (fb * alpha + bgb * (255 - alpha)) / 255;
-                        
-                        bb[(icon_y + iy) * s_width + (icon_x + ix)] = (r << 16) | (g << 8) | b;
-                    }
+                    bb[(y + iy) * s_width + (x + ix)] = (r << 16) | (g << 8) | b;
                 }
             }
         }
     }
-
-    /* Draw buttons for windows */
-    window_t *win = wm_get_bottom();
-    int32_t btn_x = start_x + (80 * g_ui_scale);
-    int32_t btn_size = 40 * g_ui_scale;
-    while (win) {
-        uint32_t btn_color = (win == wm_get_top()) ? 0xFFFFFFFF : 0x80FFFFFF;
-        draw_rounded_rect(btn_x, tb_y + (12 * g_ui_scale), btn_size, btn_size, 8 * g_ui_scale, btn_color, true);
-        /* Draw little icon indicator */
-        font_draw_char_scaled(btn_x + (12 * g_ui_scale), tb_y + (4 * g_ui_scale), win->title[0], 0x004A90E2, 0x00000000, g_ui_scale);
-        btn_x += (56 * g_ui_scale);
-        win = win->next;
-    }
 }
 
-/* ------------------------------------------------------------------ */
+#include "icons/icon_grid4.h"
+#include "icons/icon_grid9.h"
+#include "icons/icon_search.h"
+#include "icons/icon_folder.h"
+#include "icons/icon_cmd.h"
+#include "icons/icon_power.h"
+
+static void draw_taskbar(void) {
+    int32_t tb_height = 64 * g_ui_scale;
+    int32_t tb_width = 460 * g_ui_scale;
+    int32_t tb_x = (s_width - tb_width) / 2;
+    int32_t tb_y = s_height - tb_height - (20 * g_ui_scale); /* Floating */
+    
+    /* Taskbar background (Dark frosted glass, matching design) */
+    draw_rounded_rect(tb_x, tb_y, tb_width, tb_height, 32 * g_ui_scale, 0xC02A2E33, true);
+    
+    /* Calculate icon spacing */
+    int32_t item_count = 6;
+    int32_t icon_size = 32 * g_ui_scale;
+    int32_t padding = (tb_width - (item_count * icon_size)) / (item_count + 1);
+    
+    int32_t cur_x = tb_x + padding;
+    int32_t icon_y = tb_y + (tb_height - icon_size) / 2;
+    
+    /* 1. Grid 4 (Start Menu) */
+    draw_icon(cur_x, icon_y, icon_grid4, ICON_GRID4_WIDTH, ICON_GRID4_HEIGHT);
+    cur_x += icon_size + padding;
+    
+    /* 2. Grid 9 (App Drawer) */
+    draw_icon(cur_x, icon_y, icon_grid9, ICON_GRID9_WIDTH, ICON_GRID9_HEIGHT);
+    cur_x += icon_size + padding;
+    
+    /* 3. Search */
+    draw_icon(cur_x, icon_y, icon_search, ICON_SEARCH_WIDTH, ICON_SEARCH_HEIGHT);
+    cur_x += icon_size + padding;
+    
+    /* 4. Folder (with Blue Circle background) */
+    int32_t circle_size = 48 * g_ui_scale;
+    draw_rounded_rect(cur_x + (icon_size - circle_size)/2, tb_y + (tb_height - circle_size)/2, circle_size, circle_size, circle_size/2, 0xFF3B82F6, true);
+    draw_icon(cur_x, icon_y, icon_folder, ICON_FOLDER_WIDTH, ICON_FOLDER_HEIGHT);
+    cur_x += icon_size + padding;
+    
+    /* 5. CMD / Settings */
+    draw_icon(cur_x, icon_y, icon_cmd, ICON_CMD_WIDTH, ICON_CMD_HEIGHT);
+    cur_x += icon_size + padding;
+    
+    /* 6. Power */
+    draw_icon(cur_x, icon_y, icon_power, ICON_POWER_WIDTH, ICON_POWER_HEIGHT);
+}
+
 /* Draw System Tray                                                   */
 /* ------------------------------------------------------------------ */
 static void draw_system_tray(void) {
@@ -625,17 +622,20 @@ void compositor_update(void) {
         bool found = false;
 
         /* Check taskbar and start menu first */
-        int32_t tb_width = 500 * g_ui_scale;
+        int32_t tb_width = 460 * g_ui_scale;
         int32_t tb_height = 64 * g_ui_scale;
         int32_t tb_x = (s_width - tb_width) / 2;
         int32_t tb_y = s_height - tb_height - (20 * g_ui_scale);
         
         if (my >= tb_y && my <= tb_y + tb_height && mx >= tb_x && mx <= tb_x + tb_width) {
             /* Click on taskbar */
-            int32_t start_x = tb_x + (16 * g_ui_scale);
-            int32_t start_size = 48 * g_ui_scale;
+            /* Check if clicked near the Start Menu icon (the first icon) */
+            int32_t item_count = 6;
+            int32_t icon_size = 32 * g_ui_scale;
+            int32_t padding = (tb_width - (item_count * icon_size)) / (item_count + 1);
+            int32_t start_x = tb_x + padding;
             
-            if (mx >= start_x && mx <= start_x + start_size) {
+            if (mx >= start_x - padding/2 && mx <= start_x + icon_size + padding/2) {
                 s_start_menu_open = !s_start_menu_open;
             } else {
                 s_start_menu_open = false;
@@ -695,8 +695,8 @@ void compositor_update(void) {
             if (mx >= win->x && mx <= win->x + (int32_t)win->width &&
                 my >= title_y && my <= win->y) {
                 
-                /* Check if clicked the close button (width 32) */
-                if (mx >= win->x + (int32_t)win->width - (40 * g_ui_scale)) {
+                /* Check if clicked the close button (x: 20, w: 14) */
+                if (mx >= win->x + (20 * g_ui_scale) && mx <= win->x + (34 * g_ui_scale)) {
                     wm_destroy_window(win);
                     s_drag_win = NULL;
                     found = true;
