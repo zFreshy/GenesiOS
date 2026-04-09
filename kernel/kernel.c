@@ -133,6 +133,7 @@ void shell_exec(const char *cmd) {
         kprintf("  test      - spawn 3 test threads (A, B, C)\n");
         kprintf("  ipconfig  - show network interfaces\n");
         kprintf("  nettest   - test E1000 sending a raw packet\n");
+        kprintf("  ping      - ping an IP address (e.g., ping 8.8.8.8)\n");
         kprintf("  halt      - halt the system\n");
     } else if (kstrcmp(cmd, "mem") == 0) {
         kprintf("  Free  : %zu MB\n",
@@ -214,6 +215,46 @@ void shell_exec(const char *cmd) {
             } else {
                 kprintf("  [NetTest] FAILED! e1000_send_packet returned %d.\n", res);
             }
+        }
+    } else if (cmd[0] == 'p' && cmd[1] == 'i' && cmd[2] == 'n' && cmd[3] == 'g' && cmd[4] == ' ') {
+        /* Parse ping IP */
+        uint8_t target_ip[4] = {0};
+        int ip_idx = 0;
+        int val = 0;
+        const char *p = &cmd[5];
+        
+        while (*p) {
+            if (*p == '.') {
+                target_ip[ip_idx++] = val;
+                val = 0;
+                if (ip_idx > 3) break;
+            } else if (*p >= '0' && *p <= '9') {
+                val = val * 10 + (*p - '0');
+            } else {
+                break;
+            }
+            p++;
+        }
+        if (ip_idx < 4) target_ip[ip_idx] = val;
+        
+        kprintf("  Pinging %d.%d.%d.%d with 32 bytes of data:\n", 
+                target_ip[0], target_ip[1], target_ip[2], target_ip[3]);
+        
+        /* Check if we have network */
+        extern net_device_t g_net_dev;
+        if (!g_net_dev.present || g_net_dev.ip[0] == 0) {
+            kprintf("  PING: transmit failed. General failure. (No Network)\n");
+        } else {
+            /* We need to resolve MAC first via ARP, but to keep it simple and stateless for now,
+             * we broadcast the Ping request. The target should still answer it. */
+            
+            extern void icmp_send_request(uint8_t *dst_ip, uint16_t id, uint16_t seq, uint8_t *payload, uint16_t payload_len);
+            
+            char *ping_payload = "abcdefghijklmnopqrstuvwabcdefghi";
+            icmp_send_request(target_ip, 0x1337, 1, (uint8_t *)ping_payload, 32);
+            
+            /* In a real OS we'd block/wait for reply here. For now we just send and let the IRQ handler print the reply */
+            kprintf("  (Request sent. Waiting for async reply...)\n");
         }
     } else if (kstrcmp(cmd, "run") == 0) {
         kprintf("  Running test user process...\n");

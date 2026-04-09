@@ -67,3 +67,24 @@ void icmp_send_reply(uint8_t *dst_ip, uint16_t id, uint16_t seq, uint8_t *payloa
     
     ipv4_send(dst_ip, 1 /* ICMP */, buffer, total_len);
 }
+
+void icmp_send_request(uint8_t *dst_ip, uint16_t id, uint16_t seq, uint8_t *payload, uint16_t payload_len) {
+    uint16_t total_len = sizeof(struct icmp_header) + payload_len;
+    uint8_t buffer[2048];
+    kmemset(buffer, 0, total_len);
+    
+    struct icmp_header *icmp = (struct icmp_header *)buffer;
+    icmp->type = ICMP_ECHO_REQUEST;
+    icmp->code = 0;
+    icmp->id = htons(id);
+    icmp->sequence = htons(seq);
+    
+    if (payload && payload_len > 0) {
+        kmemcpy(buffer + sizeof(struct icmp_header), payload, payload_len);
+    }
+    
+    icmp->checksum = 0;
+    icmp->checksum = calculate_checksum(buffer, total_len);
+    
+    ipv4_send(dst_ip, 1 /* ICMP */, buffer, total_len);
+}

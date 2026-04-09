@@ -17,5 +17,6 @@ struct icmp_header {
 
 void icmp_receive(uint8_t *packet, uint16_t len, uint8_t *src_ip);
 void icmp_send_reply(uint8_t *dst_ip, uint16_t id, uint16_t seq, uint8_t *payload, uint16_t payload_len);
+void icmp_send_request(uint8_t *dst_ip, uint16_t id, uint16_t seq, uint8_t *payload, uint16_t payload_len);
 
 #endif /* ICMP_H */
