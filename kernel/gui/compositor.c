@@ -296,10 +296,35 @@ static void draw_window(window_t *win) {
 
     /* Draw window content buffer (rounded bottom) */
     if (win->buffer) {
-        /* We can't easily mask the buffer with rounded corners without a proper blit function, 
-           so we just blit it directly. The desktop apps should ideally draw their own backgrounds rounded.
-           For now, a standard blit is fine. */
-        fb_blit(win->x, win->y, win->width, win->height, win->buffer);
+        extern uint32_t *fb_get_backbuffer(void);
+        uint32_t *bb = fb_get_backbuffer();
+        if (!bb) return;
+
+        int32_t buf_w = win->width;
+        int32_t buf_h = win->height;
+        
+        for (int32_t cy = 0; cy < buf_h; cy++) {
+            for (int32_t cx = 0; cx < buf_w; cx++) {
+                int32_t px = win->x + cx;
+                int32_t py = win->y + cy;
+                
+                if (px < 0 || px >= (int32_t)s_width || py < 0 || py >= (int32_t)s_height) continue;
+                
+                /* Bottom corners rounding */
+                int32_t dx = 0, dy = 0;
+                if (cx < win_radius && cy >= buf_h - win_radius) {
+                    dx = (win_radius - 1) - cx;
+                    dy = cy - (buf_h - win_radius);
+                } else if (cx >= buf_w - win_radius && cy >= buf_h - win_radius) {
+                    dx = cx - (buf_w - win_radius);
+                    dy = cy - (buf_h - win_radius);
+                }
+                
+                if (dx*dx + dy*dy >= win_radius * win_radius) continue;
+                
+                bb[py * s_width + px] = win->buffer[cy * buf_w + cx] | 0xFF000000;
+            }
+        }
     }
 }
 
@@ -351,19 +376,70 @@ static void draw_cursor(void) {
 /* ------------------------------------------------------------------ */
 /* Draw top bar and widgets (Aladin OS Style)                         */
 /* ------------------------------------------------------------------ */
+
+static uint8_t get_rtc_register(int reg) {
+    outb(0x70, reg);
+    return inb(0x71);
+}
+
+static uint8_t bcd2bin(uint8_t bcd) {
+    return ((bcd & 0xF0) >> 1) + ((bcd & 0xF0) >> 3) + (bcd & 0xf);
+}
+
 static void draw_desktop_widgets(void) {
-    /* Logo / System Name at Top Right */
-    uint32_t brand_color = 0x00FFFFFF; /* White */
-    font_draw_string_scaled(s_width - (160 * g_ui_scale), 20 * g_ui_scale, "GENESI OS", brand_color, 0x00000000, g_ui_scale);
+    /* Read RTC time */
+    uint8_t s = get_rtc_register(0x00);
+    uint8_t m = get_rtc_register(0x02);
+    uint8_t h = get_rtc_register(0x04);
+    
+    /* Read RTC date */
+    uint8_t day = get_rtc_register(0x07);
+    uint8_t month = get_rtc_register(0x08);
+    // uint8_t year = get_rtc_register(0x09);
+    
+    uint8_t regB = get_rtc_register(0x0B);
+    
+    if (!(regB & 0x04)) {
+        s = bcd2bin(s);
+        m = bcd2bin(m);
+        h = ((h & 0x0F) + (((h & 0x70) / 16) * 10)) | (h & 0x80);
+        day = bcd2bin(day);
+        month = bcd2bin(month);
+    }
+    
+    /* Convert 12 hour clock to 24 hour */
+    if (!(regB & 0x02) && (h & 0x80)) {
+        h = ((h & 0x7F) + 12) % 24;
+    }
+    
+    char time_str[16];
+    time_str[0] = '0' + (h / 10);
+    time_str[1] = '0' + (h % 10);
+    time_str[2] = ':';
+    time_str[3] = '0' + (m / 10);
+    time_str[4] = '0' + (m % 10);
+    time_str[5] = '\0';
+    
+    const char *months[] = {"", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
+    const char *m_str = (month >= 1 && month <= 12) ? months[month] : "???";
+    
+    char date_str[32];
+    date_str[0] = m_str[0];
+    date_str[1] = m_str[1];
+    date_str[2] = m_str[2];
+    date_str[3] = ' ';
+    date_str[4] = '0' + (day / 10);
+    date_str[5] = '0' + (day % 10);
+    date_str[6] = '\0';
     
     /* Huge Clock at Top Center */
     uint32_t clock_x = (s_width - (5 * 16 * g_ui_scale)) / 2; /* 5 chars */
-    font_draw_string_scaled(clock_x + 2 * g_ui_scale, 42 * g_ui_scale, "08:20", 0x005555AA, 0x00000000, g_ui_scale); /* Drop shadow */
-    font_draw_string_scaled(clock_x, 40 * g_ui_scale, "08:20", 0x00FFFFFF, 0x00000000, g_ui_scale);
+    font_draw_string_scaled(clock_x + 2 * g_ui_scale, 42 * g_ui_scale, time_str, 0x005555AA, 0x00000000, g_ui_scale); /* Drop shadow */
+    font_draw_string_scaled(clock_x, 40 * g_ui_scale, time_str, 0x00FFFFFF, 0x00000000, g_ui_scale);
     
     /* Date below clock */
-    uint32_t date_x = (s_width - (11 * 16 * g_ui_scale)) / 2; /* 11 chars */
-    font_draw_string_scaled(date_x, 80 * g_ui_scale, "Fri, Aug 28", 0x00D0D0E0, 0x00000000, g_ui_scale);
+    uint32_t date_x = (s_width - (6 * 16 * g_ui_scale)) / 2; /* 6 chars */
+    font_draw_string_scaled(date_x, 80 * g_ui_scale, date_str, 0x00D0D0E0, 0x00000000, g_ui_scale);
 }
 
 /* ------------------------------------------------------------------ */
@@ -524,29 +600,50 @@ static void draw_taskbar(void) {
     int32_t cur_x = tb_x + padding;
     int32_t icon_y = tb_y + (tb_height - icon_size) / 2;
     
+    /* Find currently active app to highlight its icon */
+    window_t *top_win = wm_get_top();
+    int active_icon = -1;
+    if (top_win) {
+        if (kstrcmp(top_win->title, "Files / root / documents") == 0) {
+            active_icon = 3; /* Folder icon index (0-based) */
+        } else if (kstrcmp(top_win->title, "root@genesi-os: ~/dev/neural-core") == 0 || kstrcmp(top_win->title, "Terminal") == 0) {
+            active_icon = 4; /* CMD/Terminal icon index */
+        }
+    }
+    
+    int32_t circle_size = 48 * g_ui_scale;
+    
     /* 1. Grid 4 (Start Menu) */
+    if (active_icon == 0) draw_rounded_rect(cur_x + (icon_size - circle_size)/2, tb_y + (tb_height - circle_size)/2, circle_size, circle_size, 16 * g_ui_scale, 0x30FFFFFF, true);
     draw_icon(cur_x, icon_y, icon_grid4, ICON_GRID4_WIDTH, ICON_GRID4_HEIGHT);
     cur_x += icon_size + padding;
     
     /* 2. Grid 9 (App Drawer) */
+    if (active_icon == 1) draw_rounded_rect(cur_x + (icon_size - circle_size)/2, tb_y + (tb_height - circle_size)/2, circle_size, circle_size, 16 * g_ui_scale, 0x30FFFFFF, true);
     draw_icon(cur_x, icon_y, icon_grid9, ICON_GRID9_WIDTH, ICON_GRID9_HEIGHT);
     cur_x += icon_size + padding;
     
     /* 3. Search */
+    if (active_icon == 2) draw_rounded_rect(cur_x + (icon_size - circle_size)/2, tb_y + (tb_height - circle_size)/2, circle_size, circle_size, 16 * g_ui_scale, 0x30FFFFFF, true);
     draw_icon(cur_x, icon_y, icon_search, ICON_SEARCH_WIDTH, ICON_SEARCH_HEIGHT);
     cur_x += icon_size + padding;
     
-    /* 4. Folder (with Blue Circle background) */
-    int32_t circle_size = 48 * g_ui_scale;
-    draw_rounded_rect(cur_x + (icon_size - circle_size)/2, tb_y + (tb_height - circle_size)/2, circle_size, circle_size, circle_size/2, 0xFF3B82F6, true);
+    /* 4. Folder */
+    if (active_icon == 3) {
+        draw_rounded_rect(cur_x + (icon_size - circle_size)/2, tb_y + (tb_height - circle_size)/2, circle_size, circle_size, 12 * g_ui_scale, 0x30FFFFFF, true);
+    }
     draw_icon(cur_x, icon_y, icon_folder, ICON_FOLDER_WIDTH, ICON_FOLDER_HEIGHT);
     cur_x += icon_size + padding;
     
     /* 5. CMD / Settings */
+    if (active_icon == 4) {
+        draw_rounded_rect(cur_x + (icon_size - circle_size)/2, tb_y + (tb_height - circle_size)/2, circle_size, circle_size, 12 * g_ui_scale, 0x30FFFFFF, true);
+    }
     draw_icon(cur_x, icon_y, icon_cmd, ICON_CMD_WIDTH, ICON_CMD_HEIGHT);
     cur_x += icon_size + padding;
     
     /* 6. Power */
+    if (active_icon == 5) draw_rounded_rect(cur_x + (icon_size - circle_size)/2, tb_y + (tb_height - circle_size)/2, circle_size, circle_size, 16 * g_ui_scale, 0x30FFFFFF, true);
     draw_icon(cur_x, icon_y, icon_power, ICON_POWER_WIDTH, ICON_POWER_HEIGHT);
 }
 
@@ -564,7 +661,27 @@ static void draw_system_tray(void) {
     
     /* Icons and time */
     font_draw_string_scaled(tray_x + (20 * g_ui_scale), tray_y + (12 * g_ui_scale), "[Wi-Fi]", 0x00FFFFFF, 0x00000000, g_ui_scale);
-    font_draw_string_scaled(tray_x + (140 * g_ui_scale), tray_y + (12 * g_ui_scale), "08:20", 0x00FFFFFF, 0x00000000, g_ui_scale);
+    
+    /* Read time again for tray */
+    uint8_t m = get_rtc_register(0x02);
+    uint8_t h = get_rtc_register(0x04);
+    uint8_t regB = get_rtc_register(0x0B);
+    if (!(regB & 0x04)) {
+        m = bcd2bin(m);
+        h = ((h & 0x0F) + (((h & 0x70) / 16) * 10)) | (h & 0x80);
+    }
+    if (!(regB & 0x02) && (h & 0x80)) {
+        h = ((h & 0x7F) + 12) % 24;
+    }
+    char tray_time[6];
+    tray_time[0] = '0' + (h / 10);
+    tray_time[1] = '0' + (h % 10);
+    tray_time[2] = ':';
+    tray_time[3] = '0' + (m / 10);
+    tray_time[4] = '0' + (m % 10);
+    tray_time[5] = '\0';
+    
+    font_draw_string_scaled(tray_x + (140 * g_ui_scale), tray_y + (12 * g_ui_scale), tray_time, 0x00FFFFFF, 0x00000000, g_ui_scale);
 }
 
 /* ------------------------------------------------------------------ */
