@@ -112,20 +112,13 @@ static void test_thread_c(void) {
 // We already have kstrcmp in kernel.h
 
 /* Mouse IRQ wrapper */
-static uint64_t s_last_mouse_update = 0;
+volatile bool g_gui_needs_update = false;
+
 static void mouse_irq_wrapper(registers_t *regs) {
     (void)regs;
     mouse_irq_handler();
-    /* Update GUI when mouse moves, rate limited to avoid lag */
-    if (fb_available()) {
-        extern uint64_t pit_get_ticks(void);
-        uint64_t now = pit_get_ticks();
-        /* Limit updates to ~60 FPS (16ms) to avoid CPU hogging */
-        if (now - s_last_mouse_update > 16) {
-            compositor_update();
-            s_last_mouse_update = now;
-        }
-    }
+    /* No need to set g_gui_needs_update here, cpu_halt() will wake up 
+       and compositor_update(false) will handle the fast path. */
     irq_send_eoi(IRQ_MOUSE);
 }
 
@@ -434,13 +427,18 @@ void kernel_main(uint32_t boot_magic, uint64_t mboot_info) {
 
     /* Enter idle loop for the GUI */
     for (;;) {
+        /* Always call compositor update to check for fast paths (like mouse moves) */
+        compositor_update(g_gui_needs_update);
+        g_gui_needs_update = false;
+        
         if (keyboard_has_char()) {
             char c = keyboard_getchar();
             window_t *top = wm_get_top();
             if (top && top->on_key) {
                 top->on_key(top, c);
+                g_gui_needs_update = true;
             }
-        } else {
+        } else if (!g_gui_needs_update) {
             cpu_halt();
         }
     }

@@ -11,7 +11,7 @@
 void compositor_init(void);
 
 /* Update logic (mouse, etc) and trigger render */
-void compositor_update(void);
+void compositor_update(bool force);
 
 /* Composite all windows and mouse cursor, then blit to screen */
 void compositor_render(void);

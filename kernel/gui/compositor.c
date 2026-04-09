@@ -339,12 +339,38 @@ static void draw_window(window_t *win) {
 }
 
 /* ------------------------------------------------------------------ */
-/* Draw an arrow cursor                                               */
+/* Draw an arrow cursor directly to framebuffer to avoid full redraw  */
 /* ------------------------------------------------------------------ */
-static void draw_cursor(void) {
-    int32_t cx = mouse_x();
-    int32_t cy = mouse_y();
+static int32_t s_old_cx = -1;
+static int32_t s_old_cy = -1;
 
+static void draw_cursor_direct(int32_t cx, int32_t cy) {
+    extern uint32_t *fb_get_backbuffer(void);
+    uint32_t *bb = fb_get_backbuffer();
+    if (!bb || !g_fb.buffer) return;
+
+    int32_t cw = 16 * g_ui_scale;
+    int32_t ch = 17 * g_ui_scale;
+
+    /* 1. Restore old cursor area from backbuffer to screen */
+    if (s_old_cx != -1 && s_old_cy != -1) {
+        for (int32_t y = 0; y < ch; y++) {
+            int32_t py = s_old_cy + y;
+            if (py < 0 || py >= (int32_t)g_fb.height) continue;
+            uint32_t *dst_row = &g_fb.buffer[py * (g_fb.pitch / 4)];
+            uint32_t *src_row = &bb[py * (g_fb.pitch / 4)];
+            for (int32_t x = 0; x < cw; x++) {
+                int32_t px = s_old_cx + x;
+                if (px < 0 || px >= (int32_t)g_fb.width) continue;
+                dst_row[px] = src_row[px];
+            }
+        }
+    }
+
+    s_old_cx = cx;
+    s_old_cy = cy;
+
+    /* 2. Draw new cursor to screen directly */
     static const char *cursor_shape[17] = {
         "X               ",
         "XX              ",
@@ -371,10 +397,14 @@ static void draw_cursor(void) {
             if (c != ' ') {
                 for (int sy = 0; sy < g_ui_scale; sy++) {
                     for (int sx = 0; sx < g_ui_scale; sx++) {
+                        int32_t px = cx + x * g_ui_scale + sx;
+                        int32_t py = cy + y * g_ui_scale + sy;
+                        if (px < 0 || px >= (int32_t)g_fb.width || py < 0 || py >= (int32_t)g_fb.height) continue;
+                        
                         if (c == 'X') {
-                            fb_putpixel(cx + x * g_ui_scale + sx, cy + y * g_ui_scale + sy, 0x00000000);
+                            g_fb.buffer[py * (g_fb.pitch / 4) + px] = 0x00000000;
                         } else if (c == '.') {
-                            fb_putpixel(cx + x * g_ui_scale + sx, cy + y * g_ui_scale + sy, 0x00FFFFFF);
+                            g_fb.buffer[py * (g_fb.pitch / 4) + px] = 0x00FFFFFF;
                         }
                     }
                 }
@@ -809,7 +839,7 @@ void compositor_toggle_fullscreen(void) {
 /* ------------------------------------------------------------------ */
 /* Update GUI logic (mouse clicks, dragging, etc.)                    */
 /* ------------------------------------------------------------------ */
-void compositor_update(void) {
+void compositor_update(bool force) {
     if (!fb_available() || s_width == 0 || s_height == 0) return;
 
     static int32_t last_mx = -1, last_my = -1;
@@ -819,8 +849,16 @@ void compositor_update(void) {
     int32_t my = mouse_y();
     bool    mdown = (mouse_buttons() & MOUSE_BTN_LEFT);
 
-    /* Otimização drástica: Só re-renderiza a tela inteira se o mouse mexer ou clicar */
-    if (mx == last_mx && my == last_my && mdown == last_mdown) {
+    /* Otimização drástica: Só re-renderiza a tela se o mouse mexer, clicar, ou houver force update */
+    if (mx == last_mx && my == last_my && mdown == last_mdown && !force) {
+        return;
+    }
+    
+    /* Fast path for pure mouse movement (no drag, no resize, no click changes, no forced redraw) */
+    if (mdown == last_mdown && !s_drag_win && !s_resizing_win && !force) {
+        last_mx = mx;
+        last_my = my;
+        draw_cursor_direct(mx, my);
         return;
     }
     
@@ -1116,9 +1154,10 @@ void compositor_render(void) {
         draw_rounded_rect(s_resizing_win->x + new_w - t, s_resizing_win->y - title_h, t, new_h + title_h, 0, 0x80FFFFFF, true); /* right */
     }
 
-    /* 5. Draw mouse cursor overlay */
-    draw_cursor();
-
     /* 6. Flip backbuffer to screen */
     fb_flip();
+    
+    /* Force refresh cursor to screen (since backbuffer changed underneath it) */
+    s_old_cx = -1; /* Invalidate old cursor rect since we just flipped */
+    draw_cursor_direct(mouse_x(), mouse_y());
 }

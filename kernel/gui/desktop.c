@@ -322,5 +322,5 @@ void desktop_start(void) {
     desktop_create_terminal(); /* Terminal criado por último recebe o FOCO automaticamente! */
 
     /* We render once immediately */
-    compositor_update();
+    compositor_update(true);
 }
