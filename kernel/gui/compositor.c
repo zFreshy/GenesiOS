@@ -372,8 +372,8 @@ static void draw_taskbar(void) {
     int32_t tb_x = (s_width - tb_width) / 2;
     int32_t tb_y = s_height - tb_height - (20 * g_ui_scale); /* Floating */
     
-    /* Taskbar background (Light frosted glass) */
-    draw_rounded_rect(tb_x, tb_y, tb_width, tb_height, 32 * g_ui_scale, 0xD0FFFFFF, true);
+    /* Taskbar background (Light frosted glass, more transparent) */
+    draw_rounded_rect(tb_x, tb_y, tb_width, tb_height, 32 * g_ui_scale, 0x70FFFFFF, true);
     
     /* Draw Start button background */
     int32_t start_size = 48 * g_ui_scale;
@@ -504,8 +504,8 @@ static void draw_system_tray(void) {
     int32_t tray_x = s_width - tray_w - (20 * g_ui_scale);
     int32_t tray_y = s_height - tray_h - (20 * g_ui_scale);
     
-    /* Tray background */
-    draw_rounded_rect(tray_x, tray_y, tray_w, tray_h, 28 * g_ui_scale, 0xD0FFFFFF, true);
+    /* Tray background (Match taskbar transparency) */
+    draw_rounded_rect(tray_x, tray_y, tray_w, tray_h, 28 * g_ui_scale, 0x70FFFFFF, true);
     
     /* Icons and time */
     font_draw_string_scaled(tray_x + (20 * g_ui_scale), tray_y + (12 * g_ui_scale), "[Wi-Fi]", 0x004A5568, 0x00000000, g_ui_scale);
