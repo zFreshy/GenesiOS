@@ -17,9 +17,9 @@ Standard PS/2 Mouse (Relative) enabled.
   Initializing memory...
 [PMM] Total: 12543 MB | Free: 246 MB
   [OK] Physical Memory Manager ready
-[VMM] CR3=0x0x12a000  identity map active
+[VMM] CR3=0x0x145000  identity map active
   [OK] Virtual Memory Manager (4-level paging)
-[Heap] 32768 KB dynamic buffer at 0x9d4000
+[Heap] 131072 KB dynamic buffer at 0xa1a000
   [OK] Kernel heap allocator ready
 [GFX] Framebuffer 1920x1080x32 at 0xfd000000
 [FONT] Using embedded 16x32 smooth anti-aliased font data.
@@ -32,9 +32,31 @@ Standard PS/2 Mouse (Relative) enabled.
       The Programming Operating System
 
   [OK] Framebuffer console active
+
+--- PCI Enumeration ---
+[PCI] Bus 0, Slot 0, Func 0: Vendor 8086, Device 1237 [Class 6:0]
+[PCI] Bus 0, Slot 1, Func 0: Vendor 8086, Device 7000 [Class 6:1]
+[PCI] Bus 0, Slot 1, Func 1: Vendor 8086, Device 7010 [Class 1:1]
+[PCI] Bus 0, Slot 1, Func 3: Vendor 8086, Device 7113 [Class 6:80]
+[PCI] Bus 0, Slot 2, Func 0: Vendor 1234, Device 1111 [Class 3:0]
+[PCI] Bus 0, Slot 3, Func 0: Vendor 8086, Device 100e [Class 2:0]
+      -> FOUND ETHERNET CONTROLLER! (Vendor: 0x8086, Dev: 0x100e)
+  [E1000] Initializing driver...
+  [E1000] MMIO mapped at: 0xfeb80000
+  [E1000] MAC Address: 52-54-0-12-34-56
+  [E1000] Registered on IRQ 11
+  [E1000] Driver init OK (RX/TX rings configured)...
+  [DHCP] Initializing client...
+  [DHCP] Sent DHCP Discover
+--- End of PCI ---
+
   [OK] Scheduler initialized (PID 0 idle, PID 1 kernel)
   [OK] Syscalls enabled (SYSCALL/SYSRET)
+  [VFS] Virtual File System initialized.
+  [OK] Virtual File System mounted (ramfs)
 
-  System ready. (214 MB RAM available)
+  System ready. (118 MB RAM available)
   Loading Desktop Environment...
-Compositor: Found wallpaper module at 0x1eb000
+Compositor: Found wallpaper module at 0x231000
+  [E1000] Packet received! Length: 594 bytes
+  [UDP] Received packet on port 68 from 10.0.2.2:67

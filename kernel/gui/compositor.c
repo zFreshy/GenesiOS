@@ -195,7 +195,7 @@ static void draw_rounded_rect(int32_t x, int32_t y, int32_t w, int32_t h, int32_
                 } else if (dist_sq > (r - 2)*(r - 2)) {
                     /* Borda do círculo: aplica Anti-Aliasing (suavização) */
                     uint32_t dist = fast_sqrt(dist_sq);
-                    if (dist >= r) continue;
+                    if (dist >= (int32_t)r) continue;
                     /* Calcula opacidade baseada em quão perto do sub-pixel está (0 a 255) */
                     uint32_t edge_alpha = 255 - ((dist - (r - 2)) * 255 / 2);
                     alpha = (alpha * edge_alpha) / 255;
@@ -531,7 +531,8 @@ static void apply_blur_rounded_rect(int32_t x, int32_t y, int32_t w, int32_t h, 
     if (bw <= 0 || bh <= 0) return;
 
     /* A simple fast 2-pass box blur */
-    uint32_t *temp = kmalloc(bw * bh * sizeof(uint32_t));
+    extern void *kmalloc(size_t size);
+    uint32_t *temp = (uint32_t*)kmalloc(bw * bh * sizeof(uint32_t));
     if (!temp) return;
     
     /* Horizontal pass */
@@ -596,6 +597,7 @@ static void apply_blur_rounded_rect(int32_t x, int32_t y, int32_t w, int32_t h, 
         }
     }
     
+    extern void kfree(void *ptr);
     kfree(temp);
 }
 
@@ -1044,8 +1046,8 @@ void compositor_update(bool force) {
                 
                 if (!win->is_maximized) {
                     int32_t edge = 8 * g_ui_scale;
-                    bool on_right = (mx >= win->x + win->width - edge);
-                    bool on_bottom = (my >= win->y + win->height - edge);
+                    bool on_right = (mx >= win->x + (int32_t)win->width - edge);
+        bool on_bottom = (my >= win->y + (int32_t)win->height - edge);
                     
                     if (on_right || on_bottom) {
                         s_resizing_win = win;
@@ -1078,6 +1080,11 @@ void compositor_update(bool force) {
                     }
                 }
                 
+                /* App logic callback */
+                if (win->on_mouse) {
+                    win->on_mouse(win, mx - win->x, my - win->y, true);
+                }
+                
                 found = true;
                 break;
             }
@@ -1085,9 +1092,9 @@ void compositor_update(bool force) {
         }
         
         if (!found) {
-                /* Clicked background/taskbar */
-                s_drag_win = NULL;
-            }
+            /* Clicked background/taskbar */
+            s_drag_win = NULL;
+        }
         }
     } 
     /* If mouse is held down and resizing a window */
@@ -1134,9 +1141,6 @@ void compositor_update(bool force) {
     compositor_render();
 }
 
-/* ------------------------------------------------------------------ */
-/* Render all layers to screen                                        */
-/* ------------------------------------------------------------------ */
 void compositor_render(void) {
     if (!fb_available() || s_width == 0 || s_height == 0) return;
     

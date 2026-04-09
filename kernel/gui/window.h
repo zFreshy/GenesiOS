@@ -25,6 +25,9 @@ typedef struct window {
     
     void (*on_key)(struct window *win, char c);
     void (*on_resize)(struct window *win);
+    void (*on_mouse)(struct window *win, int32_t mx, int32_t my, bool mdown);
+    
+    void *user_data;            /* App-specific data */
     
     struct window *next;        /* Linked list for Z-order (bottom to top) */
     struct window *prev;

@@ -169,8 +169,16 @@ static void draw_rounded_rect_buffer(uint32_t *buffer, uint32_t buf_w, uint32_t 
     }
 }
 
-static void explorer_on_resize(window_t *win) {
+#include "../fs/vfs.h"
+
+struct explorer_data {
+    char current_path[256];
+    int scroll_y;
+};
+
+static void explorer_draw_path(window_t *win) {
     if (!win || !win->buffer) return;
+    struct explorer_data *data = (struct explorer_data *)win->user_data;
     uint32_t w = win->width;
     uint32_t h = win->height;
     
@@ -179,58 +187,183 @@ static void explorer_on_resize(window_t *win) {
         win->buffer[i] = 0x001C1E23;
     }
     
-    /* Header (Seamless) */
-    /* The title is drawn by compositor. We just draw the search icon. */
+    /* Search Icon in Header */
     draw_icon_to_buffer(win->buffer, w, h, w - (48 * g_ui_scale), 12 * g_ui_scale, icon_search, ICON_SEARCH_WIDTH, ICON_SEARCH_HEIGHT);
+    
+    /* Current Path text */
+    font_draw_string_to_buffer_scaled(win->buffer, w, h, 20 * g_ui_scale, 20 * g_ui_scale, data->current_path, 0x00FFFFFF, 0x001C1E23, g_ui_scale);
+    
+    /* Back Button if not root */
+    if (kstrcmp(data->current_path, "/") != 0) {
+        draw_rounded_rect_buffer(win->buffer, w, h, 20 * g_ui_scale, 60 * g_ui_scale, 100 * g_ui_scale, 32 * g_ui_scale, 8 * g_ui_scale, 0x003B4455);
+        font_draw_string_to_buffer_scaled(win->buffer, w, h, 40 * g_ui_scale, 70 * g_ui_scale, "<- Back", 0x00FFFFFF, 0x003B4455, g_ui_scale);
+    }
+    
+    /* Fetch VFS Node */
+    struct vfs_node *dir = vfs_find(data->current_path);
+    if (!dir || dir->type != 2) { /* VFS_DIRECTORY = 2 */
+        font_draw_string_to_buffer_scaled(win->buffer, w, h, 40 * g_ui_scale, 120 * g_ui_scale, "Directory not found or is a file.", 0x00FF4444, 0x001C1E23, g_ui_scale);
+        return;
+    }
     
     /* Grid properties */
     int32_t start_x = 40 * g_ui_scale;
-    int32_t start_y = 80 * g_ui_scale;
+    int32_t start_y = 120 * g_ui_scale;
     int32_t item_w = 120 * g_ui_scale;
     int32_t item_h = 140 * g_ui_scale;
     int32_t box_size = 80 * g_ui_scale;
     
-    /* Items (Projects, Graphics, Invoices, Backup, Renders, New) */
-    struct { const char* name; const uint32_t* icon; uint32_t icon_w; uint32_t icon_h; uint32_t color; } items[] = {
-        {"Projects", icon_folder, ICON_FOLDER_WIDTH, ICON_FOLDER_HEIGHT, 0xFF3B4455},
-        {"Graphics", icon_image, ICON_IMAGE_WIDTH, ICON_IMAGE_HEIGHT, 0xFF2A3F3F},
-        {"Invoices.pdf", icon_doc, ICON_DOC_WIDTH, ICON_DOC_HEIGHT, 0xFF3F2A3F},
-        {"Backup", icon_folder, ICON_FOLDER_WIDTH, ICON_FOLDER_HEIGHT, 0xFF3B4455},
-        {"Renders", icon_video, ICON_VIDEO_WIDTH, ICON_VIDEO_HEIGHT, 0xFF2A3F3F},
-        {"New", icon_add, ICON_ADD_WIDTH, ICON_ADD_HEIGHT, 0xFF2A3F30}
-    };
+    int cols = (w - start_x) / item_w;
+    if (cols < 1) cols = 1;
     
-    for (int i = 0; i < 6; i++) {
-        int col = i % 4;
-        int row = i / 4;
-        
-        /* Adjust layout based on width */
-        int cols = (w - start_x) / item_w;
-        if (cols < 1) cols = 1;
-        col = i % cols;
-        row = i / cols;
+    for (int i = 0; i < dir->num_children; i++) {
+        struct vfs_node *child = dir->children[i];
+        int col = i % cols;
+        int row = i / cols;
         
         int32_t cx = start_x + col * item_w;
-        int32_t cy = start_y + row * item_h;
+        int32_t cy = start_y + row * item_h - data->scroll_y;
+        if (cy + item_h < 0 || cy > (int32_t)h) continue;
+        
+        const uint32_t *icon_ptr = (child->type == 2) ? icon_folder : icon_doc;
+        uint32_t icon_width = (child->type == 2) ? ICON_FOLDER_WIDTH : ICON_DOC_WIDTH;
+        uint32_t icon_height = (child->type == 2) ? ICON_FOLDER_HEIGHT : ICON_DOC_HEIGHT;
+        uint32_t box_color = (child->type == 2) ? 0x003B4455 : 0x002A3F3F;
+        
+        if (child->type != 2) {
+            int nlen = kstrlen(child->name);
+            if (nlen >= 4 && kstrcmp(child->name + nlen - 4, ".bmp") == 0) {
+                icon_ptr = icon_image;
+                icon_width = ICON_IMAGE_WIDTH;
+                icon_height = ICON_IMAGE_HEIGHT;
+            } else if (nlen >= 4 && kstrcmp(child->name + nlen - 4, ".mp4") == 0) {
+                icon_ptr = icon_video;
+                icon_width = ICON_VIDEO_WIDTH;
+                icon_height = ICON_VIDEO_HEIGHT;
+            }
+        }
         
         /* Draw rounded box */
-        draw_rounded_rect_buffer(win->buffer, w, h, cx, cy, box_size, box_size, 16 * g_ui_scale, items[i].color & 0xFFFFFF);
+        draw_rounded_rect_buffer(win->buffer, w, h, cx, cy, box_size, box_size, 16 * g_ui_scale, box_color);
         
         /* Draw icon */
-        draw_icon_to_buffer(win->buffer, w, h, cx + (box_size - items[i].icon_w*g_ui_scale)/2, cy + (box_size - items[i].icon_h*g_ui_scale)/2, items[i].icon, items[i].icon_w, items[i].icon_h);
+        if (icon_ptr) {
+            draw_icon_to_buffer(win->buffer, w, h, cx + (box_size - icon_width*g_ui_scale)/2, cy + (box_size - icon_height*g_ui_scale)/2, icon_ptr, icon_width, icon_height);
+        }
         
-        /* Draw text */
-        font_draw_string_to_buffer_scaled(win->buffer, w, h, cx + (box_size - kstrlen(items[i].name)*8*g_ui_scale)/2, cy + box_size + 12*g_ui_scale, items[i].name, 0x00A0A0A0, 0x001C1E23, g_ui_scale);
+        /* Draw text (truncate if too long) */
+        char short_name[16];
+        int len = kstrlen(child->name);
+        if (len > 12) {
+            kmemcpy(short_name, child->name, 10);
+            short_name[10] = '.'; short_name[11] = '.'; short_name[12] = '\0';
+        } else {
+            kmemcpy(short_name, child->name, len + 1);
+        }
+        
+        font_draw_string_to_buffer_scaled(win->buffer, w, h, cx + (box_size - kstrlen(short_name)*8*g_ui_scale)/2, cy + box_size + 12*g_ui_scale, short_name, 0x00A0A0A0, 0x001C1E23, g_ui_scale);
+    }
+    
+    /* Update title to reflect path */
+    int t_len = 0;
+    const char *prefix = "Files - ";
+    while(prefix[t_len]) { win->title[t_len] = prefix[t_len]; t_len++; }
+    int p_len = 0;
+    while(data->current_path[p_len] && t_len < WINDOW_MAX_TITLE - 1) {
+        win->title[t_len++] = data->current_path[p_len++];
+    }
+    win->title[t_len] = '\0';
+}
+
+static void explorer_on_resize(window_t *win) {
+    explorer_draw_path(win);
+}
+
+static void explorer_on_mouse(window_t *win, int32_t mx, int32_t my, bool mdown) {
+    if (!mdown) return;
+    struct explorer_data *data = (struct explorer_data *)win->user_data;
+    
+    /* Back button clicked? */
+    if (kstrcmp(data->current_path, "/") != 0) {
+        if (mx >= 20 * g_ui_scale && mx <= 120 * g_ui_scale && my >= 60 * g_ui_scale && my <= 92 * g_ui_scale) {
+            /* Go up one directory */
+            int last_slash = -1;
+            int len = kstrlen(data->current_path);
+            for (int i = len - 1; i >= 0; i--) {
+                if (data->current_path[i] == '/') {
+                    last_slash = i;
+                    break;
+                }
+            }
+            if (last_slash == 0) {
+                data->current_path[0] = '/';
+                data->current_path[1] = '\0';
+            } else if (last_slash > 0) {
+                data->current_path[last_slash] = '\0';
+            }
+            data->scroll_y = 0;
+            explorer_draw_path(win);
+            return;
+        }
+    }
+    
+    /* Clicked a folder? */
+    struct vfs_node *dir = vfs_find(data->current_path);
+    if (!dir || dir->type != 2) return;
+    
+    int32_t start_x = 40 * g_ui_scale;
+    int32_t start_y = 120 * g_ui_scale;
+    int32_t item_w = 120 * g_ui_scale;
+    int32_t item_h = 140 * g_ui_scale;
+    int32_t box_size = 80 * g_ui_scale;
+    
+    int cols = (win->width - start_x) / item_w;
+    if (cols < 1) cols = 1;
+    
+    for (int i = 0; i < dir->num_children; i++) {
+        int col = i % cols;
+        int row = i / cols;
+        
+        int32_t cx = start_x + col * item_w;
+        int32_t cy = start_y + row * item_h - data->scroll_y;
+        
+        if (mx >= cx && mx <= cx + box_size && my >= cy && my <= cy + box_size) {
+            struct vfs_node *child = dir->children[i];
+            if (child->type == 2) { /* Directory */
+                /* Append to path */
+                int len = kstrlen(data->current_path);
+                if (data->current_path[len-1] != '/') {
+                    data->current_path[len] = '/';
+                    len++;
+                }
+                int clen = kstrlen(child->name);
+                kmemcpy(data->current_path + len, child->name, clen + 1);
+                data->scroll_y = 0;
+                explorer_draw_path(win);
+            } else {
+                /* File clicked - open in a basic editor/viewer? Or just log */
+                kprintf("  [Explorer] Clicked file: %s\n", child->name);
+            }
+            return;
+        }
     }
 }
 
 void desktop_create_explorer(void) {
     uint32_t w = 680 * g_ui_scale;
     uint32_t h = 500 * g_ui_scale;
-    window_t *win = wm_create_window(250 * g_ui_scale, 150 * g_ui_scale, w, h, "Files / root / documents");
+    window_t *win = wm_create_window(250 * g_ui_scale, 150 * g_ui_scale, w, h, "Files - /");
     if (win && win->buffer) {
+        extern void *kmalloc(size_t size);
+        struct explorer_data *data = (struct explorer_data *)kmalloc(sizeof(struct explorer_data));
+        kmemset(data, 0, sizeof(struct explorer_data));
+        data->current_path[0] = '/';
+        data->current_path[1] = '\0';
+        win->user_data = data;
+        
         win->on_resize = explorer_on_resize;
-        explorer_on_resize(win);
+        win->on_mouse = explorer_on_mouse;
+        explorer_draw_path(win);
     }
 }
 

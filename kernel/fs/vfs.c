@@ -36,12 +36,18 @@ void vfs_init(void) {
     vfs_create_dir("/bin");
     vfs_create_dir("/lib");
     vfs_create_dir("/home");
+    vfs_create_dir("/home/documents");
+    vfs_create_dir("/home/pictures");
     vfs_create_dir("/etc");
     vfs_create_dir("/dev");
     
     vfs_create_file("/lib/libc.so", 1024, NULL);
     vfs_create_file("/lib/libgui.so", 2048, NULL);
     vfs_create_file("/etc/resolv.conf", 12, (uint8_t*)"nameserver\n");
+    vfs_create_file("/home/documents/notes.txt", 50, NULL);
+    vfs_create_file("/home/documents/todo.txt", 100, NULL);
+    vfs_create_file("/home/pictures/wallpaper.bmp", 10240, NULL);
+    vfs_create_file("/home/pictures/vacation.mp4", 5000000, NULL);
 }
 
 struct vfs_node* vfs_get_root(void) {

@@ -25,7 +25,7 @@ struct tcp_pseudo_header {
 } __attribute__((packed));
 
 static uint16_t calculate_tcp_checksum(struct tcp_pseudo_header *phdr, uint8_t *tcp_pkt, uint16_t tcp_len) {
-    uint8_t full[128];
+    uint8_t full[2048];
     int phdr_len = sizeof(struct tcp_pseudo_header);
     kmemcpy(full, phdr, phdr_len);
     kmemcpy(full + phdr_len, tcp_pkt, tcp_len);
