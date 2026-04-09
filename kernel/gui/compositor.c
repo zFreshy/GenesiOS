@@ -13,6 +13,8 @@
 static uint32_t  s_width      = 0;
 static uint32_t  s_height     = 0;
 int g_ui_scale = 1;
+int g_current_wallpaper = 1; /* 0 = Gradient, 1 = Image */
+uint32_t *g_wallpaper_raw = NULL;
 
 static window_t *s_drag_win   = NULL;
 static int32_t   s_drag_off_x = 0;
@@ -32,6 +34,34 @@ void compositor_init(void) {
     
     /* Sempre usar escala 1 para evitar lentidão e tamanhos gigantes */
     g_ui_scale = 1;
+    
+    /* Find wallpaper module */
+    extern uint64_t g_mboot_info;
+    #include "../include/multiboot2.h"
+    mb2_info_t *info = (mb2_info_t *)(uintptr_t)g_mboot_info;
+    if (info) {
+        mb2_tag_t *tag = (mb2_tag_t *)((uint8_t *)info + 8);
+        while (tag->type != MB2_TAG_END) {
+            if (tag->type == MB2_TAG_MODULE) {
+                mb2_module_tag_t *mod = (mb2_module_tag_t *)tag;
+                /* Find "wallpaper" anywhere in the string */
+                const char *s = mod->string;
+                bool found = false;
+                for (int i = 0; s[i] != '\0'; i++) {
+                    if (s[i] == 'w' && s[i+1] == 'a' && s[i+2] == 'l' && s[i+3] == 'l' && 
+                        s[i+4] == 'p' && s[i+5] == 'a' && s[i+6] == 'p' && s[i+7] == 'e' && s[i+8] == 'r') {
+                        found = true;
+                        break;
+                    }
+                }
+                if (found) {
+                    g_wallpaper_raw = (uint32_t *)(uintptr_t)mod->mod_start;
+                    kprintf("Compositor: Found wallpaper module at %p\n", g_wallpaper_raw);
+                }
+            }
+            tag = (mb2_tag_t *)((uint8_t *)tag + ((tag->size + 7) & ~7));
+        }
+    }
 }
 
 /* ------------------------------------------------------------------ */
@@ -42,18 +72,50 @@ static void draw_wallpaper(void) {
     uint32_t *bb = fb_get_backbuffer();
     if (!bb) return;
 
-    /* A fast 1D vertical gradient to completely eliminate lag */
-    /* Light purple to soft blue */
-    for (uint32_t y = 0; y < s_height; y++) {
-        uint32_t t = (y * 255) / s_height;
-        uint32_t r = 0xE6 + (t * (0x90 - 0xE6)) / 255;
-        uint32_t g = 0xE6 + (t * (0xA0 - 0xE6)) / 255;
-        uint32_t b = 0xFA + (t * (0xE0 - 0xFA)) / 255;
+    if (g_current_wallpaper == 0 || !g_wallpaper_raw) {
+        /* Gradient Wallpaper */
+        for (uint32_t y = 0; y < s_height; y++) {
+            uint32_t t = (y * 255) / s_height;
+            uint32_t r = 0xE6 + (t * (0x90 - 0xE6)) / 255;
+            uint32_t g = 0xE6 + (t * (0xA0 - 0xE6)) / 255;
+            uint32_t b = 0xFA + (t * (0xE0 - 0xFA)) / 255;
+            
+            uint32_t color = (r << 16) | (g << 8) | b;
+            
+            for (uint32_t x = 0; x < s_width; x++) {
+                bb[y * s_width + x] = color;
+            }
+        }
+    } else {
+        /* Image Wallpaper (Direct from 1080p raw module) */
+        /* It is guaranteed to be 1920x1080 ARGB */
+        uint32_t w_w = 1920;
+        uint32_t w_h = 1080;
         
-        uint32_t color = (r << 16) | (g << 8) | b;
-        
-        for (uint32_t x = 0; x < s_width; x++) {
-            bb[y * s_width + x] = color;
+        if (s_width == w_w && s_height == w_h) {
+            /* Fast path: exact match, just memcpy */
+            kmemcpy(bb, g_wallpaper_raw, w_w * w_h * 4);
+        } else {
+            /* Fallback Fixed-point math for scaling without division in loop */
+            uint32_t dx = (w_w << 16) / s_width;
+            uint32_t dy = (w_h << 16) / s_height;
+            
+            uint32_t cur_y = 0;
+            for (uint32_t y = 0; y < s_height; y++) {
+                uint32_t src_y = cur_y >> 16;
+                if (src_y >= w_h) src_y = w_h - 1;
+                uint32_t row_offset = src_y * w_w;
+                
+                uint32_t cur_x = 0;
+                for (uint32_t x = 0; x < s_width; x++) {
+                    uint32_t src_x = cur_x >> 16;
+                    if (src_x >= w_w) src_x = w_w - 1;
+                    
+                    bb[y * s_width + x] = g_wallpaper_raw[row_offset + src_x] & 0xFFFFFF;
+                    cur_x += dx;
+                }
+                cur_y += dy;
+            }
         }
     }
 }
@@ -653,6 +715,22 @@ void compositor_update(void) {
                 my >= win->y && my <= win->y + (int32_t)win->height) {
                 
                 wm_bring_to_front(win);
+                
+                /* Hack for Settings app: check if clicking wallpaper buttons */
+                if (win->title[0] == 'S' && win->title[1] == 'e' && win->title[2] == 't') {
+                    int32_t local_x = mx - win->x;
+                    int32_t local_y = my - win->y;
+                    
+                    if (local_y >= 300 * g_ui_scale && local_y <= 350 * g_ui_scale) {
+                        extern int g_current_wallpaper;
+                        if (local_x >= 280 * g_ui_scale && local_x <= 460 * g_ui_scale) {
+                            g_current_wallpaper = 0; /* Gradient */
+                        } else if (local_x >= 480 * g_ui_scale && local_x <= 660 * g_ui_scale) {
+                            g_current_wallpaper = 1; /* Picture */
+                        }
+                    }
+                }
+                
                 found = true;
                 break;
             }

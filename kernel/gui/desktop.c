@@ -172,11 +172,29 @@ void desktop_create_settings(void) {
         
         /* Main Area */
         font_draw_string_to_buffer_scaled(win->buffer, w, h, 280 * g_ui_scale, 30 * g_ui_scale, "System Settings", 0x001A202C, 0x00F0F5FA, g_ui_scale);
+        
         font_draw_string_to_buffer_scaled(win->buffer, w, h, 280 * g_ui_scale, 100 * g_ui_scale, "Display", 0x001A202C, 0x00F0F5FA, g_ui_scale);
         font_draw_string_to_buffer_scaled(win->buffer, w, h, 280 * g_ui_scale, 140 * g_ui_scale, "Monitors, brightness", 0x00718096, 0x00F0F5FA, g_ui_scale);
         
-        font_draw_string_to_buffer_scaled(win->buffer, w, h, 280 * g_ui_scale, 210 * g_ui_scale, "Sound", 0x001A202C, 0x00F0F5FA, g_ui_scale);
-        font_draw_string_to_buffer_scaled(win->buffer, w, h, 280 * g_ui_scale, 250 * g_ui_scale, "Volume levels", 0x00718096, 0x00F0F5FA, g_ui_scale);
+        font_draw_string_to_buffer_scaled(win->buffer, w, h, 280 * g_ui_scale, 210 * g_ui_scale, "Personalization", 0x001A202C, 0x00F0F5FA, g_ui_scale);
+        font_draw_string_to_buffer_scaled(win->buffer, w, h, 280 * g_ui_scale, 250 * g_ui_scale, "Wallpaper", 0x00718096, 0x00F0F5FA, g_ui_scale);
+        
+        /* Wallpaper Buttons */
+        /* Btn 1: Classic Gradient */
+        for (uint32_t y = 300 * g_ui_scale; y < 350 * g_ui_scale; y++) {
+            for (uint32_t x = 280 * g_ui_scale; x < 460 * g_ui_scale; x++) {
+                win->buffer[y * w + x] = 0x00D0E8ED;
+            }
+        }
+        font_draw_string_to_buffer_scaled(win->buffer, w, h, 300 * g_ui_scale, 310 * g_ui_scale, "Gradient", 0x001A202C, 0x00D0E8ED, g_ui_scale);
+        
+        /* Btn 2: Image Wallpaper */
+        for (uint32_t y = 300 * g_ui_scale; y < 350 * g_ui_scale; y++) {
+            for (uint32_t x = 480 * g_ui_scale; x < 660 * g_ui_scale; x++) {
+                win->buffer[y * w + x] = 0x00D0E8ED;
+            }
+        }
+        font_draw_string_to_buffer_scaled(win->buffer, w, h, 500 * g_ui_scale, 310 * g_ui_scale, "Picture", 0x001A202C, 0x00D0E8ED, g_ui_scale);
     }
 }
 

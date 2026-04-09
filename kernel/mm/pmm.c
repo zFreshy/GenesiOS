@@ -82,6 +82,24 @@ void pmm_init(uint64_t mboot_info) {
         }
         e = (mb2_mmap_entry_t *)((uint8_t *)e + mmap->entry_size);
     }
+    
+    /* Mark Multiboot modules as used so they are not overwritten! */
+    mb2_info_t *info = (mb2_info_t *)(uintptr_t)mboot_info;
+    mb2_tag_t *t = (mb2_tag_t *)((uint8_t *)info + 8);
+    while (t->type != MB2_TAG_END) {
+        if (t->type == MB2_TAG_MODULE) {
+            mb2_module_tag_t *mod = (mb2_module_tag_t *)t;
+            uint64_t mod_start_f = (mod->mod_start) >> PAGE_SHIFT;
+            uint64_t mod_end_f   = ALIGN_UP(mod->mod_end, PAGE_SIZE) >> PAGE_SHIFT;
+            for (uint64_t f = mod_start_f; f < mod_end_f && f < MAX_FRAMES; f++) {
+                if (!bitmap_test(f)) {
+                    bitmap_set(f);
+                    s_free--;
+                }
+            }
+        }
+        t = (mb2_tag_t *)((uint8_t *)t + ((t->size + 7) & ~7));
+    }
 
     kprintf("[PMM] Total: %zu MB | Free: %zu MB\n",
             (size_t)(s_total * PAGE_SIZE / (1024*1024)),

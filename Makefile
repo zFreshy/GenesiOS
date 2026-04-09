@@ -104,6 +104,7 @@ iso: $(KERNEL_ELF) $(USER_ELF)
 	@mkdir -p iso/boot/grub iso/modules
 	@cp $(KERNEL_ELF) iso/boot/genesi.elf
 	@cp $(USER_ELF) iso/modules/test.elf
+	@python3 tools/img2raw.py public/images/wallpaper1.png iso/modules/wallpaper.raw
 	@cp tools/grub.cfg iso/boot/grub/grub.cfg
 	@$(GRUB) -o $(ISO_FILE) iso/ 2>/dev/null
 	@echo "  [Genesi] ISO ready: $(ISO_FILE)"

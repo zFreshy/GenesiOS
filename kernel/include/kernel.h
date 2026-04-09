@@ -59,14 +59,23 @@ ALWAYS_INLINE NORETURN void panic_halt(void) {
 /* Memory helpers (no libc available yet)                              */
 /* ------------------------------------------------------------------ */
 static inline void *kmemset(void *dst, int val, size_t n) {
-    uint8_t *p = (uint8_t *)dst;
-    while (n--) *p++ = (uint8_t)val;
+    uint64_t d0, d1;
+    __asm__ volatile (
+        "rep stosb"
+        : "=&c"(d0), "=&D"(d1)
+        : "0"(n), "1"(dst), "a"(val)
+        : "memory"
+    );
     return dst;
 }
 static inline void *kmemcpy(void *dst, const void *src, size_t n) {
-    uint8_t *d = (uint8_t *)dst;
-    const uint8_t *s = (const uint8_t *)src;
-    while (n--) *d++ = *s++;
+    uint64_t d0, d1, d2;
+    __asm__ volatile (
+        "rep movsb"
+        : "=&c"(d0), "=&D"(d1), "=&S"(d2)
+        : "0"(n), "1"(dst), "2"(src)
+        : "memory"
+    );
     return dst;
 }
 static inline int kmemcmp(const void *a, const void *b, size_t n) {
