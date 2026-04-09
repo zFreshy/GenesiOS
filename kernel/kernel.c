@@ -10,6 +10,7 @@
 #include "include/multiboot2.h"
 #include "include/vga.h"
 #include "include/kprintf.h"
+#include "include/net.h"
 
 #include "arch/x86_64/gdt.h"
 #include "arch/x86_64/idt.h"
@@ -130,6 +131,7 @@ void shell_exec(const char *cmd) {
         kprintf("  clear     - clear screen\n");
         kprintf("  version   - show OS info\n");
         kprintf("  test      - spawn 3 test threads (A, B, C)\n");
+        kprintf("  ipconfig  - show network interfaces\n");
         kprintf("  halt      - halt the system\n");
     } else if (kstrcmp(cmd, "mem") == 0) {
         kprintf("  Free  : %zu MB\n",
@@ -151,6 +153,33 @@ void shell_exec(const char *cmd) {
         sched_add(b);
         sched_add(c);
         kprintf("  Threads created. Watch for interleaved A/B/C output.\n");
+    } else if (kstrcmp(cmd, "ipconfig") == 0) {
+        extern net_device_t g_net_dev;
+        if (!g_net_dev.present) {
+            kprintf("\n  Windows IP Configuration\n\n");
+            kprintf("  No network interfaces found.\n");
+        } else {
+            kprintf("\n  Windows IP Configuration\n\n");
+            kprintf("  Ethernet adapter Local Area Connection:\n\n");
+            kprintf("     Connection-specific DNS Suffix  . : genesi.local\n");
+            kprintf("     Description . . . . . . . . . . . : %s\n", g_net_dev.name);
+            kprintf("     Physical Address. . . . . . . . . : %02X-%02X-%02X-%02X-%02X-%02X\n", 
+                    g_net_dev.mac[0], g_net_dev.mac[1], g_net_dev.mac[2], 
+                    g_net_dev.mac[3], g_net_dev.mac[4], g_net_dev.mac[5]);
+            
+            if (g_net_dev.ip[0] == 0) {
+                kprintf("     DHCP Enabled. . . . . . . . . . . : Yes\n");
+                kprintf("     IPv4 Address. . . . . . . . . . . : (Connecting...)\n");
+            } else {
+                kprintf("     IPv4 Address. . . . . . . . . . . : %d.%d.%d.%d\n", 
+                        g_net_dev.ip[0], g_net_dev.ip[1], g_net_dev.ip[2], g_net_dev.ip[3]);
+                kprintf("     Subnet Mask . . . . . . . . . . . : %d.%d.%d.%d\n", 
+                        g_net_dev.mask[0], g_net_dev.mask[1], g_net_dev.mask[2], g_net_dev.mask[3]);
+                kprintf("     Default Gateway . . . . . . . . . : %d.%d.%d.%d\n", 
+                        g_net_dev.gateway[0], g_net_dev.gateway[1], g_net_dev.gateway[2], g_net_dev.gateway[3]);
+            }
+        }
+        kprintf("\n");
     } else if (kstrcmp(cmd, "run") == 0) {
         kprintf("  Running test user process...\n");
         extern void process_create_user(const char *name, const uint8_t *elf_data);

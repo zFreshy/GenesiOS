@@ -4,6 +4,9 @@
  */
 #include "../include/pci.h"
 #include "../include/kprintf.h"
+#include "../include/net.h"
+
+net_device_t g_net_dev = {0};
 
 /* Read a 16-bit word from the PCI configuration space */
 uint16_t pci_config_read_word(uint8_t bus, uint8_t slot, uint8_t func, uint8_t offset) {
@@ -81,6 +84,31 @@ static void check_device(uint8_t bus, uint8_t slot, uint8_t func) {
     /* Check if it's a Network Controller */
     if (class_code == PCI_CLASS_NETWORK && subclass == PCI_SUBCLASS_ETHERNET) {
         kprintf("      -> FOUND ETHERNET CONTROLLER! (Vendor: 0x%x, Dev: 0x%x)\n", vendor_id, device_id);
+        
+        /* Store it globally so ipconfig can see it */
+        if (!g_net_dev.present) {
+            g_net_dev.present = true;
+            g_net_dev.vendor_id = vendor_id;
+            g_net_dev.device_id = device_id;
+            
+            if (vendor_id == 0x8086 && device_id == 0x100E) {
+                g_net_dev.name = "Intel PRO/1000 (e1000)";
+            } else if (vendor_id == 0x10EC && device_id == 0x8139) {
+                g_net_dev.name = "Realtek RTL8139";
+            } else if (vendor_id == 0x1022 && device_id == 0x2000) {
+                g_net_dev.name = "AMD PCnet-FAST III (Am79C973)";
+            } else {
+                g_net_dev.name = "Unknown Generic NIC";
+            }
+            
+            /* Fill with fake MAC/IP for now just for UI purposes until driver is complete */
+            g_net_dev.mac[0] = 0x52; g_net_dev.mac[1] = 0x54; g_net_dev.mac[2] = 0x00;
+            g_net_dev.mac[3] = 0x12; g_net_dev.mac[4] = 0x34; g_net_dev.mac[5] = 0x56;
+            
+            g_net_dev.ip[0] = 0; g_net_dev.ip[1] = 0; g_net_dev.ip[2] = 0; g_net_dev.ip[3] = 0;
+            g_net_dev.mask[0] = 0; g_net_dev.mask[1] = 0; g_net_dev.mask[2] = 0; g_net_dev.mask[3] = 0;
+            g_net_dev.gateway[0] = 0; g_net_dev.gateway[1] = 0; g_net_dev.gateway[2] = 0; g_net_dev.gateway[3] = 0;
+        }
     }
 }
 
