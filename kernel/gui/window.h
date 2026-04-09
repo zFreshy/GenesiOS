@@ -19,6 +19,7 @@ typedef struct window {
     
     bool      is_minimized;
     bool      is_maximized;
+    bool      is_fullscreen;
     int32_t   saved_x, saved_y; /* Saved geometry before maximize */
     uint32_t  saved_w, saved_h;
     

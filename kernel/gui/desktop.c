@@ -52,55 +52,39 @@ static void terminal_on_resize(window_t *win) {
     uint32_t w = win->width;
     uint32_t h = win->height;
     
+    /* We don't want to clear the whole terminal on resize, but wm_resize_window 
+       allocates a new buffer with 0s. We should ideally only fill the new 0s 
+       with the background color. */
     for (uint32_t i = 0; i < w * h; i++) {
-        win->buffer[i] = 0x00181A1F; /* Dark blueish grey */
+        if (win->buffer[i] == 0) {
+            win->buffer[i] = 0x00181A1F; /* Dark blueish grey */
+        }
     }
-    
-    fb_console_bind_window(win);
-    fbc_set_bg(0x00181A1F);
-    fbc_clear(); 
-    
-    fbc_set_fg(0x00FFFFFF);
-    fbc_puts("\n genesi-os login: ");
-    fbc_set_fg(0x0080C080);
-    fbc_puts("success\n\n");
-    fbc_set_fg(0x00555555);
-    fbc_puts(" astral-kernel initialized in 12ms...\n\n");
-    
-    fbc_set_fg(0x0055AAFF);
-    fbc_puts(" \x1A neural-core ");
-    fbc_set_fg(0x00555555);
-    fbc_puts("git:(main) ");
-    fbc_set_fg(0x00FFFFFF);
-    fbc_puts("yarn dev\n");
-    
-    fbc_set_fg(0x00AAAAAA);
-    fbc_puts(" yarn run v1.22.19\n $ next dev\n");
-    fbc_puts(" ready - started server on 0.0.0.0:3000, url: http://localhost:3000\n");
-    
-    fbc_set_fg(0x0000FFCC);
-    fbc_puts(" event - compiled client and server successfully in 1432 ms (169 modules)\n");
-    
-    fbc_set_fg(0x00AAAAAA);
-    fbc_puts(" wait - compiling...\n");
-    
-    fbc_set_fg(0x0000FFCC);
-    fbc_puts(" event - compiled successfully\n\n");
-    
-    fbc_set_fg(0x0055AAFF);
-    fbc_puts(" \x1A neural-core ");
-    fbc_set_fg(0x00FFFFFF);
-    fbc_puts("");
 }
 
 void desktop_create_terminal(void) {
     uint32_t w = 680 * g_ui_scale;
     uint32_t h = 500 * g_ui_scale;
-    window_t *win = wm_create_window(350 * g_ui_scale, 200 * g_ui_scale, w, h, "root@genesi-os: ~/dev/neural-core");
+    window_t *win = wm_create_window(350 * g_ui_scale, 200 * g_ui_scale, w, h, "Terminal");
     if (win && win->buffer) {
         win->on_key = terminal_on_key;
         win->on_resize = terminal_on_resize;
-        terminal_on_resize(win);
+        
+        for (uint32_t i = 0; i < w * h; i++) {
+            win->buffer[i] = 0x00181A1F; /* Dark blueish grey */
+        }
+        
+        fb_console_bind_window(win);
+        fbc_set_bg(0x00181A1F);
+        fbc_clear(); 
+        
+        fbc_set_fg(0x00FFFFFF);
+        fbc_puts("Genesi OS Terminal v0.3\n\n");
+        
+        fbc_set_fg(0x0055FF55);
+        fbc_puts("genesi");
+        fbc_set_fg(0x00FFFFFF);
+        fbc_puts("> ");
     }
 }
 

@@ -29,6 +29,7 @@ window_t *wm_create_window(int32_t x, int32_t y, uint32_t width, uint32_t height
     win->height = height;
     win->is_minimized = false;
     win->is_maximized = false;
+    win->is_fullscreen = false;
     win->saved_x = x;
     win->saved_y = y;
     win->saved_w = width;

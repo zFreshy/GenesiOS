@@ -263,15 +263,15 @@ static void draw_window(window_t *win) {
     if (win->is_minimized) return;
 
     int32_t title_h = 56 * g_ui_scale;
-    int32_t win_radius = 16 * g_ui_scale; /* Rounded corners */
+    int32_t win_radius = (win->is_maximized || win->is_fullscreen) ? 0 : 16 * g_ui_scale; /* Rounded corners */
 
     /* Draw window drop shadow */
-    if (win->x > 0 && win->y > title_h) {
+    if (win->x > 0 && win->y > title_h && !win->is_maximized && !win->is_fullscreen) {
         draw_shadow(win->x, win->y - title_h, win->width, win->height + title_h);
     }
 
     /* Draw window title bar (semi-transparent light blur effect) */
-    if (win->y >= title_h) {
+    if (!win->is_fullscreen && win->y >= title_h) {
         int32_t title_y = win->y - title_h;
         
         /* Seamless theme: sample color from window buffer or default to dark */
@@ -786,20 +786,20 @@ void compositor_toggle_fullscreen(void) {
     window_t *win = wm_get_top();
     if (!win) return;
     
-    if (win->is_maximized) {
-        win->is_maximized = false;
+    if (win->is_fullscreen) {
+        win->is_fullscreen = false;
         win->x = win->saved_x;
         win->y = win->saved_y;
         wm_resize_window(win, win->saved_w, win->saved_h);
     } else {
-        win->is_maximized = true;
+        win->is_fullscreen = true;
         win->saved_x = win->x;
         win->saved_y = win->y;
         win->saved_w = win->width;
         win->saved_h = win->height;
         win->x = 0;
-        win->y = 56 * g_ui_scale; /* Title bar height */
-        wm_resize_window(win, s_width, s_height - (56 * g_ui_scale) - (84 * g_ui_scale));
+        win->y = 0; /* Cover everything including top bar */
+        wm_resize_window(win, s_width, s_height);
     }
     compositor_render();
 }
@@ -1056,12 +1056,19 @@ void compositor_update(void) {
 /* ------------------------------------------------------------------ */
 void compositor_render(void) {
     if (!fb_available() || s_width == 0 || s_height == 0) return;
+    
+    window_t *top = wm_get_top();
+    bool is_fs = (top && top->is_fullscreen && !top->is_minimized);
 
     /* 1. Clear background (Wallpaper) */
-    draw_wallpaper();
+    if (!is_fs) {
+        draw_wallpaper();
+    }
 
     /* 2. Desktop Widgets */
-    draw_desktop_widgets();
+    if (!is_fs) {
+        draw_desktop_widgets();
+    }
 
     /* 3. Draw windows back-to-front */
     window_t *win = wm_get_bottom();
@@ -1070,14 +1077,16 @@ void compositor_render(void) {
         win = win->next;
     }
 
-    /* 4. Draw Taskbar */
-    draw_taskbar();
+    if (!is_fs) {
+        /* 4. Draw Taskbar */
+        draw_taskbar();
 
-    /* 5. System Tray */
-    draw_system_tray();
+        /* 5. System Tray */
+        draw_system_tray();
 
-    /* 6. Draw Start Menu */
-    draw_start_menu();
+        /* 6. Draw Start Menu */
+        draw_start_menu();
+    }
     
     /* Draw resize outline */
     if (s_resizing_win) {
