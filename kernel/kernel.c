@@ -163,7 +163,7 @@ void shell_exec(const char *cmd) {
             kprintf("  Ethernet adapter Local Area Connection:\n\n");
             kprintf("     Connection-specific DNS Suffix  . : genesi.local\n");
             kprintf("     Description . . . . . . . . . . . : %s\n", g_net_dev.name);
-            kprintf("     Physical Address. . . . . . . . . : %02X-%02X-%02X-%02X-%02X-%02X\n", 
+            kprintf("     Physical Address. . . . . . . . . : %X-%X-%X-%X-%X-%X\n", 
                     g_net_dev.mac[0], g_net_dev.mac[1], g_net_dev.mac[2], 
                     g_net_dev.mac[3], g_net_dev.mac[4], g_net_dev.mac[5]);
             
