@@ -108,6 +108,7 @@ void dhcp_receive(uint8_t *packet, uint16_t len) {
     uint8_t server_ip[4] = {0};
     uint8_t mask[4] = {0};
     uint8_t router[4] = {0};
+    uint8_t dns[4] = {0};
     
     while (*opt != 255 && (uintptr_t)opt < (uintptr_t)packet + len) {
         uint8_t type = *opt++;
@@ -122,6 +123,8 @@ void dhcp_receive(uint8_t *packet, uint16_t len) {
             for (int i=0; i<4; i++) mask[i] = opt[i];
         } else if (type == 3) { /* Router */
             for (int i=0; i<4; i++) router[i] = opt[i];
+        } else if (type == 6) { /* DNS Server */
+            for (int i=0; i<4; i++) dns[i] = opt[i]; /* Just taking the primary DNS */
         }
         
         opt += length;
@@ -136,8 +139,17 @@ void dhcp_receive(uint8_t *packet, uint16_t len) {
             g_net_dev.ip[i] = dhcp->yiaddr[i];
             g_net_dev.mask[i] = mask[i];
             g_net_dev.gateway[i] = router[i];
+            g_net_dev.dns[i] = dns[i];
         }
+        
+        /* If no DNS was provided, fallback to Google DNS (8.8.8.8) */
+        if (g_net_dev.dns[0] == 0) {
+            g_net_dev.dns[0] = 8; g_net_dev.dns[1] = 8; g_net_dev.dns[2] = 8; g_net_dev.dns[3] = 8;
+        }
+        
         kprintf("  [DHCP] Bound to IP: %d.%d.%d.%d\n", g_net_dev.ip[0], g_net_dev.ip[1], g_net_dev.ip[2], g_net_dev.ip[3]);
-        kprintf("  [DHCP] Gateway: %d.%d.%d.%d\n", g_net_dev.gateway[0], g_net_dev.gateway[1], g_net_dev.gateway[2], g_net_dev.gateway[3]);
+        kprintf("  [DHCP] Gateway: %d.%d.%d.%d | DNS: %d.%d.%d.%d\n", 
+                g_net_dev.gateway[0], g_net_dev.gateway[1], g_net_dev.gateway[2], g_net_dev.gateway[3],
+                g_net_dev.dns[0], g_net_dev.dns[1], g_net_dev.dns[2], g_net_dev.dns[3]);
     }
 }

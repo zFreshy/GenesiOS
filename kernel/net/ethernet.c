@@ -19,8 +19,8 @@ void ethernet_receive(uint8_t *packet, uint16_t len) {
     if (type == ETHERTYPE_ARP) {
         arp_receive(packet + sizeof(struct eth_header), len - sizeof(struct eth_header));
     } else if (type == ETHERTYPE_IPV4) {
-        kprintf("  [Net] IPv4 packet received.\n");
-        // TODO: ipv4_receive(...)
+        extern void ipv4_receive(uint8_t *packet, uint16_t len);
+        ipv4_receive(packet + sizeof(struct eth_header), len - sizeof(struct eth_header));
     } else {
         // Unknown or unsupported protocol (e.g. IPv6, etc.)
     }

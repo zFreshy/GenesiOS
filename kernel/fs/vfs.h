@@ -1,39 +1,43 @@
-/*
- * kernel/fs/vfs.h
- * Virtual File System interface (Fase 5).
- */
 #ifndef VFS_H
 #define VFS_H
 
 #include "../include/kernel.h"
 
-typedef struct vnode vnode_t;
-typedef struct vfs   vfs_t;
+#define VFS_NAME_MAX 128
+#define VFS_MAX_CHILDREN 64
 
-typedef struct vfs_ops {
-    int (*open) (vnode_t *vn, int flags);
-    int (*close)(vnode_t *vn);
-    int64_t (*read) (vnode_t *vn, void *buf, size_t len, size_t off);
-    int64_t (*write)(vnode_t *vn, const void *buf, size_t len, size_t off);
-} vfs_ops_t;
-
-struct vnode {
-    uint64_t   inode;
-    uint64_t   size;
-    vfs_ops_t *ops;
-    vfs_t     *fs;
-    void      *priv;
+enum vfs_node_type {
+    VFS_FILE = 1,
+    VFS_DIRECTORY,
+    VFS_DEVICE,
+    VFS_SYMLINK
 };
 
-struct vfs {
-    char       name[32];
-    vnode_t   *root;
-    vfs_t     *next;
+struct vfs_node;
+
+struct vfs_node {
+    char name[VFS_NAME_MAX];
+    enum vfs_node_type type;
+    uint32_t size;
+    uint32_t inode;
+    
+    // File operations
+    int (*read)(struct vfs_node *node, uint32_t offset, uint32_t size, uint8_t *buffer);
+    int (*write)(struct vfs_node *node, uint32_t offset, uint32_t size, uint8_t *buffer);
+    
+    // Directory structure (simple in-memory representation)
+    struct vfs_node *parent;
+    struct vfs_node *children[VFS_MAX_CHILDREN];
+    int num_children;
+    
+    // File content (if simple ramfs)
+    uint8_t *data;
 };
 
-/* TODO: Phase 5 implementation */
 void vfs_init(void);
-int  vfs_mount(const char *path, vfs_t *fs);
-vnode_t *vfs_open(const char *path, int flags);
+struct vfs_node* vfs_get_root(void);
+struct vfs_node* vfs_find(const char *path);
+struct vfs_node* vfs_create_file(const char *path, uint32_t size, uint8_t *data);
+struct vfs_node* vfs_create_dir(const char *path);
 
-#endif /* VFS_H */
+#endif

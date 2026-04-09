@@ -15,6 +15,7 @@ typedef struct {
     uint8_t ip[4];
     uint8_t mask[4];
     uint8_t gateway[4];
+    uint8_t dns[4];
     const char *name;
 } net_device_t;
 

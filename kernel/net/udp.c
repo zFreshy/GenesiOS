@@ -28,6 +28,9 @@ void udp_receive(uint8_t *packet, uint16_t len, uint8_t *src_ip) {
     if (dst_port == 68) { /* DHCP Client port */
         extern void dhcp_receive(uint8_t *packet, uint16_t len);
         dhcp_receive(payload, payload_len);
+    } else if (dst_port == 53535) { /* DNS Client port */
+        extern void dns_receive(uint8_t *packet, uint16_t len);
+        dns_receive(payload, payload_len);
     }
 }
 

@@ -136,6 +136,9 @@ void shell_exec(const char *cmd) {
         kprintf("  ipconfig  - show network interfaces\n");
         kprintf("  nettest   - test E1000 sending a raw packet\n");
         kprintf("  ping      - ping an IP address (e.g., ping 8.8.8.8)\n");
+        kprintf("  host      - resolve a domain name (e.g., host google.com)\n");
+        kprintf("  wget      - fetch an HTTP page (e.g., wget google.com)\n");
+        kprintf("  ls        - list directory contents (e.g., ls /bin)\n");
         kprintf("  halt      - halt the system\n");
     } else if (kstrcmp(cmd, "mem") == 0) {
         kprintf("  Free  : %zu MB\n",
@@ -257,6 +260,124 @@ void shell_exec(const char *cmd) {
             
             /* In a real OS we'd block/wait for reply here. For now we just send and let the IRQ handler print the reply */
             kprintf("  (Request sent. Waiting for async reply...)\n");
+        }
+    } else if (cmd[0] == 'h' && cmd[1] == 'o' && cmd[2] == 's' && cmd[3] == 't' && cmd[4] == ' ') {
+        extern void dns_resolve(const char *domain);
+        dns_resolve(&cmd[5]);
+    } else if (cmd[0] == 'w' && cmd[1] == 'g' && cmd[2] == 'e' && cmd[3] == 't' && cmd[4] == ' ') {
+        const char *domain = &cmd[5];
+        extern void dns_resolve(const char *domain);
+        extern uint8_t* dns_get_resolved_ip(void);
+        
+        kprintf("  [wget] Resolving %s...\n", domain);
+        dns_resolve(domain);
+        
+        int timeout = 50; // 5 seconds
+        uint8_t *ip = NULL;
+        while(timeout > 0) {
+            ip = dns_get_resolved_ip();
+            if (ip) break;
+            pit_sleep(100);
+            timeout--;
+            if (timeout % 10 == 0) {
+                /* Retry DNS request in case the first one was dropped by ARP resolution */
+                dns_resolve(domain);
+            }
+        }
+        
+        if (!ip) {
+            kprintf("  [wget] Could not resolve %s.\n", domain);
+        } else {
+            kprintf("  [wget] Connecting to %d.%d.%d.%d:80...\n", ip[0], ip[1], ip[2], ip[3]);
+            extern int tcp_connect(uint8_t *dst_ip, uint16_t dst_port);
+            extern void tcp_send_data(int sock, uint8_t *data, uint16_t len);
+            extern void tcp_close(int sock);
+            extern int tcp_get_rx_len(void);
+            extern char* tcp_get_rx_buffer(void);
+            extern void tcp_init(void);
+            
+            // tcp_init(); // Do not re-initialize socket port
+            int sock = tcp_connect(ip, 80);
+            if (sock < 0) {
+                kprintf("  [wget] Connection failed (No SYN-ACK received).\n");
+            } else {
+                kprintf("  [wget] Connected! Sending GET request...\n");
+                
+                char req[256];
+                int req_len = 0;
+                
+                // Very basic ksprintf replacement:
+                char *p = req;
+                const char *req_str1 = "GET / HTTP/1.1\r\nHost: ";
+                for(int i=0; req_str1[i]; i++) *p++ = req_str1[i];
+                for(int i=0; domain[i]; i++) *p++ = domain[i];
+                const char *req_str2 = "\r\nUser-Agent: GenesiOS/0.1\r\nAccept: */*\r\nConnection: close\r\n\r\n";
+                for(int i=0; req_str2[i]; i++) *p++ = req_str2[i];
+                *p = 0;
+                req_len = p - req;
+                
+                tcp_send_data(sock, (uint8_t*)req, req_len);
+                
+                kprintf("  [wget] Waiting for response...\n");
+                timeout = 50; // 5 seconds
+                while(timeout > 0) {
+                    if (tcp_get_rx_len() > 0) break; // wait until we get some data
+                    pit_sleep(100);
+                    timeout--;
+                }
+                
+                // wait a bit more for the rest of the response
+                pit_sleep(500);
+                
+                if (tcp_get_rx_len() > 0) {
+                    kprintf("\n--- RESPONSE ---\n");
+                    // print first 512 bytes so we don't overflow console
+                    char *rx_buf = tcp_get_rx_buffer();
+                    int rx_len = tcp_get_rx_len();
+                    int limit = rx_len > 4096 ? 4096 : rx_len;
+                    for(int i=0; i<limit; i++) {
+                        if (fb_available()) fbc_putchar(rx_buf[i]);
+                        else vga_putchar(rx_buf[i]);
+                    }
+                    kprintf("\n--- END OF RESPONSE ---\n");
+                    kprintf("  [wget] Received %d bytes total.\n", rx_len);
+                } else {
+                    kprintf("  [wget] No response received.\n");
+                }
+                
+                tcp_close(sock);
+                kprintf("  [wget] Connection closed.\n");
+            }
+        }
+    } else if (cmd[0] == 'l' && cmd[1] == 's' && (cmd[2] == '\0' || cmd[2] == ' ')) {
+        const char *path = (cmd[2] == ' ') ? &cmd[3] : "/";
+        extern void* vfs_find(const char *path);
+        struct vfs_node {
+            char name[128];
+            int type;
+            uint32_t size;
+            uint32_t inode;
+            void *read, *write;
+            void *parent;
+            void *children[64];
+            int num_children;
+            uint8_t *data;
+        };
+        struct vfs_node *node = (struct vfs_node*)vfs_find(path);
+        if (!node) {
+            kprintf("  ls: cannot access '%s': No such file or directory\n", path);
+        } else if (node->type == 2) { // VFS_DIRECTORY
+            kprintf("  Contents of %s:\n", path);
+            for(int i=0; i<node->num_children; i++) {
+                struct vfs_node *child = (struct vfs_node*)node->children[i];
+                if (child->type == 2) {
+                    kprintf("  [DIR]  %s\n", child->name);
+                } else {
+                    kprintf("  [FILE] %s\t%d bytes\n", child->name, child->size);
+                }
+            }
+        } else {
+            kprintf("  [FILE] %s\t%d bytes\n", node->name, node->size);
         }
     } else if (kstrcmp(cmd, "run") == 0) {
         kprintf("  Running test user process...\n");
@@ -412,6 +533,10 @@ void kernel_main(uint32_t boot_magic, uint64_t mboot_info) {
 
     /* --- Phase 5: Syscalls ---------------------------------------- */
     syscall_init();        ok("Syscalls enabled (SYSCALL/SYSRET)");
+
+    /* --- Phase 6: VFS --------------------------------------------- */
+    extern void vfs_init(void);
+    vfs_init();            ok("Virtual File System mounted (ramfs)");
 
     /* --- Enable interrupts ---------------------------------------- */
     irq_enable();

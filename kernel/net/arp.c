@@ -54,6 +54,14 @@ void arp_receive(uint8_t *packet, uint16_t len) {
                 g_gateway_mac[i] = arp->src_mac[i];
             }
             kprintf("  [ARP] Gateway MAC resolved.\n");
+        } else {
+            /* For QEMU's User Networking (SLIRP), the DNS server is often 10.0.2.3, 
+             * while gateway is 10.0.2.2. If we just learned a MAC for a local IP,
+             * and we don't have a gateway MAC, use it as a fallback gateway MAC. */
+            for (int i = 0; i < 6; i++) {
+                g_gateway_mac[i] = arp->src_mac[i];
+            }
+            kprintf("  [ARP] Stored MAC for %d.%d.%d.%d as route.\n", arp->src_ip[0], arp->src_ip[1], arp->src_ip[2], arp->src_ip[3]);
         }
     }
 }

@@ -229,23 +229,47 @@ void mouse_irq_handler(void) {
                 /* Check if the hypervisor sent a relative packet instead of absolute */
                 if (pkt_status & 0x00010000) {
                     /* Inverted for WSLg / SDL relative mouse bugs */
-                    s_x -= (int32_t)x;
-                    s_y += (int32_t)y;
+                    /* Ignore relative packets in absolute mode to prevent scroll wheel 
+                     * from moving the cursor to the top right corner. */
+                    // s_x -= (int32_t)x;
+                    // s_y += (int32_t)y;
                 } else {
-                    /* Bug do QEMU VMMouse: Eventos de scroll (e às vezes cliques isolados) 
-                     * são enviados com x=0 e y=0 no modo absoluto, causando "teleporte" 
-                     * para o canto superior esquerdo da tela. */
-                    if (x == 0 && y == 0) {
-                        /* Ignora a atualização de X e Y, mantendo a posição atual. */
+                    /* Bug do QEMU/WSLg VMMouse: Eventos de scroll são enviados incorretamente
+                     * no modo absoluto contendo deltas relativos pequenos em X e Y 
+                     * (ex: x=0xFFFF (-1), y=0). Como 0xFFFF na escala absoluta significa 
+                     * a borda direita, o mouse "teleporta" para os cantos da tela.
+                     * Solução: Se X e Y estiverem ambos muito próximos de 0 (ou seja,
+                     * deltas relativos pequenos), nós ignoramos a atualização absoluta. */
+                    if (z != 0) {
+                        /* Ignora X e Y se for explicitamente um evento de scroll com Z. */
                     } else {
-                        /* Volta para a escala oficial do VMMouse (0 a 0xFFFF)
-                         * e compensa o fato da imagem da seta começar um pouco
-                         * mais para a esquerda/cima que o hotspot do cursor do host. */
                         int32_t offset_x = -2;
                         int32_t offset_y = -2;
+                        int32_t new_x = (int32_t)((x * fb_width()) / 0xFFFF) + offset_x;
+                        int32_t new_y = (int32_t)((y * fb_height()) / 0xFFFF) + offset_y;
                         
-                        s_x = (int32_t)((x * fb_width()) / 0xFFFF) + offset_x;
-                        s_y = (int32_t)((y * fb_height()) / 0xFFFF) + offset_y;
+                        int32_t dx_abs = new_x - s_x;
+                        int32_t dy_abs = new_y - s_y;
+                        if (dx_abs < 0) dx_abs = -dx_abs;
+                        if (dy_abs < 0) dy_abs = -dy_abs;
+                        
+                        /* Filtro Anti-Teleporte: SDL/WSLg injeta coordenadas lixo (ex: Y=0)
+                         * ao rodar o scroll do mouse. Se o salto for > 100px instantaneamente,
+                         * bloqueamos. Aceitamos apenas se persistir por 5 pacotes (ex:
+                         * o usuário saiu e voltou pra janela). */
+                        static int teleport_rejects = 0;
+                        if (dx_abs > 100 || dy_abs > 100) {
+                            teleport_rejects++;
+                            if (teleport_rejects > 5) {
+                                s_x = new_x;
+                                s_y = new_y;
+                                teleport_rejects = 0;
+                            }
+                        } else {
+                            s_x = new_x;
+                            s_y = new_y;
+                            teleport_rejects = 0;
+                        }
                     }
                 }
             }

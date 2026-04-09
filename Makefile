@@ -39,6 +39,7 @@ LDFLAGS := -T linker.ld -nostdlib -z max-page-size=0x1000
 C_SRCS   := $(shell find kernel -name '*.c'   2>/dev/null)
 ASM_SRCS := $(shell find kernel -name '*.asm' 2>/dev/null)
 
+
 # -------------------------------------------------------------
 # Object files
 # -------------------------------------------------------------

@@ -63,6 +63,9 @@ void ipv4_receive(uint8_t *packet, uint16_t len) {
     } else if (ipv4->protocol == 1) { /* ICMP */
         extern void icmp_receive(uint8_t *packet, uint16_t len, uint8_t *src_ip);
         icmp_receive(payload, payload_len, ipv4->src_ip);
+    } else if (ipv4->protocol == 6) { /* TCP */
+        extern void tcp_receive(uint8_t *packet, uint16_t len, uint8_t *src_ip);
+        tcp_receive(payload, payload_len, ipv4->src_ip);
     }
 }
 
@@ -77,7 +80,7 @@ void ipv4_send(uint8_t *dst_ip, uint8_t protocol, uint8_t *payload, uint16_t pay
     ipv4->ihl = 5;
     ipv4->tos = 0;
     ipv4->length = htons(total_len);
-    ipv4->id = htons(1); /* Arbitrary ID */
+    ipv4->id = 0;
     ipv4->flags_frag = 0;
     ipv4->ttl = 64;
     ipv4->protocol = protocol;
@@ -105,9 +108,18 @@ void ipv4_send(uint8_t *dst_ip, uint8_t protocol, uint8_t *payload, uint16_t pay
             if (g_gateway_mac[i] != 0) has_gw = true;
         }
         
+        /* If we are talking to a local subnet IP, we should ARP that IP directly, not the gateway.
+         * But for simplicity right now, if it's not the gateway IP, we just send to gateway MAC.
+         * If we don't have gateway MAC, we ARP the gateway. */
+        
         if (has_gw) {
             for (int i = 0; i < 6; i++) dst_mac[i] = g_gateway_mac[i];
         } else {
+            /* Fallback to Google DNS if gateway is 0.0.0.0 */
+            if (g_net_dev.gateway[0] == 0) {
+                g_net_dev.gateway[0] = 10; g_net_dev.gateway[1] = 0; g_net_dev.gateway[2] = 2; g_net_dev.gateway[3] = 2; // Default QEMU router
+            }
+            
             extern void arp_send_request(uint8_t *target_ip);
             arp_send_request(g_net_dev.gateway);
             kprintf("  [Net] Waiting for ARP to resolve gateway MAC... (Please retry ping in a moment)\n");
