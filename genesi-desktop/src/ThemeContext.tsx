@@ -1,21 +1,23 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { LazyStore } from '@tauri-apps/plugin-store';
-import { invoke } from '@tauri-apps/api/core';
+import { invoke, isTauri } from '@tauri-apps/api/core';
 
 type Theme = 'dark' | 'light';
 
 interface ThemeContextType {
   theme: Theme;
   setTheme: (theme: Theme) => void;
-  wallpaper: string;
-  setWallpaper: (wallpaper: string, isLocalPath?: boolean) => void;
+  wallpapers: Record<string, string>; // { "display-0": "url", "display-1": "url" }
+  wallpaperHistory: string[]; // absolute paths
+  setWallpaper: (wallpaper: string, monitorId: string | 'all', isLocalPath?: boolean) => void;
   isLoading: boolean;
 }
 
 export const ThemeContext = createContext<ThemeContextType>({
   theme: 'dark',
   setTheme: () => {},
-  wallpaper: '/wallpaper1.png',
+  wallpapers: {},
+  wallpaperHistory: ['/wallpaper1.png'],
   setWallpaper: () => {},
   isLoading: true,
 });
@@ -26,33 +28,55 @@ const store = new LazyStore('settings.json');
 
 export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
   const [theme, setThemeState] = useState<Theme>('dark');
-  const [wallpaper, setWallpaperState] = useState<string>('/wallpaper1.png');
+  const [wallpapers, setWallpapersState] = useState<Record<string, string>>({});
+  const [wallpaperHistory, setWallpaperHistory] = useState<string[]>(['/wallpaper1.png']);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Helper to load image bytes to blob URL
+  const loadBlobUrl = async (path: string) => {
+    if (path.startsWith('/')) return path; // Default bundled wallpaper
+    if (!isTauri()) return path; // No-op in browser
+
+    try {
+      const bytes: number[] = await invoke('read_file_bytes', { path });
+      const blob = new Blob([new Uint8Array(bytes)]);
+      return URL.createObjectURL(blob);
+    } catch (e) {
+      console.error('Failed to load saved wallpaper path:', path, e);
+      return '/wallpaper1.png'; // fallback
+    }
+  };
 
   // Load settings from store on startup
   useEffect(() => {
     const loadSettings = async () => {
       try {
+        if (!isTauri()) {
+          setWallpapersState({ 'all': '/wallpaper1.png' });
+          setIsLoading(false);
+          return;
+        }
+
         const savedTheme = await store.get<Theme>('theme');
         if (savedTheme) setThemeState(savedTheme);
 
-        const savedWallpaperPath = await store.get<string>('wallpaper_path');
-        if (savedWallpaperPath) {
-          // If it's a local file path, load the bytes and create an object URL
-          if (!savedWallpaperPath.startsWith('/')) {
-             try {
-                const bytes: number[] = await invoke('read_file_bytes', { path: savedWallpaperPath });
-                const blob = new Blob([new Uint8Array(bytes)]);
-                const url = URL.createObjectURL(blob);
-                setWallpaperState(url);
-             } catch (e) {
-                console.error('Failed to load saved wallpaper path:', e);
-             }
-          } else {
-            // It's a bundled default wallpaper
-            setWallpaperState(savedWallpaperPath);
-          }
+        const savedHistory = await store.get<string[]>('wallpaper_history');
+        if (savedHistory && savedHistory.length > 0) setWallpaperHistory(savedHistory);
+
+        const savedWallpapersPaths = await store.get<Record<string, string>>('wallpapers_paths') || {};
+        
+        // Se não houver wallpapers salvos, define o fallback padrão para 'all'
+        if (Object.keys(savedWallpapersPaths).length === 0) {
+          savedWallpapersPaths['all'] = '/wallpaper1.png';
         }
+
+        // Convert absolute paths to Blob URLs for React to render
+        const loadedWallpapers: Record<string, string> = {};
+        for (const [monitorId, path] of Object.entries(savedWallpapersPaths)) {
+          loadedWallpapers[monitorId] = await loadBlobUrl(path);
+        }
+        setWallpapersState(loadedWallpapers);
+
       } catch (error) {
         console.error('Failed to load settings:', error);
       } finally {
@@ -65,22 +89,39 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
 
   const setTheme = async (newTheme: Theme) => {
     setThemeState(newTheme);
+    if (!isTauri()) return;
     await store.set('theme', newTheme);
     await store.save();
   };
 
-  const setWallpaper = async (newWallpaper: string, isLocalPath: boolean = false) => {
-    setWallpaperState(newWallpaper);
-    // Only save to store if we have the absolute path, not a blob URL
-    // If it's a default wallpaper (e.g. /wallpaper1.png), we can just save it
+  const setWallpaper = async (newWallpaper: string, monitorId: string | 'all', isLocalPath: boolean = false) => {
+    // 1. Update Visual State
+    setWallpapersState(prev => ({
+      ...prev,
+      [monitorId]: newWallpaper
+    }));
+
+    if (!isTauri()) return;
+
+    // 2. Persist to Disk (if it's an absolute path or default path)
     if (isLocalPath || newWallpaper.startsWith('/')) {
-        await store.set('wallpaper_path', newWallpaper);
-        await store.save();
+      // Update history (keep last 5)
+      setWallpaperHistory(prev => {
+        const newHistory = [newWallpaper, ...prev.filter(p => p !== newWallpaper)].slice(0, 5);
+        store.set('wallpaper_history', newHistory).then(() => store.save());
+        return newHistory;
+      });
+
+      // Update monitor mapping
+      const savedWallpapersPaths = await store.get<Record<string, string>>('wallpapers_paths') || {};
+      savedWallpapersPaths[monitorId] = newWallpaper;
+      await store.set('wallpapers_paths', savedWallpapersPaths);
+      await store.save();
     }
   };
 
   return (
-    <ThemeContext.Provider value={{ theme, setTheme, wallpaper, setWallpaper, isLoading }}>
+    <ThemeContext.Provider value={{ theme, setTheme, wallpapers, wallpaperHistory, setWallpaper, isLoading }}>
       {!isLoading && children}
     </ThemeContext.Provider>
   );

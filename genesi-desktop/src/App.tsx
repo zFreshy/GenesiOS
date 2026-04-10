@@ -5,17 +5,19 @@ import {
   Search, Globe, Mail, List, Power, Lock, RotateCcw, MoonStar,
   Play, SkipBack, SkipForward, CloudSun, CalendarClock, Settings, X, Terminal, Package, Folder
 } from 'lucide-react';
+import { IconChevronUp, IconDeviceDesktop } from '@tabler/icons-react';
 import './index.css';
 import StartMenu from './StartMenu';
 import StartContextMenu from './StartContextMenu';
 import SettingsApp from './SettingsApp';
 import FileExplorer from './FileExplorer';
 import { useTheme } from './ThemeContext';
+import { useDisplay } from './DisplayContext';
 
 let globalZIndex = 10;
 
 // --- COMPONENTE DE JANELA (DRAGGABLE, RESIZABLE E ANIMADA) ---
-const DesktopWindow = ({ app, onClose, onMinimize, onMaximize, onFocus, isFullscreen, onUpdateBounds }) => {
+const DesktopWindow = ({ app, onClose, onMinimize, onMaximize, onFocus, isFullscreen, onUpdateBounds, monitor }) => {
   const dragControls = useDragControls();
   const [isResizing, setIsResizing] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -81,17 +83,21 @@ const DesktopWindow = ({ app, onClose, onMinimize, onMaximize, onFocus, isFullsc
         app.minimized ? {
           opacity: 0,
           scale: 0.4,
-          y: window.innerHeight, // Vai para o fundo da tela (taskbar)
+          y: monitor ? monitor.logicalY + monitor.physicalHeight : window.innerHeight, // Vai para a taskbar DO SEU MONITOR
           x: app.x,
-          width: app.maximized || isFullscreen ? '100vw' : (app.width || 800),
-          height: app.maximized || isFullscreen ? '100vh' : (app.height || 500)
+          width: app.maximized || isFullscreen ? (monitor ? monitor.physicalWidth : '100vw') : (app.width || 800),
+          height: app.maximized || isFullscreen ? (monitor ? monitor.physicalHeight : '100vh') : (app.height || 500)
         } : { 
           opacity: 1, 
           scale: 1, 
-          x: app.maximized || isFullscreen ? 0 : app.x, 
-          y: app.maximized || isFullscreen ? 0 : app.y,
-          width: app.maximized || isFullscreen ? '100vw' : (app.width || 800),
-          height: app.maximized || isFullscreen ? '100vh' : (app.height || 500)
+          x: app.maximized || isFullscreen ? (monitor ? monitor.logicalX : 0) : app.x, 
+          y: app.maximized || isFullscreen ? (monitor ? monitor.logicalY : 0) : app.y,
+          width: app.maximized || isFullscreen ? (monitor ? monitor.physicalWidth : '100vw') : (app.width || 800),
+          height: isFullscreen 
+                  ? (monitor ? monitor.physicalHeight : '100vh') 
+                  : app.maximized 
+                    ? (monitor ? (monitor.physicalHeight - 60) : '100vh') 
+                    : (app.height || 500)
         }
       }
       exit={{ opacity: 0, scale: 0.8, y: 50 }}
@@ -174,14 +180,25 @@ const DesktopWindow = ({ app, onClose, onMinimize, onMaximize, onFocus, isFullsc
 
 
 function App() {
-  const { theme, wallpaper, isLoading } = useTheme();
+  const { theme, wallpapers, isLoading } = useTheme();
+  const { displays } = useDisplay();
   const [time, setTime] = useState(new Date());
+
+  // Pega as dimensões totais da janela que agora cobre todos os monitores
+  const [windowBounds, setWindowBounds] = useState({ width: window.innerWidth, height: window.innerHeight });
+
+  useEffect(() => {
+    const handleResize = () => setWindowBounds({ width: window.innerWidth, height: window.innerHeight });
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Estado do Painel de Controle e Menu Iniciar
   const [showControlCenter, setShowControlCenter] = useState(false);
   const [showStartMenu, setShowStartMenu] = useState(false);
   const [showStartContextMenu, setShowStartContextMenu] = useState(false);
   const [isFullscreenMode, setIsFullscreenMode] = useState(false);
+  const [activeMonitorId, setActiveMonitorId] = useState<string | null>(null);
 
   // States dos botões
   const [wifiOn, setWifiOn] = useState(true);
@@ -308,16 +325,69 @@ function App() {
   }, []);
 
   // If theme/wallpaper is still loading from the store, don't render the main app yet
-  if (isLoading) {
+  if (isLoading || displays.length === 0) {
     return <div className="w-screen h-screen bg-black flex items-center justify-center text-white font-sans">Loading...</div>;
   }
 
+  // Monitor Principal
+  const primaryDisplay = displays.find(d => d.isPrimary) || displays[0];
+
   return (
-    <div className={`relative w-screen h-screen bg-cover bg-center overflow-hidden flex flex-col items-center justify-center pb-24 ${theme === 'light' ? 'text-black' : 'text-white'}`}
-         style={{ backgroundImage: `url('${wallpaper}')` }}
+    <div className={`fixed inset-0 overflow-hidden flex flex-col items-center justify-center pb-24 ${theme === 'light' ? 'text-black' : 'text-white'}`}
          onClick={() => { setShowControlCenter(false); setShowStartMenu(false); setShowStartContextMenu(false); }}
          onContextMenu={(e) => e.preventDefault()}>
+
       
+      {/* Background/Wallpapers for each monitor based on logical position */}
+      {displays.map(d => {
+        const bgUrl = wallpapers[d.id] || wallpapers['all'] || '/wallpaper1.png';
+        return (
+          <div 
+            key={d.id}
+            className="absolute"
+            style={{
+              left: d.logicalX,
+              top: d.logicalY,
+              width: d.logicalWidth,
+              height: d.logicalHeight,
+              backgroundImage: `url(${bgUrl})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              backgroundRepeat: 'no-repeat',
+              borderRight: displays.length > 1 ? '1px solid rgba(255,255,255,0.05)' : 'none' // Subtile divisor
+            }}
+            onContextMenu={(e) => e.preventDefault()}
+          />
+        );
+      })}
+
+      {/* Desktop Icons - Rendizados no Monitor Principal */}
+      <div 
+        className="absolute p-4 flex flex-col gap-4 flex-wrap content-start"
+        style={{
+          left: primaryDisplay.logicalX,
+          top: primaryDisplay.logicalY,
+          width: primaryDisplay.logicalWidth,
+          height: primaryDisplay.logicalHeight - 60 // subtrai a taskbar
+        }}
+      >
+        <div 
+          onDoubleClick={() => openApp('files')}
+          className="w-20 h-20 flex flex-col items-center justify-center gap-1 rounded-md hover:bg-white/10 cursor-pointer group transition-colors"
+        >
+          <Folder size={40} strokeWidth={1} className="text-yellow-400 group-hover:scale-105 transition-transform" />
+          <span className="text-xs font-medium text-white drop-shadow-md">Files</span>
+        </div>
+
+        <div 
+          onDoubleClick={() => openApp('settings')}
+          className="w-20 h-20 flex flex-col items-center justify-center gap-1 rounded-md hover:bg-white/10 cursor-pointer group transition-colors"
+        >
+          <Settings size={40} strokeWidth={1} className="text-gray-300 group-hover:scale-105 transition-transform" />
+          <span className="text-xs font-medium text-white drop-shadow-md">Settings</span>
+        </div>
+      </div>
+
       {/* ======= CONTROL CENTER & WIDGETS (Aparece ao clicar no tray) ======= */}
       <AnimatePresence>
         {showControlCenter && (
@@ -395,19 +465,39 @@ function App() {
       </AnimatePresence>
 
       {/* ======= START MENU ======= */}
-      <StartMenu 
-        show={showStartMenu} 
-        onClose={() => setShowStartMenu(false)} 
-        onOpenApp={openApp}
-        apps={apps}
-      />
+      {(() => {
+        const activeMon = displays.find(d => d.id === activeMonitorId) || primaryDisplay;
+        const taskbarWidth = Math.min(1100, activeMon.logicalWidth * 0.95);
+        const startMenuX = activeMon.logicalX + (activeMon.logicalWidth / 2) - (taskbarWidth / 2) + 20; // 20px padding left
+
+        return (
+          <StartMenu 
+            show={showStartMenu} 
+            onClose={() => setShowStartMenu(false)} 
+            onOpenApp={openApp}
+            apps={apps}
+            x={startMenuX}
+          />
+        );
+      })()}
 
       {/* ======= START CONTEXT MENU ======= */}
-      <StartContextMenu
-        show={showStartContextMenu}
-        onClose={() => setShowStartContextMenu(false)}
-        onOpenApp={openApp}
-      />
+      <AnimatePresence>
+        {showStartContextMenu && (() => {
+          const activeMon = displays.find(d => d.id === activeMonitorId) || primaryDisplay;
+          const taskbarWidth = Math.min(1100, activeMon.logicalWidth * 0.95);
+          const startMenuX = activeMon.logicalX + (activeMon.logicalWidth / 2) - (taskbarWidth / 2) + 20;
+
+          return (
+            <StartContextMenu 
+              onClose={() => setShowStartContextMenu(false)} 
+              onOpenApp={openApp}
+              x={startMenuX}
+              y={activeMon.logicalY + activeMon.logicalHeight - 80}
+            />
+          );
+        })()}
+      </AnimatePresence>
 
       {/* ======= WINDOW MANAGER ======= */}
       <AnimatePresence>
@@ -425,63 +515,104 @@ function App() {
         ))}
       </AnimatePresence>
 
-      {/* ======= TASKBAR (BOTTOM) ======= */}
-      {!isFullscreenMode && (
-      <div 
-          onClick={(e) => e.stopPropagation()} 
-          className="absolute bottom-5 left-1/2 -translate-x-1/2 h-[60px] px-5 bg-black/40 backdrop-blur-2xl border border-white/10 shadow-2xl rounded-full flex items-center justify-between w-[95%] max-w-[1100px] z-[9990]"
+      {/* ======= TASKBARS (UMA POR MONITOR) ======= */}
+      {displays.map((d, i) => (
+        <div 
+          key={`taskbar-${d.id}`}
+          className="absolute z-[9990] h-[60px] px-5 bg-black/40 backdrop-blur-2xl border border-white/10 shadow-2xl rounded-full flex items-center justify-between transition-all duration-300"
+          style={{
+            left: d.logicalX + (d.logicalWidth / 2),
+            top: d.logicalY + d.logicalHeight - 80, // bottom-5 equivalente
+            width: '95%',
+            maxWidth: '1100px',
+            transform: 'translateX(-50%)'
+          }}
+          onContextMenu={(e) => e.preventDefault()}
+          onClick={(e) => e.stopPropagation()}
         >
-         <div className="flex items-center gap-4">
+          {/* Left - Start Button */}
+          <div className="flex items-center gap-4">
             <button 
-               onClick={(e) => { e.stopPropagation(); setShowStartMenu(!showStartMenu); setShowControlCenter(false); setShowStartContextMenu(false); }}
-               onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setShowStartContextMenu(!showStartContextMenu); setShowStartMenu(false); setShowControlCenter(false); }}
-               className="w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 flex justify-center items-center transition-colors font-bold text-lg font-mono">
-               G
+              onClick={(e) => { 
+                e.stopPropagation(); 
+                setActiveMonitorId(d.id);
+                setShowStartMenu(!showStartMenu); 
+                setShowControlCenter(false); 
+                setShowStartContextMenu(false); 
+              }}
+              onContextMenu={(e) => { 
+                e.preventDefault(); 
+                e.stopPropagation(); 
+                setActiveMonitorId(d.id);
+                setShowStartContextMenu(true); 
+                setShowStartMenu(false); 
+              }}
+              className="w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 flex justify-center items-center transition-colors font-bold text-lg font-mono text-white"
+            >
+              G
             </button>
             <div className="w-[1px] h-6 bg-white/20 mx-2"></div>
-            
-            {/* Ícones dos apps abertos/pinados na Taskbar (Começando depois do divisor) */}
-            {apps.map(app => {
-              if (!app.isOpen) return null;
-              return (
-                <div key={app.id} className="relative group">
-                   <button 
-                      onClick={() => {
+
+            {/* Ícones dos apps abertos/pinados na Taskbar */}
+            <div className="flex items-center gap-2">
+              {apps.map(app => {
+                if (!app.isOpen) return null;
+                return (
+                  <div key={app.id} className="relative group">
+                    <button 
+                      onClick={(e) => { 
+                        e.stopPropagation(); 
                         if (app.minimized) {
                           toggleMinimize(app.id);
-                        } else if (app.zIndex < Date.now() - 1000) {
-                          focusApp(app.id); // Traz pra frente se estiver atrás
+                        } else if (app.zIndex < Math.max(...apps.filter(a => a.isOpen).map(a => a.zIndex))) {
+                          focusApp(app.id);
                         } else {
-                          toggleMinimize(app.id); // Minimiza se já estiver na frente
+                          toggleMinimize(app.id);
                         }
                       }} 
                       className={`w-10 h-10 rounded-xl ${app.color} flex justify-center items-center transition-transform group-hover:-translate-y-1 shadow-lg`}
+                      title={app.title}
                     >
                       <app.icon size={18} color="white"/>
-                   </button>
-                   <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-white rounded-full"></div>
-                </div>
-              );
-            })}
-         </div>
-         
-         {/* TRAY SYSTEM (Clica aqui para abrir o Painel) */}
-         <div 
-           className="flex items-center gap-4 cursor-pointer hover:bg-white/10 p-2 rounded-full transition-colors ml-auto"
-           onClick={(e) => { e.stopPropagation(); setShowControlCenter(!showControlCenter); setShowStartMenu(false); }}
-         >
-            <div className="flex flex-col items-end">
-              <span className="font-semibold text-sm">{time.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-              <span className="text-white/60 text-[10px] uppercase">{time.toLocaleDateString([], {weekday: 'short', day: 'numeric', month: 'short'})}</span>
+                    </button>
+                    {/* Bolinha indicadora de aberto */}
+                    <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-white rounded-full"></div>
+                  </div>
+                );
+              })}
             </div>
-            <div className="flex items-center gap-2 bg-white/10 px-3 py-1.5 rounded-full text-xs shadow-inner">
-               <Battery size={14}/>
-               <Wifi size={14}/>
-               <span className="font-medium">BR</span>
+          </div>
+
+          {/* TRAY SYSTEM (Right side) */}
+          <div className="flex items-center gap-3">
+            <div 
+              className="flex items-center gap-4 cursor-pointer hover:bg-white/10 p-2 rounded-full transition-colors ml-auto"
+              onClick={(e) => { e.stopPropagation(); setShowControlCenter(!showControlCenter); setShowStartMenu(false); setShowStartContextMenu(false); }}
+            >
+              <div className="flex flex-col items-end">
+                <span className="font-semibold text-sm leading-tight">{time.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                <span className="text-white/60 text-[10px] uppercase leading-tight mt-0.5">{time.toLocaleDateString([], {weekday: 'short', day: 'numeric', month: 'short'})}</span>
+              </div>
+              <div className="flex items-center gap-2 bg-white/10 px-3 py-1.5 rounded-full text-xs shadow-inner">
+                <Battery size={14}/>
+                <Wifi size={14}/>
+                <span className="font-medium">BR</span>
+              </div>
             </div>
-         </div>
-      </div>
-      )}
+            
+            {/* Show desktop button */}
+            <div 
+              className="w-1.5 h-6 border-l border-white/20 ml-1 hover:bg-white/20 cursor-pointer transition-colors" 
+              onClick={(e) => {
+                e.stopPropagation();
+                // Minimiza todos os apps abertos
+                setApps(prev => prev.map(a => a.isOpen ? { ...a, minimized: true } : a));
+              }}
+              title="Show Desktop"
+            />
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

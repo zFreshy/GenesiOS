@@ -9,9 +9,10 @@ interface StartMenuProps {
   onClose: () => void;
   onOpenApp: (id: string) => void;
   apps: any[];
+  x: number;
 }
 
-const StartMenu = ({ show, onClose, onOpenApp, apps }: StartMenuProps) => {
+const StartMenu = ({ show, onClose, onOpenApp, apps, x }: StartMenuProps) => {
   return (
     <AnimatePresence>
       {show && (
@@ -21,7 +22,8 @@ const StartMenu = ({ show, onClose, onOpenApp, apps }: StartMenuProps) => {
           exit={{ opacity: 0, y: 50, x: "-50%", scale: 0.95 }}
           transition={{ type: "spring", stiffness: 300, damping: 30 }}
           onClick={(e) => e.stopPropagation()}
-          className="absolute bottom-24 left-1/2 z-[9995] w-[600px] h-[700px] bg-[#1c1c1c]/90 backdrop-blur-3xl rounded-2xl border border-white/10 shadow-2xl flex flex-col text-white overflow-hidden"
+          className="absolute bottom-24 z-[9995] w-[600px] h-[700px] bg-[#1c1c1c]/90 backdrop-blur-3xl rounded-2xl border border-white/10 shadow-2xl flex flex-col text-white overflow-hidden"
+          style={{ left: x }}
         >
           {/* Top Search Bar */}
           <div className="p-6 pb-2">

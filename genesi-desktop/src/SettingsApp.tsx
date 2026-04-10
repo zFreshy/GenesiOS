@@ -4,22 +4,49 @@ import {
   Search, Settings, Home, Users, Activity, Trophy, Calendar, Lightbulb, 
   FileSpreadsheet, Grid, Settings2, User, Sliders, AppWindow, ArrowUpCircle, 
   Shield, LayoutTemplate, CreditCard, Map, Check, ChevronDown, Plus, Zap, Layers, TreePine, Hexagon, ChevronRight,
-  Folder, File as FileIcon, Image as ImageIcon, X, ChevronLeft, HardDrive
+  Folder, File as FileIcon, Image as ImageIcon, X, ChevronLeft, HardDrive, Monitor, Paintbrush
 } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 
 import { useTheme } from './ThemeContext';
+import { useDisplay, Display } from './DisplayContext';
 
 import { FileExplorerBase } from './FileExplorer';
 
 const SettingsApp = () => {
-  const { theme, setTheme, setWallpaper } = useTheme();
+  const { theme, setTheme, wallpapers, wallpaperHistory, setWallpaper } = useTheme();
+  const { displays, updateDisplayLayout, isMultiMonitor } = useDisplay();
   
   const [mobilePush, setMobilePush] = useState(true);
   const [desktopPush, setDesktopPush] = useState(true);
   const [emailPush, setEmailPush] = useState(false);
   const [twoFactor, setTwoFactor] = useState(true);
   const [showFilePicker, setShowFilePicker] = useState(false);
+  const [activeTab, setActiveTab] = useState<'general' | 'display' | 'personalization'>('general');
+  const [targetMonitorId, setTargetMonitorId] = useState<string>('all');
+  const [historyBlobs, setHistoryBlobs] = useState<Record<string, string>>({});
+
+  // Helper to load image bytes to blob URL for history
+  useEffect(() => {
+    const loadBlobs = async () => {
+      const newBlobs: Record<string, string> = {};
+      for (const path of wallpaperHistory) {
+        if (path.startsWith('/')) {
+          newBlobs[path] = path;
+        } else {
+          try {
+            const bytes: number[] = await invoke('read_file_bytes', { path });
+            const blob = new Blob([new Uint8Array(bytes)]);
+            newBlobs[path] = URL.createObjectURL(blob);
+          } catch (e) {
+            console.error('Failed to load history blob:', e);
+          }
+        }
+      }
+      setHistoryBlobs(newBlobs);
+    };
+    loadBlobs();
+  }, [wallpaperHistory]);
 
   return (
     <div className="flex w-full h-full bg-[#121212] text-white/90 overflow-hidden rounded-b-xl select-none font-sans border border-white/5">
@@ -107,14 +134,16 @@ const SettingsApp = () => {
           <div className="w-[240px] h-full border-r border-white/5 flex flex-col shrink-0 bg-[#121212] hidden lg:flex">
             <div className="p-8 pb-4">
               <h2 className="text-[22px] font-semibold flex items-center gap-2">
-                Settings <ChevronRight size={16} className="text-white/40" /> <span className="text-white/60 text-[15px] font-normal">General</span>
+                Settings <ChevronRight size={16} className="text-white/40" /> <span className="text-white/60 text-[15px] font-normal capitalize">{activeTab}</span>
               </h2>
             </div>
             <div className="flex-1 overflow-y-auto custom-scrollbar px-5 pb-6 flex flex-col gap-6">
               
               <NavSection title="ACCOUNT">
                 <NavItem icon={User} label="My Profile" compact />
-                <NavItem icon={Home} label="General" active compact />
+                <NavItem icon={Home} label="General" active={activeTab === 'general'} onClick={() => setActiveTab('general')} compact />
+                <NavItem icon={Monitor} label="Display" active={activeTab === 'display'} onClick={() => setActiveTab('display')} compact />
+                <NavItem icon={Paintbrush} label="Personalization" active={activeTab === 'personalization'} onClick={() => setActiveTab('personalization')} compact />
                 <NavItem icon={Sliders} label="Preferences" compact />
                 <NavItem icon={AppWindow} label="Applications" compact />
               </NavSection>
@@ -136,74 +165,216 @@ const SettingsApp = () => {
           <div className="flex-1 h-full overflow-y-auto custom-scrollbar p-8 lg:p-12">
             <div className="max-w-3xl">
               
-              {/* Notifications Section */}
-              <h3 className="text-xl font-semibold mb-6 text-white/90">My Notifications</h3>
-              
-              <div className="flex justify-between items-center mb-4">
-                <span className="text-[14px] font-semibold">Notify me when...</span>
-                <span className="text-[13px] text-blue-500 cursor-pointer hover:underline">About notifications?</span>
-              </div>
-              
-              <div className="flex flex-col gap-3 mb-10">
-                <CustomCheckbox label="Daily productivity update" checked />
-                <CustomCheckbox label="New event created" checked />
-                <CustomCheckbox label="When added on new team" checked />
-              </div>
-
-              <div className="flex flex-col gap-8 mb-12">
-                <ToggleRow 
-                  title="Mobile push notifications" 
-                  desc="Receive push notification whenever your organisation requires your attentions" 
-                  checked={mobilePush} onChange={() => setMobilePush(!mobilePush)} 
-                />
-                <ToggleRow 
-                  title="Desktop Notification" 
-                  desc="Receive desktop notification whenever your organisation requires your attentions" 
-                  checked={desktopPush} onChange={() => setDesktopPush(!desktopPush)} 
-                />
-                <ToggleRow 
-                  title="Email Notification" 
-                  desc="Receive email whenever your organisation requires your attentions" 
-                  checked={emailPush} onChange={() => setEmailPush(!emailPush)} 
-                />
-              </div>
-
-              {/* Settings Section */}
-              <div className="w-full h-[1px] bg-white/5 mb-8"></div>
-              <h3 className="text-xl font-semibold mb-6 text-white/90">My Settings</h3>
-
-              <div className="flex flex-col gap-8 pb-10">
-                <DropdownRow 
-                  title="Appearance" 
-                  desc="Customize how the theme looks on your device." 
-                  value={theme === 'dark' ? 'Dark' : 'Light'}
-                  onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                />
-                
-                <div className="flex items-center justify-between gap-4">
-                  <div className="flex flex-col">
-                    <span className="text-[14px] font-semibold text-white/90">System Wallpaper</span>
-                    <span className="text-[13px] text-white/40 mt-1">Choose a background image from your files.</span>
+              {activeTab === 'general' && (
+                <>
+                  {/* Notifications Section */}
+                  <h3 className="text-xl font-semibold mb-6 text-white/90">My Notifications</h3>
+                  
+                  <div className="flex justify-between items-center mb-4">
+                    <span className="text-[14px] font-semibold">Notify me when...</span>
+                    <span className="text-[13px] text-blue-500 cursor-pointer hover:underline">About notifications?</span>
                   </div>
-                  <div 
-                    onClick={() => setShowFilePicker(true)}
-                    className="flex items-center gap-2 bg-[#1a1a1a] border border-white/10 px-4 py-2 rounded-lg cursor-pointer hover:bg-white/5 transition-colors shrink-0"
-                  >
-                    <span className="text-[13px] text-white/80">Browse files</span>
+                  
+                  <div className="flex flex-col gap-3 mb-10">
+                    <CustomCheckbox label="Daily productivity update" checked />
+                    <CustomCheckbox label="New event created" checked />
+                    <CustomCheckbox label="When added on new team" checked />
                   </div>
-                </div>
 
-                <ToggleRow 
-                  title="Two-factor authentication" 
-                  desc="Keep your account secure by enabling 2FA via SMS or using a temporary one-time passcode (TOTP)." 
-                  checked={twoFactor} onChange={() => setTwoFactor(!twoFactor)} 
-                />
-                <DropdownRow 
-                  title="Language" 
-                  desc="Customize the language of the system." 
-                  value="English" 
-                />
-              </div>
+                  <div className="flex flex-col gap-8 mb-12">
+                    <ToggleRow 
+                      title="Mobile push notifications" 
+                      desc="Receive push notification whenever your organisation requires your attentions" 
+                      checked={mobilePush} onChange={() => setMobilePush(!mobilePush)} 
+                    />
+                    <ToggleRow 
+                      title="Desktop Notification" 
+                      desc="Receive desktop notification whenever your organisation requires your attentions" 
+                      checked={desktopPush} onChange={() => setDesktopPush(!desktopPush)} 
+                    />
+                    <ToggleRow 
+                      title="Email Notification" 
+                      desc="Receive email whenever your organisation requires your attentions" 
+                      checked={emailPush} onChange={() => setEmailPush(!emailPush)} 
+                    />
+                  </div>
+
+                  {/* Settings Section */}
+                  <div className="w-full h-[1px] bg-white/5 mb-8"></div>
+                  <h3 className="text-xl font-semibold mb-6 text-white/90">My Settings</h3>
+
+                  <div className="flex flex-col gap-8 pb-10">
+                    <DropdownRow 
+                      title="Appearance" 
+                      desc="Customize how the theme looks on your device." 
+                      value={theme === 'dark' ? 'Dark' : 'Light'}
+                      onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                    />
+
+                    <ToggleRow 
+                      title="Two-factor authentication" 
+                      desc="Keep your account secure by enabling 2FA via SMS or using a temporary one-time passcode (TOTP)." 
+                      checked={twoFactor} onChange={() => setTwoFactor(!twoFactor)} 
+                    />
+                    <DropdownRow 
+                      title="Language" 
+                      desc="Customize the language of the system." 
+                      value="English" 
+                    />
+                  </div>
+                </>
+              )}
+
+              {activeTab === 'personalization' && (
+                <>
+                  <h3 className="text-xl font-semibold mb-6 text-white/90">Personalization</h3>
+                  
+                  <div className="flex flex-col gap-4 mb-8">
+                    <span className="text-[14px] text-white/80">System Theme</span>
+                    <DropdownRow 
+                      title="Appearance" 
+                      desc="Customize how the theme looks on your device." 
+                      value={theme === 'dark' ? 'Dark' : 'Light'}
+                      onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                    />
+                  </div>
+
+                  <div className="w-full h-[1px] bg-white/5 mb-8"></div>
+
+                  <div className="flex flex-col gap-4 mb-6">
+                    <span className="text-[14px] text-white/80">Background</span>
+                    <span className="text-[13px] text-white/40">Personalize your desktop background.</span>
+                  </div>
+
+                  {/* Monitor Selection Dropdown */}
+                  {isMultiMonitor && (
+                    <div className="flex items-center justify-between gap-4 mb-6 bg-[#1a1a1a]/50 p-4 rounded-xl border border-white/5">
+                      <div className="flex flex-col">
+                        <span className="text-[14px] font-medium text-white/90">Choose a display</span>
+                        <span className="text-[13px] text-white/40">Select which monitor to apply the background.</span>
+                      </div>
+                      <select
+                        value={targetMonitorId}
+                        onChange={(e) => setTargetMonitorId(e.target.value)}
+                        className="bg-[#2d2d2d] border border-white/10 rounded-lg px-3 py-2 text-[13px] outline-none focus:border-blue-500/50 transition-colors cursor-pointer min-w-[150px]"
+                      >
+                        <option value="all">All Displays</option>
+                        {displays.map((d, i) => (
+                          <option key={d.id} value={d.id}>{d.name} {d.isPrimary ? '(Primary)' : ''}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {/* Recent Wallpapers (History) */}
+                  <div className="flex flex-col gap-4 mb-8">
+                    <span className="text-[13px] text-white/60">Recent images</span>
+                    <div className="flex flex-wrap gap-4">
+                      {wallpaperHistory.map((path, index) => (
+                        <div 
+                          key={index}
+                          onClick={() => setWallpaper(path, targetMonitorId, true)}
+                          className="w-32 h-24 rounded-lg bg-white/10 border border-white/10 overflow-hidden cursor-pointer hover:border-blue-500 transition-colors hover:shadow-[0_0_15px_rgba(59,130,246,0.3)] relative group flex items-center justify-center"
+                        >
+                          {historyBlobs[path] ? (
+                            <img src={historyBlobs[path]} alt={`Wallpaper ${index}`} className="w-full h-full object-cover" />
+                          ) : (
+                            <ImageIcon size={24} className="text-white/20" />
+                          )}
+                        </div>
+                      ))}
+                      <div 
+                        onClick={() => setShowFilePicker(true)}
+                        className="w-32 h-24 rounded-lg border-2 border-dashed border-white/20 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-white/5 hover:border-white/40 transition-colors"
+                      >
+                        <Plus size={20} className="text-white/60" />
+                        <span className="text-[12px] text-white/60">Browse</span>
+                      </div>
+                    </div>
+                  </div>
+
+                </>
+              )}
+              {activeTab === 'display' && (
+                <>
+                  <h3 className="text-xl font-semibold mb-6 text-white/90">Display</h3>
+                  <div className="flex flex-col gap-4 mb-8">
+                    <span className="text-[14px] text-white/80">Your displays</span>
+                    <span className="text-[13px] text-white/40">These are the displays currently connected to your system. Their arrangement is managed by your operating system.</span>
+                  </div>
+
+                  {/* Monitor Arrangement Area */}
+                  <div className="w-full h-[300px] bg-[#0a0a0a] border border-white/10 rounded-xl relative overflow-hidden flex items-center justify-center p-8 mb-8">
+                    {!isMultiMonitor ? (
+                      <div className="flex flex-col items-center justify-center text-white/40 gap-4">
+                        <Monitor size={48} strokeWidth={1} />
+                        <span className="text-sm">Only one display detected.</span>
+                      </div>
+                    ) : (
+                      <div className="relative w-full h-full flex items-center justify-center">
+                        {(() => {
+                           const minX = Math.min(...displays.map(d => d.logicalX));
+                           const minY = Math.min(...displays.map(d => d.logicalY));
+                           const maxX = Math.max(...displays.map(d => d.logicalX + d.logicalWidth));
+                           const maxY = Math.max(...displays.map(d => d.logicalY + d.logicalHeight));
+                           const totalW = maxX - minX;
+                           const totalH = maxY - minY;
+                           
+                           // Calcula a escala para caber dentro da div de 400x200 (com margem)
+                           const scale = Math.min(400 / totalW, 200 / totalH);
+
+                           return displays.map((d, i) => (
+                            <div
+                              key={d.id}
+                              className={`absolute flex flex-col items-center justify-center rounded-lg border-2 shadow-lg transition-colors ${
+                                d.isPrimary ? 'bg-blue-600/20 border-blue-500 z-10' : 'bg-white/5 border-white/20 z-0'
+                              }`}
+                              style={{
+                                width: d.logicalWidth * scale,
+                                height: d.logicalHeight * scale,
+                                left: '50%',
+                                top: '50%',
+                                marginLeft: ((d.logicalX - minX) - totalW/2) * scale,
+                                marginTop: ((d.logicalY - minY) - totalH/2) * scale,
+                              }}
+                            >
+                              <span className="text-2xl font-bold opacity-50">{i + 1}</span>
+                              {d.isPrimary && <span className="text-[10px] mt-1 bg-blue-500 text-white px-2 py-0.5 rounded-full">Primary</span>}
+                            </div>
+                           ));
+                        })()}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="w-full h-[1px] bg-white/5 mb-8"></div>
+                  
+                  <h3 className="text-xl font-semibold mb-6 text-white/90">Multiple displays</h3>
+                  <div className="flex flex-col gap-8 pb-10">
+                    {displays.map((d, i) => (
+                      <div key={d.id} className="flex items-center justify-between gap-4 p-4 border border-white/5 rounded-xl bg-[#1a1a1a]/50">
+                        <div className="flex items-center gap-4">
+                          <Monitor size={24} className={d.isPrimary ? "text-blue-500" : "text-white/40"} />
+                          <div className="flex flex-col">
+                            <span className="text-[14px] font-semibold text-white/90">{d.name} {d.isPrimary ? '(Primary)' : ''}</span>
+                            <span className="text-[13px] text-white/40 mt-1">{d.physicalWidth} x {d.physicalHeight}</span>
+                          </div>
+                        </div>
+                        
+                        {!d.isPrimary && (
+                          <div 
+                            onClick={() => updateDisplayLayout(d.id, { isPrimary: true })}
+                            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded-lg cursor-pointer transition-colors shrink-0"
+                          >
+                            <span className="text-[13px] text-white font-medium">Make this my main display</span>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                </>
+              )}
 
             </div>
           </div>
@@ -217,9 +388,9 @@ const SettingsApp = () => {
             onClose={() => setShowFilePicker(false)}
             onSelect={(url, path) => {
               if (path) {
-                setWallpaper(path, true); // Pass true to indicate it's a local path
+                setWallpaper(path, targetMonitorId, true); // Pass true to indicate it's a local path
               } else {
-                setWallpaper(url);
+                setWallpaper(url, targetMonitorId);
               }
               setShowFilePicker(false);
             }}
@@ -247,8 +418,8 @@ const NavSection = ({ title, children }) => (
   </div>
 );
 
-const NavItem = ({ icon: Icon, label, active = false, compact = false }) => (
-  <div className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-all ${
+const NavItem = ({ icon: Icon, label, active = false, compact = false, onClick }: any) => (
+  <div onClick={onClick} className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-all ${
     active 
       ? 'bg-[#1a1a1a] text-white font-medium' 
       : 'text-white/60 hover:bg-white/5 hover:text-white/90'
