@@ -1,0 +1,33 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer utilities {
+  .glass {
+    @apply bg-black/40 backdrop-blur-2xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.3)] rounded-3xl;
+  }
+  
+  .glass-btn {
+    @apply bg-white/10 border border-white/10 text-white px-4 py-2 rounded-full hover:bg-white/20 transition-colors text-sm;
+  }
+  
+  .toggle-btn {
+    @apply bg-white/10 text-white w-12 h-12 rounded-full flex justify-center items-center cursor-pointer transition-colors duration-200 border-none;
+  }
+  
+  .toggle-btn.active {
+    @apply bg-[#f39c12] text-black;
+  }
+  
+  .app-icon {
+    @apply w-16 h-16 rounded-2xl flex justify-center items-center cursor-pointer transition-transform hover:scale-105;
+  }
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', -apple-system, sans-serif;
+  color: white;
+  user-select: none;
+  overflow: hidden;
+}
