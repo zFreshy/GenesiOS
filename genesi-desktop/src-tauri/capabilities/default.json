@@ -9,6 +9,17 @@
     "core:window:allow-set-position",
     "core:window:allow-set-size",
     "opener:default",
-    "store:default"
+    "store:default",
+    "shell:default",
+    {
+      "identifier": "shell:allow-execute",
+      "allow": [
+        {
+          "name": "start-chrome",
+          "cmd": "cmd",
+          "args": ["/c", "start", "chrome"]
+        }
+      ]
+    }
   ]
 }
