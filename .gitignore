@@ -8,4 +8,6 @@ iso/
 *.txt
 *.log
 
-genesi-desktop/
+node_modules/
+dist/
+src-tauri/target/

@@ -1,0 +1,112 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body, html, #root {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background-color: #1a1b1e; /* Genesi dark background */
+}
+
+.desktop-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.desktop-background {
+  flex-grow: 1;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 20px;
+}
+
+.icon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100px;
+  cursor: pointer;
+  padding: 10px;
+  border-radius: 8px;
+  transition: background-color 0.2s;
+}
+
+.icon:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.icon-img {
+  font-size: 3rem;
+  margin-bottom: 5px;
+}
+
+.icon-label {
+  color: white;
+  text-shadow: 1px 1px 2px black;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.taskbar {
+  height: 50px;
+  background-color: rgba(30, 30, 30, 0.9);
+  backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.start-btn {
+  background-color: #0078D4;
+  color: white;
+  border: none;
+  width: 40px;
+  height: 35px;
+  border-radius: 4px;
+  font-weight: bold;
+  font-size: 1.2rem;
+  cursor: pointer;
+  margin-right: 15px;
+}
+
+.taskbar-icons {
+  flex-grow: 1;
+  display: flex;
+  gap: 5px;
+}
+
+.task-icon {
+  background: transparent;
+  color: white;
+  border: none;
+  padding: 5px 15px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  font-size: 1.2rem;
+}
+
+.task-icon:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.task-icon.active {
+  background-color: rgba(255, 255, 255, 0.2);
+  border-bottom: 2px solid #0078D4;
+}
+
+.taskbar-time {
+  color: white;
+  font-size: 0.9rem;
+  padding-right: 15px;
+}
