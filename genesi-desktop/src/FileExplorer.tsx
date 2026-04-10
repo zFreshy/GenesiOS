@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { 
-  IconFolderFilled, IconFile, IconDeviceFloppy, IconChevronRight, IconChevronLeft, IconChevronUp, 
+  IconFolderFilled, IconFile, IconDeviceFloppy, IconChevronRight, IconChevronLeft, IconChevronUp, IconChevronDown,
   IconSearch, IconLayoutGrid, IconList, IconHome, IconPhoto, IconDownload, 
   IconDeviceDesktop, IconFileText, IconMusic, IconVideo, IconDots, IconArrowUp, IconRefresh, 
   IconPlus, IconCut, IconCopy, IconClipboard, IconEdit, IconTrash
@@ -19,9 +19,10 @@ interface FileInfo {
   path: string;
   is_dir: boolean;
   size: number;
+  modified_at: number;
 }
 
-const FileExplorer = () => {
+export const FileExplorerBase = ({ isPicker = false, onFileSelect, onClosePicker }: { isPicker?: boolean, onFileSelect?: (url: string) => void, onClosePicker?: () => void }) => {
   const [currentPath, setCurrentPath] = useState<string>('Home');
   const [history, setHistory] = useState<string[]>(['Home']);
   const [historyIndex, setHistoryIndex] = useState<number>(0);
@@ -29,7 +30,85 @@ const FileExplorer = () => {
   const [drives, setDrives] = useState<DiskInfo[]>([]);
   const [files, setFiles] = useState<FileInfo[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
+
+  // Filtering and Sorting state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [typeFilter, setTypeFilter] = useState('all');
+  const [sortBy, setSortBy] = useState<'name' | 'size' | 'date' | 'type'>('name');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+
+  const getFileExtension = (filename: string) => {
+    const parts = filename.split('.');
+    return parts.length > 1 ? parts.pop()?.toLowerCase() || '' : '';
+  };
+
+  const getFileTypeCategory = (filename: string) => {
+    if (!filename.includes('.')) return 'other';
+    const ext = getFileExtension(filename);
+    if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg'].includes(ext)) return 'image';
+    if (['mp4', 'mkv', 'avi', 'mov', 'webm'].includes(ext)) return 'video';
+    if (['mp3', 'wav', 'ogg', 'flac'].includes(ext)) return 'audio';
+    if (['pdf', 'doc', 'docx', 'txt', 'rtf', 'md', 'csv', 'xlsx'].includes(ext)) return 'document';
+    if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext)) return 'archive';
+    return 'other';
+  };
+
+  const filteredAndSortedFiles = React.useMemo(() => {
+    let result = [...files];
+
+    if (searchQuery) {
+      result = result.filter(f => f.name.toLowerCase().includes(searchQuery.toLowerCase()));
+    }
+
+    if (typeFilter !== 'all') {
+      result = result.filter(f => {
+        if (f.is_dir) return true;
+        return getFileTypeCategory(f.name) === typeFilter;
+      });
+    }
+
+    result.sort((a, b) => {
+      if (a.is_dir !== b.is_dir) {
+        return a.is_dir ? -1 : 1;
+      }
+
+      let comparison = 0;
+      switch (sortBy) {
+        case 'name':
+          comparison = a.name.localeCompare(b.name);
+          break;
+        case 'size':
+          comparison = a.size - b.size;
+          break;
+        case 'date':
+          comparison = a.modified_at - b.modified_at;
+          break;
+        case 'type':
+          if (a.is_dir) {
+            comparison = a.name.localeCompare(b.name);
+          } else {
+            const extA = getFileExtension(a.name);
+            const extB = getFileExtension(b.name);
+            comparison = extA.localeCompare(extB) || a.name.localeCompare(b.name);
+          }
+          break;
+      }
+
+      return sortOrder === 'asc' ? comparison : -comparison;
+    });
+
+    return result;
+  }, [files, searchQuery, typeFilter, sortBy, sortOrder]);
+
+  const handleSort = (field: 'name' | 'size' | 'date' | 'type') => {
+    if (sortBy === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(field);
+      setSortOrder('asc');
+    }
+  };
 
   useEffect(() => {
     loadDrives();
@@ -101,6 +180,24 @@ const FileExplorer = () => {
     }
   };
 
+  const handleFileClick = async (file: FileInfo) => {
+    if (file.is_dir) {
+      navigateTo(file.path);
+    } else if (isPicker && onFileSelect) {
+      const isImage = file.name.match(/\.(jpg|jpeg|png|gif|webp)$/i);
+      if (isImage) {
+        try {
+          const bytes: number[] = await invoke('read_file_bytes', { path: file.path });
+          const blob = new Blob([new Uint8Array(bytes)]);
+          const url = URL.createObjectURL(blob);
+          onFileSelect(url);
+        } catch (e) {
+          console.error('Failed to load image', e);
+        }
+      }
+    }
+  };
+
   const formatSize = (bytes: number) => {
     if (bytes === 0) return '0 B';
     const k = 1024;
@@ -126,7 +223,7 @@ const FileExplorer = () => {
   ];
 
   return (
-    <div className="flex flex-col w-full h-full bg-[#1e1e1e] text-white/90 overflow-hidden font-sans rounded-b-xl border border-white/5">
+    <div className={`flex flex-col w-full h-full bg-[#1e1e1e] text-white/90 overflow-hidden font-sans ${isPicker ? '' : 'rounded-b-xl border border-white/5'}`}>
       
       {/* 1. Command Bar (Ribbon) */}
       <div className="h-[48px] bg-[#2d2d2d] border-b border-white/5 flex items-center px-4 gap-2 shrink-0">
@@ -201,13 +298,30 @@ const FileExplorer = () => {
           />
         </div>
 
-        <div className="w-[250px] relative flex items-center bg-[#2d2d2d] border border-white/10 rounded-md px-3 py-1.5 focus-within:border-blue-500/50 transition-colors">
-          <input 
-            type="text" 
-            placeholder="Search" 
-            className="bg-transparent border-none outline-none w-full text-[13px]"
-          />
-          <IconSearch size={16} className="text-white/40 ml-2 shrink-0" stroke={1.5} />
+        <div className="flex gap-2">
+          <select
+            value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value)}
+            className="bg-[#2d2d2d] border border-white/10 rounded-md px-2 py-1.5 text-[13px] outline-none focus:border-blue-500/50 transition-colors cursor-pointer"
+          >
+            <option value="all">All Types</option>
+            <option value="image">Images</option>
+            <option value="video">Videos</option>
+            <option value="audio">Audio</option>
+            <option value="document">Documents</option>
+            <option value="archive">Archives</option>
+          </select>
+
+          <div className="w-[200px] relative flex items-center bg-[#2d2d2d] border border-white/10 rounded-md px-3 py-1.5 focus-within:border-blue-500/50 transition-colors">
+            <input 
+              type="text" 
+              placeholder="Search" 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="bg-transparent border-none outline-none w-full text-[13px]"
+            />
+            <IconSearch size={16} className="text-white/40 ml-2 shrink-0" stroke={1.5} />
+          </div>
         </div>
       </div>
 
@@ -306,49 +420,75 @@ const FileExplorer = () => {
             <div className="p-2">
               {viewMode === 'grid' ? (
                 <div className="grid grid-cols-[repeat(auto-fill,minmax(100px,1fr))] gap-2 p-2">
-                  {files.map((file, i) => (
+                  {filteredAndSortedFiles.map((file, i) => {
+                    const isImage = file.name.match(/\.(jpg|jpeg|png|gif|webp)$/i);
+                    return (
                     <div 
                       key={i} 
-                      onClick={() => file.is_dir ? navigateTo(file.path) : null}
+                      onClick={() => handleFileClick(file)}
                       className="flex flex-col items-center gap-2 p-3 rounded-lg hover:bg-white/10 cursor-pointer transition-colors text-center group"
                     >
                       {file.is_dir ? (
                         <IconFolderFilled size={48} className="text-yellow-500 group-hover:scale-105 transition-transform" />
+                      ) : isImage && isPicker ? (
+                        <IconPhoto size={48} className="text-purple-400 group-hover:scale-105 transition-transform" />
                       ) : (
                         <IconFile size={48} stroke={1.5} className="text-white/80 group-hover:scale-105 transition-transform" />
                       )}
                       <span className="text-[12px] break-words w-full line-clamp-2 leading-tight" title={file.name}>{file.name}</span>
                     </div>
-                  ))}
+                  )})}
                 </div>
               ) : (
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="border-b border-white/5 text-[12px] text-white/50">
-                      <th className="font-normal px-4 py-2 hover:bg-white/5 cursor-pointer">Name</th>
-                      <th className="font-normal px-4 py-2 hover:bg-white/5 cursor-pointer w-32">Type</th>
-                      <th className="font-normal px-4 py-2 hover:bg-white/5 cursor-pointer w-32">Size</th>
+                <table className="w-full text-left border-collapse table-fixed">
+                  <thead className="sticky top-0 bg-[#191919] z-10 shadow-[0_1px_0_rgba(255,255,255,0.05)]">
+                    <tr className="text-[12px] text-white/70 select-none">
+                      <th className="font-normal px-4 py-2 hover:bg-white/5 cursor-pointer transition-colors" onClick={() => handleSort('name')}>
+                        <div className="flex items-center gap-2">
+                          Name {sortBy === 'name' && (sortOrder === 'asc' ? <IconChevronUp size={14} className="text-white shrink-0" /> : <IconChevronDown size={14} className="text-white shrink-0" />)}
+                        </div>
+                      </th>
+                      <th className="font-normal px-4 py-2 hover:bg-white/5 cursor-pointer w-40 transition-colors" onClick={() => handleSort('date')}>
+                        <div className="flex items-center gap-2">
+                          Date modified {sortBy === 'date' && (sortOrder === 'asc' ? <IconChevronUp size={14} className="text-white shrink-0" /> : <IconChevronDown size={14} className="text-white shrink-0" />)}
+                        </div>
+                      </th>
+                      <th className="font-normal px-4 py-2 hover:bg-white/5 cursor-pointer w-32 transition-colors" onClick={() => handleSort('type')}>
+                        <div className="flex items-center gap-2">
+                          Type {sortBy === 'type' && (sortOrder === 'asc' ? <IconChevronUp size={14} className="text-white shrink-0" /> : <IconChevronDown size={14} className="text-white shrink-0" />)}
+                        </div>
+                      </th>
+                      <th className="font-normal px-4 py-2 hover:bg-white/5 cursor-pointer w-32 transition-colors" onClick={() => handleSort('size')}>
+                        <div className="flex items-center gap-2">
+                          Size {sortBy === 'size' && (sortOrder === 'asc' ? <IconChevronUp size={14} className="text-white shrink-0" /> : <IconChevronDown size={14} className="text-white shrink-0" />)}
+                        </div>
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
-                    {files.map((file, i) => (
+                    {filteredAndSortedFiles.map((file, i) => (
                       <tr 
                         key={i} 
-                        onClick={() => file.is_dir ? navigateTo(file.path) : null}
+                        onClick={() => handleFileClick(file)}
                         className="hover:bg-white/5 cursor-pointer border-b border-transparent hover:border-white/5 text-[13px] transition-colors"
                       >
-                        <td className="px-4 py-2 flex items-center gap-3">
-                          {file.is_dir ? <IconFolderFilled size={16} className="text-yellow-500" /> : <IconFile size={16} stroke={1.5} className="text-white/60" />}
-                          <span className="truncate" title={file.name}>{file.name}</span>
+                        <td className="px-4 py-2">
+                          <div className="flex items-center gap-3 w-full overflow-hidden">
+                            <div className="shrink-0 flex items-center justify-center">
+                              {file.is_dir ? <IconFolderFilled size={16} className="text-yellow-500" /> : <IconFile size={16} stroke={1.5} className="text-white/60" />}
+                            </div>
+                            <span className="truncate" title={file.name}>{file.name}</span>
+                          </div>
                         </td>
-                        <td className="px-4 py-2 text-white/50">{file.is_dir ? 'File folder' : 'File'}</td>
-                        <td className="px-4 py-2 text-white/50">{file.is_dir ? '' : formatSize(file.size)}</td>
+                        <td className="px-4 py-2 text-white/50 truncate">{file.modified_at ? new Date(file.modified_at * 1000).toLocaleDateString() : ''}</td>
+                        <td className="px-4 py-2 text-white/50 truncate">{file.is_dir ? 'File folder' : getFileExtension(file.name).toUpperCase() + ' File'}</td>
+                        <td className="px-4 py-2 text-white/50 truncate">{file.is_dir ? '' : formatSize(file.size)}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               )}
-              {files.length === 0 && !loading && (
+              {filteredAndSortedFiles.length === 0 && !loading && (
                 <div className="flex flex-col items-center justify-center py-20 text-white/30">
                   <IconFolderFilled size={64} className="mb-4 opacity-50" />
                   <p>This folder is empty.</p>
@@ -363,7 +503,7 @@ const FileExplorer = () => {
       <div className="h-[24px] bg-[#0078D7] text-white flex items-center px-4 shrink-0 text-[11px]">
         {currentPath === 'Home' 
           ? `${drives.length} item(s)` 
-          : `${files.length} item(s)`
+          : `${filteredAndSortedFiles.length} item(s)`
         }
       </div>
 
@@ -371,4 +511,6 @@ const FileExplorer = () => {
   );
 };
 
-export default FileExplorer;
+export default function FileExplorer() {
+  return <FileExplorerBase />;
+}

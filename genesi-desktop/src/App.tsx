@@ -10,6 +10,9 @@ import StartMenu from './StartMenu';
 import StartContextMenu from './StartContextMenu';
 import SettingsApp from './SettingsApp';
 import FileExplorer from './FileExplorer';
+import { useTheme } from './ThemeContext';
+
+let globalZIndex = 10;
 
 // --- COMPONENTE DE JANELA (DRAGGABLE, RESIZABLE E ANIMADA) ---
 const DesktopWindow = ({ app, onClose, onMinimize, onMaximize, onFocus, isFullscreen, onUpdateBounds }) => {
@@ -116,12 +119,12 @@ const DesktopWindow = ({ app, onClose, onMinimize, onMaximize, onFocus, isFullsc
         onUpdateBounds(app.id, (prev) => ({ x: prev.x + info.delta.x, y: prev.y + info.delta.y }));
       }}
       className={`absolute flex flex-col shadow-2xl ${
-        isFullscreen ? 'rounded-none border-none z-[999]' : 
+        isFullscreen ? 'rounded-none border-none z-[99999]' : 
         app.maximized ? 'rounded-none border-none pb-[80px]' : 
         'rounded-xl border border-white/20 glass'
       }`}
       style={{ 
-        zIndex: isFullscreen ? 999 : app.zIndex,
+        zIndex: isFullscreen ? 99999 : app.zIndex,
         position: 'absolute',
         top: 0, left: 0, // Resetado porque o framer-motion vai controlar via x/y
         pointerEvents: app.minimized ? 'none' : 'auto' // Impede cliques quando minimizada
@@ -167,6 +170,7 @@ const DesktopWindow = ({ app, onClose, onMinimize, onMaximize, onFocus, isFullsc
 
 
 function App() {
+  const { theme, wallpaper } = useTheme();
   const [time, setTime] = useState(new Date());
 
   // Estado do Painel de Controle e Menu Iniciar
@@ -257,7 +261,7 @@ function App() {
   };
   const openApp = (id: string) => {
     setApps(apps.map(a => {
-      if (a.id === id) return { ...a, isOpen: true, minimized: false, zIndex: Date.now() };
+      if (a.id === id) return { ...a, isOpen: true, minimized: false, zIndex: ++globalZIndex };
       return a;
     }));
     setShowControlCenter(false); // Fecha o control center se abrir um app
@@ -271,20 +275,20 @@ function App() {
 
   const toggleMinimize = (id: string) => {
     setApps(apps.map(a => {
-      if (a.id === id) return { ...a, minimized: !a.minimized, zIndex: a.minimized ? Date.now() : a.zIndex };
+      if (a.id === id) return { ...a, minimized: !a.minimized, zIndex: a.minimized ? ++globalZIndex : a.zIndex };
       return a;
     }));
   };
 
   const toggleMaximize = (id: string) => {
     setApps(apps.map(a => {
-      if (a.id === id) return { ...a, maximized: !a.maximized, zIndex: Date.now() };
+      if (a.id === id) return { ...a, maximized: !a.maximized, zIndex: ++globalZIndex };
       return a;
     }));
   };
 
   const focusApp = (id: string) => {
-    setApps(apps.map(a => a.id === id ? { ...a, zIndex: Date.now() } : a));
+    setApps(apps.map(a => a.id === id ? { ...a, zIndex: ++globalZIndex } : a));
   };
 
   // Lidar com F11 para tela cheia de verdade
@@ -300,8 +304,8 @@ function App() {
   }, []);
 
   return (
-    <div className="relative w-screen h-screen bg-cover bg-center overflow-hidden flex flex-col items-center justify-center pb-24" 
-         style={{ backgroundImage: "url('/wallpaper1.png')" }}
+    <div className={`relative w-screen h-screen bg-cover bg-center overflow-hidden flex flex-col items-center justify-center pb-24 ${theme === 'light' ? 'text-black' : 'text-white'}`}
+         style={{ backgroundImage: `url('${wallpaper}')` }}
          onClick={() => { setShowControlCenter(false); setShowStartMenu(false); setShowStartContextMenu(false); }}
          onContextMenu={(e) => e.preventDefault()}>
       
@@ -314,7 +318,7 @@ function App() {
             exit={{ opacity: 0, y: 50, scale: 0.95 }}
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
             onClick={(e) => e.stopPropagation()} // Impede que o clique feche o painel
-            className="absolute bottom-24 right-5 z-50 origin-bottom-right grid grid-cols-4 auto-rows-[120px] gap-4 w-[850px] p-5 glass bg-black/60 shadow-2xl"
+            className="absolute bottom-24 right-5 z-[9995] origin-bottom-right grid grid-cols-4 auto-rows-[120px] gap-4 w-[850px] p-5 glass bg-black/60 shadow-2xl"
           >
             {/* Recent Apps */}
             <div className="glass !bg-white/5 col-span-2 row-span-2 p-5 flex flex-col justify-between items-center border-none">
@@ -415,9 +419,9 @@ function App() {
       {/* ======= TASKBAR (BOTTOM) ======= */}
       {!isFullscreenMode && (
       <div 
-        onClick={(e) => e.stopPropagation()} 
-        className="absolute bottom-5 left-1/2 -translate-x-1/2 h-[60px] px-5 bg-black/40 backdrop-blur-2xl border border-white/10 shadow-2xl rounded-full flex items-center justify-between w-[95%] max-w-[1100px] z-[100]"
-      >
+          onClick={(e) => e.stopPropagation()} 
+          className="absolute bottom-5 left-1/2 -translate-x-1/2 h-[60px] px-5 bg-black/40 backdrop-blur-2xl border border-white/10 shadow-2xl rounded-full flex items-center justify-between w-[95%] max-w-[1100px] z-[9990]"
+        >
          <div className="flex items-center gap-4">
             <button 
                onClick={(e) => { e.stopPropagation(); setShowStartMenu(!showStartMenu); setShowControlCenter(false); setShowStartContextMenu(false); }}

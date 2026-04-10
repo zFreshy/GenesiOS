@@ -1,16 +1,25 @@
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence, useDragControls } from 'framer-motion';
 import { 
   Search, Settings, Home, Users, Activity, Trophy, Calendar, Lightbulb, 
   FileSpreadsheet, Grid, Settings2, User, Sliders, AppWindow, ArrowUpCircle, 
-  Shield, LayoutTemplate, CreditCard, Map, Check, ChevronDown, Plus, Zap, Layers, TreePine, Hexagon, ChevronRight
+  Shield, LayoutTemplate, CreditCard, Map, Check, ChevronDown, Plus, Zap, Layers, TreePine, Hexagon, ChevronRight,
+  Folder, File as FileIcon, Image as ImageIcon, X, ChevronLeft, HardDrive
 } from 'lucide-react';
+import { invoke } from '@tauri-apps/api/core';
+
+import { useTheme } from './ThemeContext';
+
+import { FileExplorerBase } from './FileExplorer';
 
 const SettingsApp = () => {
+  const { theme, setTheme, setWallpaper } = useTheme();
+  
   const [mobilePush, setMobilePush] = useState(true);
   const [desktopPush, setDesktopPush] = useState(true);
   const [emailPush, setEmailPush] = useState(false);
   const [twoFactor, setTwoFactor] = useState(true);
+  const [showFilePicker, setShowFilePicker] = useState(false);
 
   return (
     <div className="flex w-full h-full bg-[#121212] text-white/90 overflow-hidden rounded-b-xl select-none font-sans border border-white/5">
@@ -166,9 +175,24 @@ const SettingsApp = () => {
               <div className="flex flex-col gap-8 pb-10">
                 <DropdownRow 
                   title="Appearance" 
-                  desc="Customize how you theams looks on your device." 
-                  value="Dark" 
+                  desc="Customize how the theme looks on your device." 
+                  value={theme === 'dark' ? 'Dark' : 'Light'}
+                  onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
                 />
+                
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex flex-col">
+                    <span className="text-[14px] font-semibold text-white/90">System Wallpaper</span>
+                    <span className="text-[13px] text-white/40 mt-1">Choose a background image from your files.</span>
+                  </div>
+                  <div 
+                    onClick={() => setShowFilePicker(true)}
+                    className="flex items-center gap-2 bg-[#1a1a1a] border border-white/10 px-4 py-2 rounded-lg cursor-pointer hover:bg-white/5 transition-colors shrink-0"
+                  >
+                    <span className="text-[13px] text-white/80">Browse files</span>
+                  </div>
+                </div>
+
                 <ToggleRow 
                   title="Two-factor authentication" 
                   desc="Keep your account secure by enabling 2FA via SMS or using a temporary one-time passcode (TOTP)." 
@@ -176,7 +200,7 @@ const SettingsApp = () => {
                 />
                 <DropdownRow 
                   title="Language" 
-                  desc="Customize how you theams looks on your device." 
+                  desc="Customize the language of the system." 
                   value="English" 
                 />
               </div>
@@ -186,6 +210,18 @@ const SettingsApp = () => {
 
         </div>
       </div>
+      {/* File Picker Modal */}
+      <AnimatePresence>
+        {showFilePicker && (
+          <CustomFilePicker 
+            onClose={() => setShowFilePicker(false)}
+            onSelect={(url) => {
+              setWallpaper(url);
+              setShowFilePicker(false);
+            }}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 };
@@ -251,13 +287,13 @@ const ToggleRow = ({ title, desc, checked, onChange }) => (
   </div>
 );
 
-const DropdownRow = ({ title, desc, value }) => (
+const DropdownRow = ({ title, desc, value, onClick }: any) => (
   <div className="flex items-center justify-between gap-4">
     <div className="flex flex-col">
       <span className="text-[14px] font-semibold text-white/90">{title}</span>
       <span className="text-[13px] text-white/40 mt-1">{desc}</span>
     </div>
-    <div className="flex items-center gap-2 bg-[#1a1a1a] border border-white/10 px-3 py-1.5 rounded-lg cursor-pointer hover:bg-white/5 transition-colors shrink-0">
+    <div onClick={onClick} className="flex items-center gap-2 bg-[#1a1a1a] border border-white/10 px-3 py-1.5 rounded-lg cursor-pointer hover:bg-white/5 transition-colors shrink-0">
       <span className="text-[13px] text-white/80">{value}</span>
       <ChevronDown size={14} className="text-white/40" />
     </div>
@@ -265,3 +301,34 @@ const DropdownRow = ({ title, desc, value }) => (
 );
 
 export default SettingsApp;
+
+const CustomFilePicker = ({ onClose, onSelect }: { onClose: () => void, onSelect: (url: string) => void }) => {
+  const dragControls = useDragControls();
+
+  return (
+    <motion.div 
+      className="absolute inset-0 z-[100] flex items-center justify-center pointer-events-none"
+    >
+      <motion.div
+        drag
+        dragListener={false}
+        dragControls={dragControls}
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        className="w-[850px] h-[550px] shadow-2xl rounded-xl border border-white/20 pointer-events-auto flex flex-col overflow-hidden bg-[#1e1e1e]"
+      >
+        {/* Title bar for drag */}
+        <div onPointerDown={(e) => dragControls.start(e)} className="h-10 bg-black/80 flex items-center justify-between px-4 cursor-default select-none shrink-0 border-b border-white/10">
+          <span className="text-xs font-semibold text-white/80">Select Wallpaper</span>
+          <button onClick={onClose} className="w-6 h-6 flex items-center justify-center hover:bg-white/10 rounded-full transition-colors"><X size={14}/></button>
+        </div>
+        
+        {/* The Explorer UI */}
+        <div className="flex-1 overflow-hidden relative">
+           <FileExplorerBase isPicker onFileSelect={onSelect} onClosePicker={onClose} />
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+};

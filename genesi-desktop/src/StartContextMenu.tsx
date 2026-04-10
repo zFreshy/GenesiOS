@@ -17,7 +17,7 @@ const StartContextMenu = ({ show, onClose, onOpenApp }: StartContextMenuProps) =
           exit={{ opacity: 0, y: 20, scale: 0.95 }}
           transition={{ type: "spring", stiffness: 300, damping: 30 }}
           onClick={(e) => e.stopPropagation()}
-          className="absolute bottom-[80px] z-[200] w-[280px] bg-[#1c1c1c]/95 backdrop-blur-3xl rounded-xl border border-white/10 shadow-2xl flex flex-col text-white py-2 text-[13px] font-medium"
+          className="absolute bottom-[80px] z-[9995] w-[280px] bg-[#1c1c1c]/95 backdrop-blur-3xl rounded-xl border border-white/10 shadow-2xl flex flex-col text-white py-2 text-[13px] font-medium"
           style={{ left: 'calc(50vw - min(47.5vw, 550px) + 20px)' }}
         >
           <div className="flex flex-col">

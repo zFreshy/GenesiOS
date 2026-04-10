@@ -1,5 +1,6 @@
 use std::fs;
 use std::path::Path;
+use std::time::UNIX_EPOCH;
 use sysinfo::Disks;
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
@@ -66,6 +67,7 @@ pub struct FileInfo {
     path: String,
     is_dir: bool,
     size: u64,
+    modified_at: u64,
 }
 
 #[tauri::command]
@@ -75,11 +77,18 @@ fn read_dir(path: &str) -> Result<Vec<FileInfo>, String> {
         Ok(dir) => {
             for entry in dir.flatten() {
                 let metadata = entry.metadata().map_err(|e| e.to_string())?;
+                let modified_at = metadata.modified()
+                    .unwrap_or(UNIX_EPOCH)
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_secs();
+
                 entries.push(FileInfo {
                     name: entry.file_name().into_string().unwrap_or_default(),
                     path: entry.path().to_string_lossy().to_string(),
                     is_dir: metadata.is_dir(),
                     size: metadata.len(),
+                    modified_at,
                 });
             }
             // Sort: directories first, then alphabetically
@@ -92,11 +101,16 @@ fn read_dir(path: &str) -> Result<Vec<FileInfo>, String> {
     }
 }
 
+#[tauri::command]
+fn read_file_bytes(path: &str) -> Result<Vec<u8>, String> {
+    fs::read(path).map_err(|e| e.to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![greet, get_drives, read_dir])
+        .invoke_handler(tauri::generate_handler![greet, get_drives, read_dir, read_file_bytes])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
