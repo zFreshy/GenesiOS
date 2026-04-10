@@ -83,6 +83,8 @@ const DesktopWindow = ({ app, onClose, onMinimize, onMaximize, onFocus, isFullsc
           scale: 0.4,
           y: window.innerHeight, // Vai para o fundo da tela (taskbar)
           x: app.x,
+          width: app.maximized || isFullscreen ? '100vw' : (app.width || 800),
+          height: app.maximized || isFullscreen ? '100vh' : (app.height || 500)
         } : { 
           opacity: 1, 
           scale: 1, 
@@ -97,7 +99,8 @@ const DesktopWindow = ({ app, onClose, onMinimize, onMaximize, onFocus, isFullsc
         isResizing || isDragging ? { duration: 0 } : { // Desliga a animação no resize/drag
           type: "spring", 
           stiffness: 300, 
-          damping: 30
+          damping: 30,
+          mass: 1.5 // Deixa a animação um pouco mais fluida e menos travada
         }
       }
       onClick={onFocus}
@@ -105,6 +108,13 @@ const DesktopWindow = ({ app, onClose, onMinimize, onMaximize, onFocus, isFullsc
       dragControls={dragControls}
       dragListener={false} // Só deixa arrastar pela titlebar
       dragMomentum={false}
+      style={{ 
+        zIndex: isFullscreen ? 99999 : app.zIndex,
+        position: 'absolute',
+        top: 0, left: 0, // Resetado porque o framer-motion vai controlar via x/y
+        pointerEvents: app.minimized ? 'none' : 'auto', // Impede cliques quando minimizada
+        willChange: 'transform, opacity, width, height' // Otimização de performance pesada
+      }}
       onDragStart={(event, info) => {
         setIsDragging(true);
         if (app.maximized) {
@@ -123,12 +133,6 @@ const DesktopWindow = ({ app, onClose, onMinimize, onMaximize, onFocus, isFullsc
         app.maximized ? 'rounded-none border-none pb-[80px]' : 
         'rounded-xl border border-white/20 glass'
       }`}
-      style={{ 
-        zIndex: isFullscreen ? 99999 : app.zIndex,
-        position: 'absolute',
-        top: 0, left: 0, // Resetado porque o framer-motion vai controlar via x/y
-        pointerEvents: app.minimized ? 'none' : 'auto' // Impede cliques quando minimizada
-      }}
     >
       {/* Custom Resize Handles (Só aparecem se não tiver maximizado) */}
       {!app.maximized && !isFullscreen && (
@@ -170,7 +174,7 @@ const DesktopWindow = ({ app, onClose, onMinimize, onMaximize, onFocus, isFullsc
 
 
 function App() {
-  const { theme, wallpaper } = useTheme();
+  const { theme, wallpaper, isLoading } = useTheme();
   const [time, setTime] = useState(new Date());
 
   // Estado do Painel de Controle e Menu Iniciar
@@ -302,6 +306,11 @@ function App() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
+
+  // If theme/wallpaper is still loading from the store, don't render the main app yet
+  if (isLoading) {
+    return <div className="w-screen h-screen bg-black flex items-center justify-center text-white font-sans">Loading...</div>;
+  }
 
   return (
     <div className={`relative w-screen h-screen bg-cover bg-center overflow-hidden flex flex-col items-center justify-center pb-24 ${theme === 'light' ? 'text-black' : 'text-white'}`}

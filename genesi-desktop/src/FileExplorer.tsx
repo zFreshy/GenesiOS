@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { LazyStore } from '@tauri-apps/plugin-store';
 import { 
   IconFolderFilled, IconFile, IconDeviceFloppy, IconChevronRight, IconChevronLeft, IconChevronUp, IconChevronDown,
   IconSearch, IconLayoutGrid, IconList, IconHome, IconPhoto, IconDownload, 
   IconDeviceDesktop, IconFileText, IconMusic, IconVideo, IconDots, IconArrowUp, IconRefresh, 
   IconPlus, IconCut, IconCopy, IconClipboard, IconEdit, IconTrash
 } from '@tabler/icons-react';
+
+const store = new LazyStore('settings.json');
 
 interface DiskInfo {
   name: string;
@@ -22,7 +25,7 @@ interface FileInfo {
   modified_at: number;
 }
 
-export const FileExplorerBase = ({ isPicker = false, onFileSelect, onClosePicker }: { isPicker?: boolean, onFileSelect?: (url: string) => void, onClosePicker?: () => void }) => {
+export const FileExplorerBase = ({ isPicker = false, onFileSelect, onClosePicker }: { isPicker?: boolean, onFileSelect?: (url: string, path?: string) => void, onClosePicker?: () => void }) => {
   const [currentPath, setCurrentPath] = useState<string>('Home');
   const [history, setHistory] = useState<string[]>(['Home']);
   const [historyIndex, setHistoryIndex] = useState<number>(0);
@@ -30,13 +33,47 @@ export const FileExplorerBase = ({ isPicker = false, onFileSelect, onClosePicker
   const [drives, setDrives] = useState<DiskInfo[]>([]);
   const [files, setFiles] = useState<FileInfo[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
+  const [viewMode, setViewModeState] = useState<'grid' | 'list'>('list');
 
   // Filtering and Sorting state
   const [searchQuery, setSearchQuery] = useState('');
-  const [typeFilter, setTypeFilter] = useState('all');
-  const [sortBy, setSortBy] = useState<'name' | 'size' | 'date' | 'type'>('name');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [typeFilter, setTypeFilterState] = useState('all');
+  const [sortBy, setSortByState] = useState<'name' | 'size' | 'date' | 'type'>('name');
+  const [sortOrder, setSortOrderState] = useState<'asc' | 'desc'>('asc');
+
+  // Load persisted state
+  useEffect(() => {
+    const loadState = async () => {
+      try {
+        const savedViewMode = await store.get<'grid' | 'list'>('explorer_view_mode');
+        if (savedViewMode) setViewModeState(savedViewMode);
+
+        const savedTypeFilter = await store.get<string>('explorer_type_filter');
+        if (savedTypeFilter) setTypeFilterState(savedTypeFilter);
+
+        const savedSortBy = await store.get<'name' | 'size' | 'date' | 'type'>('explorer_sort_by');
+        if (savedSortBy) setSortByState(savedSortBy);
+
+        const savedSortOrder = await store.get<'asc' | 'desc'>('explorer_sort_order');
+        if (savedSortOrder) setSortOrderState(savedSortOrder);
+      } catch (error) {
+        console.error('Failed to load explorer state:', error);
+      }
+    };
+    loadState();
+  }, []);
+
+  const handleViewModeChange = async (mode: 'grid' | 'list') => {
+    setViewModeState(mode);
+    await store.set('explorer_view_mode', mode);
+    await store.save();
+  };
+
+  const handleTypeFilterChange = async (filter: string) => {
+    setTypeFilterState(filter);
+    await store.set('explorer_type_filter', filter);
+    await store.save();
+  };
 
   const getFileExtension = (filename: string) => {
     const parts = filename.split('.');
@@ -101,12 +138,22 @@ export const FileExplorerBase = ({ isPicker = false, onFileSelect, onClosePicker
     return result;
   }, [files, searchQuery, typeFilter, sortBy, sortOrder]);
 
-  const handleSort = (field: 'name' | 'size' | 'date' | 'type') => {
-    if (sortBy === field) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortBy(field);
-      setSortOrder('asc');
+  const handleSort = async (field: 'name' | 'size' | 'date' | 'type') => {
+    try {
+      if (sortBy === field) {
+        const newOrder = sortOrder === 'asc' ? 'desc' : 'asc';
+        setSortOrderState(newOrder);
+        await store.set('explorer_sort_order', newOrder);
+        await store.save();
+      } else {
+        setSortByState(field);
+        setSortOrderState('asc');
+        await store.set('explorer_sort_by', field);
+        await store.set('explorer_sort_order', 'asc');
+        await store.save();
+      }
+    } catch (e) {
+      console.error('Failed to save sort state', e);
     }
   };
 
@@ -190,7 +237,7 @@ export const FileExplorerBase = ({ isPicker = false, onFileSelect, onClosePicker
           const bytes: number[] = await invoke('read_file_bytes', { path: file.path });
           const blob = new Blob([new Uint8Array(bytes)]);
           const url = URL.createObjectURL(blob);
-          onFileSelect(url);
+          onFileSelect(url, file.path);
         } catch (e) {
           console.error('Failed to load image', e);
         }
@@ -241,13 +288,13 @@ export const FileExplorerBase = ({ isPicker = false, onFileSelect, onClosePicker
         <div className="ml-auto flex items-center gap-1">
           <button 
             className={`p-2 rounded-md transition-colors ${viewMode === 'list' ? 'bg-white/10' : 'hover:bg-white/10'}`}
-            onClick={() => setViewMode('list')}
+            onClick={() => handleViewModeChange('list')}
           >
             <IconList size={16} className="text-white/80" />
           </button>
           <button 
             className={`p-2 rounded-md transition-colors ${viewMode === 'grid' ? 'bg-white/10' : 'hover:bg-white/10'}`}
-            onClick={() => setViewMode('grid')}
+            onClick={() => handleViewModeChange('grid')}
           >
             <IconLayoutGrid size={16} className="text-white/80" />
           </button>
@@ -301,7 +348,7 @@ export const FileExplorerBase = ({ isPicker = false, onFileSelect, onClosePicker
         <div className="flex gap-2">
           <select
             value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value)}
+            onChange={(e) => handleTypeFilterChange(e.target.value)}
             className="bg-[#2d2d2d] border border-white/10 rounded-md px-2 py-1.5 text-[13px] outline-none focus:border-blue-500/50 transition-colors cursor-pointer"
           >
             <option value="all">All Types</option>

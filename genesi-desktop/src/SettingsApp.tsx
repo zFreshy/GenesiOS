@@ -215,8 +215,12 @@ const SettingsApp = () => {
         {showFilePicker && (
           <CustomFilePicker 
             onClose={() => setShowFilePicker(false)}
-            onSelect={(url) => {
-              setWallpaper(url);
+            onSelect={(url, path) => {
+              if (path) {
+                setWallpaper(path, true); // Pass true to indicate it's a local path
+              } else {
+                setWallpaper(url);
+              }
               setShowFilePicker(false);
             }}
           />
@@ -302,7 +306,7 @@ const DropdownRow = ({ title, desc, value, onClick }: any) => (
 
 export default SettingsApp;
 
-const CustomFilePicker = ({ onClose, onSelect }: { onClose: () => void, onSelect: (url: string) => void }) => {
+const CustomFilePicker = ({ onClose, onSelect }: { onClose: () => void, onSelect: (url: string, path?: string) => void }) => {
   const dragControls = useDragControls();
 
   return (
