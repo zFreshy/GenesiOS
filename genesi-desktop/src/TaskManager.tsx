@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { 
   Activity, BarChart2, FolderOpen, User, Settings,
   PlaySquare, Box, Server, Search, MoreHorizontal, ShieldAlert,
-  Cpu, MemoryStick, HardDrive, Wifi, PauseCircle,
-  ChevronRight, StopCircle
+  Cpu, MemoryStick, HardDrive, Wifi,
+  ChevronRight, StopCircle, Terminal, Globe
 } from 'lucide-react';
 import { useTheme } from './ThemeContext';
 
@@ -207,30 +207,30 @@ const TaskManager: React.FC<TaskManagerProps> = ({ apps, onCloseApp }) => {
                 <div></div>
                 <div className="pr-4">
                   <div className="text-[10px] mb-1">{cpuUsage.toFixed(0)}%</div>
-                  <div className="w-full h-1 bg-gray-700 rounded-full overflow-hidden">
+                  <div className={`w-full h-1 ${theme === 'light' ? 'bg-gray-300' : 'bg-gray-700'} rounded-full overflow-hidden`}>
                     <div className="h-full bg-blue-500" style={{ width: `${cpuUsage}%` }}></div>
                   </div>
                 </div>
                 <div className="pr-4">
                   <div className="text-[10px] mb-1">{memUsage.toFixed(0)}%</div>
-                  <div className="w-full h-1 bg-gray-700 rounded-full overflow-hidden">
+                  <div className={`w-full h-1 ${theme === 'light' ? 'bg-gray-300' : 'bg-gray-700'} rounded-full overflow-hidden`}>
                     <div className="h-full bg-purple-500" style={{ width: `${memUsage}%` }}></div>
                   </div>
                 </div>
                 <div className="pr-4">
                   <div className="text-[10px] mb-1">0%</div>
-                  <div className="w-full h-1 bg-gray-700 rounded-full overflow-hidden"></div>
+                  <div className={`w-full h-1 ${theme === 'light' ? 'bg-gray-300' : 'bg-gray-700'} rounded-full overflow-hidden`}></div>
                 </div>
                 <div className="pr-4">
                   <div className="text-[10px] mb-1">0%</div>
-                  <div className="w-full h-1 bg-gray-700 rounded-full overflow-hidden"></div>
+                  <div className={`w-full h-1 ${theme === 'light' ? 'bg-gray-300' : 'bg-gray-700'} rounded-full overflow-hidden`}></div>
                 </div>
               </div>
 
               {/* PROCESS LIST */}
               <div className="px-2 pb-4">
                 {/* Apps Group */}
-                <div className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-gray-400">
+                <div className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold ${theme === 'light' ? 'text-gray-500' : 'text-gray-400'}`}>
                   <ChevronRight size={14} /> Apps ({apps.filter(a => a.isOpen).length})
                 </div>
                 {apps.filter(a => a.isOpen).map(app => {
@@ -260,7 +260,7 @@ const TaskManager: React.FC<TaskManagerProps> = ({ apps, onCloseApp }) => {
                 })}
 
                 {/* Background Processes Group */}
-                <div className="flex items-center gap-2 px-4 py-2 mt-4 text-xs font-semibold text-gray-400">
+                <div className={`flex items-center gap-2 px-4 py-2 mt-4 text-xs font-semibold ${theme === 'light' ? 'text-gray-500' : 'text-gray-400'}`}>
                   <ChevronRight size={14} /> Background processes
                 </div>
                 {Object.keys(processMetrics).filter(k => !apps.some(a => a.id === k)).map(id => {

@@ -1,41 +1,42 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, useDragControls } from 'framer-motion';
 import { LazyStore } from '@tauri-apps/plugin-store';
 import {
-  Wifi, Bluetooth, Bell, Sun, Moon, Battery,
-  Search, Globe, Mail, List, Power, Lock, RotateCcw, MoonStar,
-  Play, SkipBack, SkipForward, CloudSun, CalendarClock, Settings, X, Terminal, Package, Folder, Activity
+  Wifi, Battery, Globe, Terminal, Package, Folder, Activity, Settings, X, Play, List
 } from 'lucide-react';
-import { IconChevronUp, IconDeviceDesktop } from '@tabler/icons-react';
+import { IconBrandChrome } from '@tabler/icons-react';
 import './index.css';
 import StartMenu from './StartMenu';
 import StartContextMenu from './StartContextMenu';
 import SettingsApp from './SettingsApp';
 import FileExplorer from './FileExplorer';
 import TaskManager from './TaskManager';
+import ControlCenter from './ControlCenter';
 import { useTheme } from './ThemeContext';
 import { useDisplay } from './DisplayContext';
+
+import { Command } from '@tauri-apps/plugin-shell';
 
 let globalZIndex = 10;
 const appStateStore = new LazyStore('appState.json');
 
 // --- COMPONENTE DE JANELA (DRAGGABLE, RESIZABLE E ANIMADA) ---
-const DesktopWindow = ({ app, onClose, onMinimize, onMaximize, onFocus, isFullscreen, onUpdateBounds, displays, onSaveBounds }) => {
+const DesktopWindow = ({ app, onClose, onMinimize, onMaximize, onFocus, isFullscreen, onUpdateBounds, displays, onSaveBounds }: any) => {
   const dragControls = useDragControls();
   const [isResizing, setIsResizing] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
-  const windowRef = useRef(null);
+  const windowRef = useRef<HTMLDivElement>(null);
 
   // Calcula em qual monitor a janela está baseada no seu X e Y
-  const monitor = displays?.find(d => 
+  const monitor = displays?.find((d: any) => 
     app.x + 50 >= d.logicalX && 
     app.x + 50 <= d.logicalX + d.logicalWidth && 
     app.y + 10 >= d.logicalY && 
     app.y + 10 <= d.logicalY + d.logicalHeight
-  ) || displays?.find(d => d.isPrimary) || displays?.[0];
+  ) || displays?.find((d: any) => d.isPrimary) || displays?.[0];
 
   // Handles de resize manuais
-  const handleResize = (e, direction) => {
+  const handleResize = (e: any, direction: string) => {
     if (app.maximized || isFullscreen) return;
     
     e.stopPropagation();
@@ -47,7 +48,7 @@ const DesktopWindow = ({ app, onClose, onMinimize, onMaximize, onFocus, isFullsc
     const startPosX = app.x;
     const startPosY = app.y;
 
-    const onMouseMove = (moveEvent) => {
+    const onMouseMove = (moveEvent: any) => {
       let newW = startW;
       let newH = startH;
       let newX = startPosX;
@@ -133,7 +134,7 @@ const DesktopWindow = ({ app, onClose, onMinimize, onMaximize, onFocus, isFullsc
         pointerEvents: app.minimized ? 'none' : 'auto', // Impede cliques quando minimizada
         willChange: 'transform, opacity, width, height' // Otimização de performance pesada
       }}
-      onDragStart={(event, info) => {
+      onDragStart={() => {
         setIsDragging(true);
         if (app.maximized) {
           const rect = windowRef.current?.getBoundingClientRect();
@@ -151,7 +152,7 @@ const DesktopWindow = ({ app, onClose, onMinimize, onMaximize, onFocus, isFullsc
           const titleX = app.x + 50;
           const titleY = app.y + 10;
           
-          const isInsideAnyMonitor = displays.some(d => 
+          const isInsideAnyMonitor = displays.some((d: any) => 
             titleX >= d.logicalX && 
             titleX <= d.logicalX + d.logicalWidth && 
             titleY >= d.logicalY && 
@@ -160,7 +161,7 @@ const DesktopWindow = ({ app, onClose, onMinimize, onMaximize, onFocus, isFullsc
 
           if (!isInsideAnyMonitor) {
             // Se perdeu no limbo, teletransporta de volta pro monitor principal
-            const primary = displays.find(d => d.isPrimary) || displays[0];
+            const primary = displays.find((d: any) => d.isPrimary) || displays[0];
             onUpdateBounds(app.id, { 
               x: primary.logicalX + 100, 
               y: primary.logicalY + 100 
@@ -170,8 +171,8 @@ const DesktopWindow = ({ app, onClose, onMinimize, onMaximize, onFocus, isFullsc
         
         if (onSaveBounds) onSaveBounds(app.id);
       }}
-      onDrag={(event, info) => {
-        onUpdateBounds(app.id, (prev) => ({ x: prev.x + info.delta.x, y: prev.y + info.delta.y }));
+      onDrag={(_, info) => {
+        onUpdateBounds(app.id, (prev: any) => ({ x: prev.x + info.delta.x, y: prev.y + info.delta.y }));
       }}
       className={`absolute flex flex-col shadow-2xl ${
         isFullscreen ? 'rounded-none border-none z-[99999]' : 
@@ -224,10 +225,8 @@ function App() {
   const [time, setTime] = useState(new Date());
 
   // Pega as dimensões totais da janela que agora cobre todos os monitores
-  const [windowBounds, setWindowBounds] = useState({ width: window.innerWidth, height: window.innerHeight });
-
   useEffect(() => {
-    const handleResize = () => setWindowBounds({ width: window.innerWidth, height: window.innerHeight });
+    const handleResize = () => {};
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
@@ -239,18 +238,10 @@ function App() {
   const [isFullscreenMode, setIsFullscreenMode] = useState(false);
   const [activeMonitorId, setActiveMonitorId] = useState<string | null>(null);
 
-  // States dos botões
-  const [wifiOn, setWifiOn] = useState(true);
-  const [btOn, setBtOn] = useState(true);
-  const [dndOn, setDndOn] = useState(false);
-  const [darkOn, setDarkOn] = useState(true);
-  const [brightness, setBrightness] = useState(80);
-  const [volume, setVolume] = useState(60);
-
   // Gerenciamento Avançado de Janelas
   const [apps, setApps] = useState([
     {
-      id: 'browser', title: 'Genesi Browser', icon: Globe, color: 'bg-blue-500', 
+      id: 'browser', baseId: 'browser', title: 'Genesi Browser', icon: Globe, color: 'bg-blue-500', 
       defaultX: 100, defaultY: 50, x: 100, y: 50, width: 800, height: 500,
       isOpen: false, minimized: false, maximized: false, zIndex: 10,
       content: (
@@ -264,7 +255,7 @@ function App() {
       )
     },
     {
-      id: 'terminal', title: 'Terminal - root@genesi', icon: Terminal, color: 'bg-gray-800', 
+      id: 'terminal', baseId: 'terminal', title: 'Terminal - root@genesi', icon: Terminal, color: 'bg-gray-800', 
       defaultX: 150, defaultY: 100, x: 150, y: 100, width: 700, height: 450,
       isOpen: false, minimized: false, maximized: false, zIndex: 10,
       content: (
@@ -278,7 +269,7 @@ function App() {
       )
     },
     {
-      id: 'package', title: 'Genesi Package Manager', icon: Package, color: 'bg-purple-500', 
+      id: 'package', baseId: 'package', title: 'Genesi Package Manager', icon: Package, color: 'bg-purple-500', 
       defaultX: 200, defaultY: 150, x: 200, y: 150, width: 600, height: 400,
       isOpen: false, minimized: false, maximized: false, zIndex: 10,
       content: (
@@ -291,24 +282,57 @@ function App() {
       )
     },
     {
-      id: 'settings', title: 'Configurações', icon: Settings, color: 'bg-blue-600', 
+      id: 'settings', baseId: 'settings', title: 'Configurações', icon: Settings, color: 'bg-blue-600', 
       defaultX: 250, defaultY: 100, x: 250, y: 100, width: 900, height: 600,
       isOpen: false, minimized: false, maximized: false, zIndex: 10,
       content: <SettingsApp />
     },
     {
-      id: 'files', title: 'File Explorer', icon: Folder, color: 'bg-yellow-500', 
+      id: 'files', baseId: 'files', title: 'File Explorer', icon: Folder, color: 'bg-yellow-500', 
       defaultX: 300, defaultY: 120, x: 300, y: 120, width: 850, height: 550,
       isOpen: false, minimized: false, maximized: false, zIndex: 10,
       content: <FileExplorer />
     },
     {
-      id: 'taskmgr', title: 'Task Manager', icon: Activity, color: 'bg-blue-500', 
+      id: 'taskmgr', baseId: 'taskmgr', title: 'Task Manager', icon: Activity, color: 'bg-blue-500', 
       defaultX: 350, defaultY: 150, x: 350, y: 150, width: 800, height: 500,
       isOpen: false, minimized: false, maximized: false, zIndex: 10,
       content: null // Injetado abaixo para evitar problemas de escopo circular com apps e closeApp
+    },
+    {
+      id: 'image-viewer', baseId: 'image-viewer', title: 'Image Viewer', icon: Folder, color: 'bg-purple-500', 
+      defaultX: 400, defaultY: 150, x: 400, y: 150, width: 800, height: 600,
+      isOpen: false, minimized: false, maximized: false, zIndex: 10,
+      content: null // dynamically injected
+    },
+    {
+      id: 'video-player', baseId: 'video-player', title: 'Video Player', icon: Play, color: 'bg-red-500', 
+      defaultX: 450, defaultY: 180, x: 450, y: 180, width: 800, height: 600,
+      isOpen: false, minimized: false, maximized: false, zIndex: 10,
+      content: null
+    },
+    {
+      id: 'text-editor', baseId: 'text-editor', title: 'Text Editor', icon: List, color: 'bg-gray-500', 
+      defaultX: 500, defaultY: 200, x: 500, y: 200, width: 800, height: 600,
+      isOpen: false, minimized: false, maximized: false, zIndex: 10,
+      content: null
     }
   ]);
+
+  const [pinnedApps] = useState(['browser', 'files', 'settings', 'taskmgr', 'chrome']);
+  
+  const APP_DEF: Record<string, any> = {
+    'browser': { title: 'Genesi Browser', icon: Globe },
+    'terminal': { title: 'Terminal', icon: Terminal },
+    'package': { title: 'Package Manager', icon: Package },
+    'settings': { title: 'Configurações', icon: Settings },
+    'files': { title: 'File Explorer', icon: Folder },
+    'taskmgr': { title: 'Task Manager', icon: Activity },
+    'image-viewer': { title: 'Image Viewer', icon: Folder, isHidden: true },
+    'video-player': { title: 'Video Player', icon: Play, isHidden: true },
+    'text-editor': { title: 'Text Editor', icon: List, isHidden: true },
+    'chrome': { title: 'Google Chrome', icon: IconBrandChrome, isExternal: true },
+  };
 
   useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 1000);
@@ -319,7 +343,7 @@ function App() {
   useEffect(() => {
     const loadBounds = async () => {
       try {
-        const savedBounds = await appStateStore.get('windowBounds');
+        const savedBounds: any = await appStateStore.get('windowBounds');
         if (savedBounds) {
           setApps(prevApps => prevApps.map(app => {
             if (savedBounds[app.id]) {
@@ -366,27 +390,74 @@ function App() {
       return a;
     }));
   };
-  const openApp = (id: string) => {
-    setApps(apps.map(a => {
-      if (a.id === id) {
-        return { ...a, isOpen: true, minimized: false, zIndex: ++globalZIndex };
+  const openApp = async (baseId: string, forceNewInstance = false, additionalProps = {}) => {
+    if (baseId === 'chrome') {
+      try {
+        await Command.create('start-chrome').execute();
+      } catch (e) {
+        console.error('Failed to start Chrome:', e);
       }
-      return a;
-    }));
-    setShowControlCenter(false); // Fecha o control center se abrir um app
-    setShowStartMenu(false); // Fecha o start menu
-    setShowStartContextMenu(false); // Fecha o menu de contexto
+      setShowControlCenter(false);
+      setShowStartMenu(false);
+      setShowStartContextMenu(false);
+      return;
+    }
+
+    setApps(currentApps => {
+      const existingInstances = currentApps.filter(a => a.baseId === baseId && a.isOpen);
+      
+      // If it's already open and we don't force a new instance, just focus the first one
+      if (!forceNewInstance && existingInstances.length > 0 && Object.keys(additionalProps).length === 0) {
+        return currentApps.map(a => 
+          a.id === existingInstances[0].id ? { ...a, minimized: false, zIndex: ++globalZIndex } : a
+        );
+      }
+
+      // Need to open or spawn a new instance
+      const defaultInstance = currentApps.find(a => a.id === baseId);
+      if (!defaultInstance) return currentApps; // fallback
+
+      // If default is closed and we don't force new, just open the default one
+      if (!defaultInstance.isOpen && !forceNewInstance && Object.keys(additionalProps).length === 0) {
+         return currentApps.map(a => a.id === baseId ? { ...a, isOpen: true, minimized: false, zIndex: ++globalZIndex } : a);
+      }
+
+      // Force spawn new instance (e.g. Right Click -> New Window or Opening a File)
+      const newId = `${baseId}_${Date.now()}`;
+      const offset = existingInstances.length * 30;
+      const newInstance = {
+        ...defaultInstance,
+        id: newId,
+        isOpen: true,
+        minimized: false,
+        maximized: false,
+        zIndex: ++globalZIndex,
+        x: defaultInstance.defaultX + offset,
+        y: defaultInstance.defaultY + offset,
+        ...additionalProps // Inject custom title, content, etc if passed
+      };
+      
+      return [...currentApps, newInstance];
+    });
+
+    setShowControlCenter(false);
+    setShowStartMenu(false);
+    setShowStartContextMenu(false);
   };
 
   const closeApp = (id: string) => {
-    setApps(apps.map(a => {
+    setApps(apps => apps.map(a => {
       if (a.id === id) {
-        // Schedule save of its final state before closing
         setTimeout(() => saveAppBounds(id), 100);
         return { ...a, isOpen: false, minimized: false };
       }
       return a;
     }));
+
+    // Se for uma instância dinâmica clonada, remova ela do estado após a animação de fechar (300ms)
+    setTimeout(() => {
+      setApps(currentApps => currentApps.filter(a => !(a.id === id && a.id !== a.baseId && !a.isOpen)));
+    }, 300);
   };
 
   const toggleMinimize = (id: string) => {
@@ -416,6 +487,9 @@ function App() {
   const appsWithDynamicContent = apps.map(a => {
     if (a.id === 'taskmgr') {
       return { ...a, content: <TaskManager apps={apps} onCloseApp={closeApp} /> };
+    }
+    if (a.baseId === 'files') {
+      return { ...a, content: <FileExplorer onOpenInApp={(baseId, props) => openApp(baseId, true, props)} /> };
     }
     return a;
   });
@@ -513,82 +587,31 @@ function App() {
           <Activity size={40} strokeWidth={1} className="text-blue-400 group-hover:scale-105 transition-transform" />
           <span className="text-xs font-medium text-white drop-shadow-md text-center leading-tight">Task<br/>Manager</span>
         </div>
+
+        <div 
+          onDoubleClick={() => openApp('chrome')}
+          className="w-20 h-20 flex flex-col items-center justify-center gap-1 rounded-md hover:bg-white/10 cursor-pointer group transition-colors"
+        >
+          <IconBrandChrome size={40} strokeWidth={1} className="text-green-500 group-hover:scale-105 transition-transform" />
+          <span className="text-xs font-medium text-white drop-shadow-md">Chrome</span>
+        </div>
       </div>
 
       {/* ======= CONTROL CENTER & WIDGETS (Aparece ao clicar no tray) ======= */}
       <AnimatePresence>
-        {showControlCenter && (
-          <motion.div 
-            initial={{ opacity: 0, y: 50, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 50, scale: 0.95 }}
-            transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            onClick={(e) => e.stopPropagation()} // Impede que o clique feche o painel
-            className="absolute bottom-24 right-5 z-[9995] origin-bottom-right grid grid-cols-4 auto-rows-[120px] gap-4 w-[850px] p-5 glass bg-black/60 shadow-2xl"
-          >
-            {/* Recent Apps */}
-            <div className="glass !bg-white/5 col-span-2 row-span-2 p-5 flex flex-col justify-between items-center border-none">
-              <h4 className="text-xs tracking-widest text-white/60 uppercase self-start w-full text-center mb-4">Acesso Rápido</h4>
-              <div className="flex gap-5">
-                {apps.map(app => (
-                  <div key={app.id} onClick={() => openApp(app.id)} className={`app-icon ${app.color}`}>
-                    <app.icon size={28} color="white" />
-                  </div>
-                ))}
-              </div>
-              <button className="glass-btn mt-4">Todos os apps</button>
-            </div>
-
-            {/* Control Center */}
-            <div className="glass !bg-white/5 col-span-2 row-span-1 p-5 flex flex-col justify-center gap-4 border-none">
-              <div className="flex justify-around gap-4">
-                <button onClick={() => setWifiOn(!wifiOn)} className={`toggle-btn ${wifiOn ? 'active' : ''}`}><Wifi size={20}/></button>
-                <button onClick={() => setBtOn(!btOn)} className={`toggle-btn ${btOn ? 'active' : ''}`}><Bluetooth size={20}/></button>
-                <button onClick={() => setDndOn(!dndOn)} className={`toggle-btn ${dndOn ? 'active' : ''}`}><Bell size={20}/></button>
-                <button onClick={() => setDarkOn(!darkOn)} className={`toggle-btn ${darkOn ? 'active' : ''}`}><Moon size={20}/></button>
-              </div>
-              <div className="flex flex-col gap-2">
-                <div className="h-6 w-full bg-black/30 rounded-full overflow-hidden cursor-pointer" onClick={(e) => setVolume(Math.max(10, volume - 10))}>
-                  <div className="h-full bg-white/70 transition-all" style={{width: `${volume}%`}}></div>
-                </div>
-                <div className="h-6 w-full bg-black/30 rounded-full overflow-hidden cursor-pointer" onClick={(e) => setBrightness(Math.max(10, brightness - 10))}>
-                  <div className="h-full bg-[#f39c12] transition-all" style={{width: `${brightness}%`}}></div>
-                </div>
-              </div>
-            </div>
-
-            {/* Media Player */}
-            <div className="glass !bg-white/5 col-span-2 row-span-1 p-5 flex items-center justify-between border-none">
-              <div className="flex flex-col">
-                <h5 className="text-xs font-medium text-green-400 mb-1">Spotify</h5>
-                <h3 className="text-xl mb-1">Going Crazy</h3>
-                <p className="text-xs text-white/60 mb-3">Flip Capella, Otray...</p>
-                <div className="flex items-center gap-4 cursor-pointer text-white">
-                  <SkipBack size={20} className="hover:text-white/70"/> 
-                  <Play size={28} fill="white" className="hover:scale-110 transition-transform"/> 
-                  <SkipForward size={20} className="hover:text-white/70"/>
-                </div>
-              </div>
-              <div className="w-20 h-20 bg-gradient-to-br from-pink-500 to-purple-600 rounded-xl flex justify-center items-center font-bold text-sm shadow-lg">
-                CRAZY
-              </div>
-            </div>
-
-            {/* Weather */}
-            <div className="glass !bg-white/5 col-span-2 row-span-1 p-5 flex items-center justify-between border-none">
-              <div className="flex flex-col items-start gap-1">
-                <CloudSun size={40} color="#FFD700" />
-                <h2 className="text-3xl font-light">24°</h2>
-              </div>
-              <div className="text-right text-sm text-white/80">
-                <p className="font-semibold mb-1">Ensolarado</p>
-                <p>São Paulo, BR</p>
-                <p className="text-xs text-white/50 mt-2">{time.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
-              </div>
-            </div>
-
-          </motion.div>
-        )}
+        {showControlCenter && (() => {
+          const activeMon = displays.find(d => d.id === activeMonitorId) || primaryDisplay;
+          const taskbarWidth = Math.min(1100, activeMon.logicalWidth * 0.95);
+          // O painel fica à direita, acima da taskbar
+          return (
+            <ControlCenter 
+              show={showControlCenter} 
+              time={time}
+              x={activeMon.logicalWidth - ((activeMon.logicalWidth / 2) + (taskbarWidth / 2))} 
+              y={90}
+            />
+          );
+        })()}
       </AnimatePresence>
 
       {/* ======= START MENU ======= */}
@@ -645,10 +668,12 @@ function App() {
       </AnimatePresence>
 
       {/* ======= TASKBARS (UMA POR MONITOR) ======= */}
-      {displays.map((d, i) => (
+      {displays.map((d) => (
         <div 
           key={`taskbar-${d.id}`}
-          className="absolute z-[9990] h-[60px] px-5 bg-black/40 backdrop-blur-2xl border border-white/10 shadow-2xl rounded-full flex items-center justify-between transition-all duration-300"
+          className={`absolute z-[9990] h-[60px] px-5 backdrop-blur-2xl border shadow-2xl rounded-full flex items-center justify-between transition-all duration-300 ${
+            theme === 'light' ? 'bg-white/70 border-black/10' : 'bg-black/40 border-white/10'
+          }`}
           style={{
             left: d.logicalX + (d.logicalWidth / 2),
             top: d.logicalY + d.logicalHeight - 80, // bottom-5 equivalente
@@ -676,53 +701,137 @@ function App() {
                 setShowStartContextMenu(true); 
                 setShowStartMenu(false); 
               }}
-              className="w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 flex justify-center items-center transition-colors font-bold text-lg font-mono text-white"
+              className={`w-10 h-10 rounded-full flex justify-center items-center transition-colors font-bold text-lg font-mono ${
+                theme === 'light' ? 'bg-black/10 hover:bg-black/20 text-black' : 'bg-white/20 hover:bg-white/30 text-white'
+              }`}
             >
               G
             </button>
-            <div className="w-[1px] h-6 bg-white/20 mx-2"></div>
+            <div className={`w-[1px] h-6 mx-2 ${theme === 'light' ? 'bg-black/20' : 'bg-white/20'}`}></div>
 
             {/* Ícones dos apps abertos/pinados na Taskbar */}
-            <div className="flex items-center gap-2">
-              {apps.map(app => {
-                if (!app.isOpen) return null;
+            <div className="flex items-center gap-2 relative">
+              {pinnedApps.map(baseId => {
+                const def = APP_DEF[baseId];
+                if (!def) return null;
+                const openInstances = apps.filter(a => a.baseId === baseId && a.isOpen);
+                const isOpen = openInstances.length > 0;
+                const isFocused = openInstances.some(a => a.zIndex === Math.max(...apps.filter(x => x.isOpen).map(x => x.zIndex)));
+                
                 return (
-                  <div key={app.id} className="relative group">
+                  <div 
+                    key={`pinned-${baseId}`}
+                    className="relative group flex items-center justify-center w-10 h-10"
+                  >
                     <button 
                       onClick={(e) => { 
-                        e.stopPropagation(); 
-                        if (app.minimized) {
-                          toggleMinimize(app.id);
-                        } else if (app.zIndex < Math.max(...apps.filter(a => a.isOpen).map(a => a.zIndex))) {
-                          focusApp(app.id);
-                        } else {
-                          toggleMinimize(app.id);
-                        }
+                        e.stopPropagation();
+                        openApp(baseId);
+                      }}
+                      onContextMenu={(e) => { 
+                        e.preventDefault(); 
+                        e.stopPropagation();
+                        openApp(baseId, true); // Força nova instância no botão direito
                       }} 
-                      className={`w-10 h-10 rounded-xl ${app.color} flex justify-center items-center transition-transform group-hover:-translate-y-1 shadow-lg`}
-                      title={app.title}
+                      className={`w-10 h-10 rounded-xl flex justify-center items-center transition-all shadow-lg ${
+                        isOpen 
+                          ? isFocused 
+                            ? (theme === 'light' ? 'bg-black/10 scale-105 border border-black/10' : 'bg-white/20 scale-105 border border-white/10')
+                            : (theme === 'light' ? 'bg-black/5 hover:bg-black/10' : 'bg-white/10 hover:bg-white/15')
+                          : `bg-transparent border border-transparent ${theme === 'light' ? 'hover:bg-black/5' : 'hover:bg-white/5'}`
+                      }`}
+                      title={def.title}
                     >
-                      <app.icon size={18} color="white"/>
+                      <def.icon size={22} className={isOpen ? (theme === 'light' ? 'text-black' : 'text-white') : (theme === 'light' ? 'text-black/70' : 'text-white/70')} />
                     </button>
+                    
                     {/* Bolinha indicadora de aberto */}
-                    <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-white rounded-full"></div>
+                    {isOpen && (
+                      <div className={`absolute -bottom-1.5 left-1/2 -translate-x-1/2 h-1 rounded-full transition-all ${
+                        isFocused 
+                          ? 'w-4 bg-blue-500' 
+                          : (theme === 'light' ? 'w-1.5 bg-black/50' : 'w-1.5 bg-white/70')
+                      }`}></div>
+                    )}
+
+                    {/* Hover Preview (Miniaturas estilo Windows 11) */}
+                    {isOpen && (
+                      <div className="absolute bottom-[40px] left-1/2 -translate-x-1/2 hidden group-hover:flex transition-opacity pb-4 pt-4 px-10 z-[10000]">
+                        <div className={`border rounded-lg shadow-2xl p-2 gap-2 flex pointer-events-auto relative ${
+                          theme === 'light' ? 'bg-white/90 border-black/10 backdrop-blur-xl' : 'bg-[#202020] border-white/10'
+                        }`}>
+                          {openInstances.map(inst => (
+                            <div 
+                              key={`preview-${inst.id}`} 
+                              onClick={(e) => { 
+                                e.stopPropagation(); 
+                                focusApp(inst.id); 
+                                if(inst.minimized) toggleMinimize(inst.id); 
+                              }}
+                              className={`flex flex-col items-center gap-2 p-2 rounded-md cursor-pointer transition-colors ${
+                                theme === 'light' ? 'hover:bg-black/5' : 'hover:bg-white/10'
+                              }`}
+                            >
+                              <div className={`w-40 h-24 border rounded overflow-hidden flex items-center justify-center relative group/close shadow-inner ${
+                                theme === 'light' ? 'bg-gray-100 border-black/10' : 'bg-black/50 border-white/10'
+                              }`}>
+                                 {/* Real content preview scaled down */}
+                                 {inst.content && !def.isExternal ? (
+                                   <div className="absolute inset-0 pointer-events-none origin-top-left" style={{ 
+                                     width: inst.width || 800, 
+                                     height: inst.height || 500,
+                                     transform: `scale(${160 / (inst.width || 800)})` // 160px is the w-40 width
+                                   }}>
+                                     {/* Re-render the app content inside the thumbnail for live preview */}
+                                     {inst.content}
+                                     {/* Glass overlay to make it look like a thumbnail */}
+                                     <div className={`absolute inset-0 ${theme === 'light' ? 'bg-white/10' : 'bg-black/10'}`}></div>
+                                   </div>
+                                 ) : (
+                                   <def.icon size={32} className={theme === 'light' ? 'text-black/30' : 'text-white/30'} />
+                                 )}
+
+                                 {/* Botão fechar instância */}
+                                 <div 
+                                   className="absolute top-1 right-1 w-6 h-6 flex items-center justify-center bg-red-500/90 hover:bg-red-600 rounded text-white opacity-0 group-hover/close:opacity-100 transition-opacity z-10 shadow-md"
+                                   onClick={(e) => { e.stopPropagation(); closeApp(inst.id); }}
+                                 >
+                                   <X size={14} strokeWidth={2.5} />
+                                 </div>
+                              </div>
+                              <span className={`text-[11px] font-medium truncate w-40 text-center ${
+                                theme === 'light' ? 'text-black' : 'text-white'
+                              }`}>
+                                {inst.title}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })}
+
+              {/* Linha separadora caso tenhamos apps não-fixados abertos no futuro */}
             </div>
           </div>
 
           {/* TRAY SYSTEM (Right side) */}
           <div className="flex items-center gap-3">
             <div 
-              className="flex items-center gap-4 cursor-pointer hover:bg-white/10 p-2 rounded-full transition-colors ml-auto"
+              className={`flex items-center gap-4 cursor-pointer p-2 rounded-full transition-colors ml-auto ${
+                theme === 'light' ? 'hover:bg-black/5 text-black' : 'hover:bg-white/10 text-white'
+              }`}
               onClick={(e) => { e.stopPropagation(); setShowControlCenter(!showControlCenter); setShowStartMenu(false); setShowStartContextMenu(false); }}
             >
               <div className="flex flex-col items-end">
                 <span className="font-semibold text-sm leading-tight">{time.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-                <span className="text-white/60 text-[10px] uppercase leading-tight mt-0.5">{time.toLocaleDateString([], {weekday: 'short', day: 'numeric', month: 'short'})}</span>
+                <span className={`text-[10px] uppercase leading-tight mt-0.5 ${theme === 'light' ? 'text-black/60' : 'text-white/60'}`}>{time.toLocaleDateString([], {weekday: 'short', day: 'numeric', month: 'short'})}</span>
               </div>
-              <div className="flex items-center gap-2 bg-white/10 px-3 py-1.5 rounded-full text-xs shadow-inner">
+              <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs shadow-inner ${
+                theme === 'light' ? 'bg-black/5 text-black' : 'bg-white/10 text-white'
+              }`}>
                 <Battery size={14}/>
                 <Wifi size={14}/>
                 <span className="font-medium">BR</span>
@@ -731,7 +840,9 @@ function App() {
             
             {/* Show desktop button */}
             <div 
-              className="w-1.5 h-6 border-l border-white/20 ml-1 hover:bg-white/20 cursor-pointer transition-colors" 
+              className={`w-1.5 h-6 border-l ml-1 cursor-pointer transition-colors ${
+                theme === 'light' ? 'border-black/20 hover:bg-black/10' : 'border-white/20 hover:bg-white/20'
+              }`} 
               onClick={(e) => {
                 e.stopPropagation();
                 // Minimiza todos os apps abertos

@@ -27,4 +27,5 @@ tauri-plugin-store = "2.4.2"
 tauri-plugin-shell = "2.3.5"
 btleplug = "0.12.0"
 tokio = { version = "1.51.1", features = ["rt", "rt-multi-thread", "macros", "time"] }
+tauri-plugin-dialog = "2.7.0"
 

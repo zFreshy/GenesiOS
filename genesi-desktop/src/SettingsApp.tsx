@@ -1,20 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence, useDragControls } from 'framer-motion';
 import { 
   Search, Settings, Home, Users, Activity, Trophy, Calendar, Lightbulb, 
   FileSpreadsheet, Grid, Settings2, User, Sliders, AppWindow, ArrowUpCircle, 
   Shield, LayoutTemplate, CreditCard, Map, Check, ChevronDown, Plus, Zap, Layers, TreePine, Hexagon, ChevronRight,
-  Folder, File as FileIcon, Image as ImageIcon, X, ChevronLeft, HardDrive, Monitor, Paintbrush
+  Image as ImageIcon, X, Monitor, Paintbrush
 } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 
 import { useTheme } from './ThemeContext';
-import { useDisplay, Display } from './DisplayContext';
+import { useDisplay } from './DisplayContext';
 
 import { FileExplorerBase } from './FileExplorer';
 
 const SettingsApp = () => {
-  const { theme, setTheme, wallpapers, wallpaperHistory, setWallpaper } = useTheme();
+  const { theme, setTheme, wallpaperHistory, setWallpaper } = useTheme();
   const { displays, updateDisplayLayout, isMultiMonitor } = useDisplay();
   
   const [mobilePush, setMobilePush] = useState(true);
@@ -49,81 +49,81 @@ const SettingsApp = () => {
   }, [wallpaperHistory]);
 
   return (
-    <div className="flex w-full h-full bg-[#121212] text-white/90 overflow-hidden rounded-b-xl select-none font-sans border border-white/5">
+    <div className={`flex w-full h-full ${theme === 'light' ? 'bg-[#f5f5f5] text-black/90' : 'bg-[#121212] text-white/90'} overflow-hidden rounded-b-xl select-none font-sans border ${theme === 'light' ? 'border-black/5' : 'border-white/5'}`}>
       
       {/* 1. Leftmost Mini Sidebar (Brand/Tools) */}
-      <div className="w-[60px] h-full bg-[#0a0a0a] border-r border-white/5 flex flex-col items-center py-6 gap-6 shrink-0 z-20">
+      <div className={`w-[60px] h-full ${theme === 'light' ? 'bg-[#ebebeb] border-black/5' : 'bg-[#0a0a0a] border-white/5'} border-r flex flex-col items-center py-6 gap-6 shrink-0 z-20`}>
         <div className="w-10 h-10 rounded-xl bg-blue-600/20 text-blue-500 flex items-center justify-center cursor-pointer hover:bg-blue-600/30 transition-colors">
           <Hexagon size={22} fill="currentColor" />
         </div>
         <div className="flex flex-col gap-4 mt-4">
-          <IconBtn icon={Zap} active />
-          <IconBtn icon={Layers} />
-          <IconBtn icon={TreePine} />
+          <IconBtn icon={Zap} active theme={theme} />
+          <IconBtn icon={Layers} theme={theme} />
+          <IconBtn icon={TreePine} theme={theme} />
         </div>
         <div className="mt-auto">
-          <div className="w-10 h-10 rounded-full border border-white/10 text-white/40 flex items-center justify-center cursor-pointer hover:bg-white/5 transition-colors">
+          <div className={`w-10 h-10 rounded-full border ${theme === 'light' ? 'border-black/10 text-black/40 hover:bg-black/5' : 'border-white/10 text-white/40 hover:bg-white/5'} flex items-center justify-center cursor-pointer transition-colors`}>
             <Plus size={20} />
           </div>
         </div>
       </div>
 
       {/* 2. Secondary Sidebar (Main Navigation) */}
-      <div className="w-[240px] h-full bg-[#0f0f0f] border-r border-white/5 flex flex-col shrink-0 z-10 hidden md:flex">
+      <div className={`w-[240px] h-full ${theme === 'light' ? 'bg-[#f0f0f0] border-black/5' : 'bg-[#0f0f0f] border-white/5'} border-r flex flex-col shrink-0 z-10 hidden md:flex`}>
         {/* User Profile Area */}
-        <div className="h-[72px] flex items-center px-5 border-b border-white/5 gap-3 cursor-pointer hover:bg-white/5 transition-colors">
-          <img src="https://i.pravatar.cc/150?img=11" alt="User" className="w-10 h-10 rounded-full border border-white/10" />
+        <div className={`h-[72px] flex items-center px-5 border-b ${theme === 'light' ? 'border-black/5 hover:bg-black/5' : 'border-white/5 hover:bg-white/5'} gap-3 cursor-pointer transition-colors`}>
+          <img src="https://i.pravatar.cc/150?img=11" alt="User" className={`w-10 h-10 rounded-full border ${theme === 'light' ? 'border-black/10' : 'border-white/10'}`} />
           <div className="flex flex-col overflow-hidden">
             <span className="font-semibold text-[14px] truncate">Rafiqur...</span>
-            <span className="text-[11px] text-white/40 truncate">rafiqur51@jira.com</span>
+            <span className={`text-[11px] ${theme === 'light' ? 'text-black/50' : 'text-white/40'} truncate`}>rafiqur51@jira.com</span>
           </div>
-          <Settings size={16} className="text-white/40 ml-auto" />
+          <Settings size={16} className={`${theme === 'light' ? 'text-black/40' : 'text-white/40'} ml-auto`} />
         </div>
 
         {/* Navigation Links */}
         <div className="flex-1 overflow-y-auto custom-scrollbar px-3 py-5 flex flex-col gap-6">
           
-          <NavSection title="ANALYTICS">
-            <NavItem icon={Home} label="Overview" />
-            <NavItem icon={Users} label="Team Insights" />
-            <NavItem icon={Activity} label="Engagement" />
-            <NavItem icon={Trophy} label="Leaderboard" />
+          <NavSection title="ANALYTICS" theme={theme}>
+            <NavItem icon={Home} label="Overview" theme={theme} />
+            <NavItem icon={Users} label="Team Insights" theme={theme} />
+            <NavItem icon={Activity} label="Engagement" theme={theme} />
+            <NavItem icon={Trophy} label="Leaderboard" theme={theme} />
           </NavSection>
 
-          <NavSection title="CONTEXT">
-            <NavItem icon={Calendar} label="Calendar Events" />
-            <NavItem icon={Lightbulb} label="Insights" />
-            <NavItem icon={FileSpreadsheet} label="Spreadsheet" />
+          <NavSection title="CONTEXT" theme={theme}>
+            <NavItem icon={Calendar} label="Calendar Events" theme={theme} />
+            <NavItem icon={Lightbulb} label="Insights" theme={theme} />
+            <NavItem icon={FileSpreadsheet} label="Spreadsheet" theme={theme} />
           </NavSection>
 
-          <NavSection title="OTHERS">
-            <NavItem icon={Grid} label="Apps" />
-            <NavItem icon={Settings2} label="Properties" />
-            <NavItem icon={Settings} label="Settings" active />
+          <NavSection title="OTHERS" theme={theme}>
+            <NavItem icon={Grid} label="Apps" theme={theme} />
+            <NavItem icon={Settings2} label="Properties" theme={theme} />
+            <NavItem icon={Settings} label="Settings" active theme={theme} />
           </NavSection>
 
         </div>
       </div>
 
       {/* 3. Main Content Area (Topbar + Content) */}
-      <div className="flex-1 flex flex-col h-full bg-[#121212] overflow-hidden">
+      <div className={`flex-1 flex flex-col h-full ${theme === 'light' ? 'bg-[#f5f5f5]' : 'bg-[#121212]'} overflow-hidden`}>
         
         {/* Topbar */}
-        <div className="h-[72px] border-b border-white/5 flex items-center px-8 justify-between shrink-0 bg-[#0f0f0f]/50 backdrop-blur-md">
+        <div className={`h-[72px] border-b ${theme === 'light' ? 'border-black/5 bg-[#f0f0f0]/50' : 'border-white/5 bg-[#0f0f0f]/50'} flex items-center px-8 justify-between shrink-0 backdrop-blur-md`}>
           {/* Search */}
-          <div className="relative flex items-center bg-[#1a1a1a] rounded-lg px-3 py-2 w-[300px] border border-white/5 focus-within:border-blue-500/50 transition-colors">
-            <Search size={16} className="text-white/40 mr-2" />
+          <div className={`relative flex items-center ${theme === 'light' ? 'bg-[#ffffff] border-black/10' : 'bg-[#1a1a1a] border-white/5'} rounded-lg px-3 py-2 w-[300px] border focus-within:border-blue-500/50 transition-colors`}>
+            <Search size={16} className={`${theme === 'light' ? 'text-black/40' : 'text-white/40'} mr-2`} />
             <input 
               type="text" 
               placeholder="Search item" 
-              className="bg-transparent border-none outline-none w-full text-[13px] placeholder:text-white/40 text-white"
+              className={`bg-transparent border-none outline-none w-full text-[13px] ${theme === 'light' ? 'placeholder:text-black/40 text-black' : 'placeholder:text-white/40 text-white'}`}
             />
-            <span className="text-[10px] text-white/30 border border-white/10 px-1.5 py-0.5 rounded ml-auto">⌘K</span>
+            <span className={`text-[10px] ${theme === 'light' ? 'text-black/40 border-black/10' : 'text-white/30 border-white/10'} border px-1.5 py-0.5 rounded ml-auto`}>⌘K</span>
           </div>
 
           {/* Right Area (Profile without bell) */}
           <div className="flex items-center gap-4">
-            <img src="https://i.pravatar.cc/150?img=11" alt="Profile" className="w-8 h-8 rounded-full border border-white/10 cursor-pointer hover:opacity-80 transition-opacity" />
+            <img src="https://i.pravatar.cc/150?img=11" alt="Profile" className={`w-8 h-8 rounded-full border ${theme === 'light' ? 'border-black/10' : 'border-white/10'} cursor-pointer hover:opacity-80 transition-opacity`} />
           </div>
         </div>
 
@@ -131,31 +131,31 @@ const SettingsApp = () => {
         <div className="flex-1 flex h-[calc(100%-72px)]">
           
           {/* Third Sidebar (Sub-navigation) */}
-          <div className="w-[240px] h-full border-r border-white/5 flex flex-col shrink-0 bg-[#121212] hidden lg:flex">
+          <div className={`w-[240px] h-full border-r ${theme === 'light' ? 'border-black/5 bg-[#f5f5f5]' : 'border-white/5 bg-[#121212]'} flex flex-col shrink-0 hidden lg:flex`}>
             <div className="p-8 pb-4">
               <h2 className="text-[22px] font-semibold flex items-center gap-2">
-                Settings <ChevronRight size={16} className="text-white/40" /> <span className="text-white/60 text-[15px] font-normal capitalize">{activeTab}</span>
+                Settings <ChevronRight size={16} className={`${theme === 'light' ? 'text-black/40' : 'text-white/40'}`} /> <span className={`${theme === 'light' ? 'text-black/60' : 'text-white/60'} text-[15px] font-normal capitalize`}>{activeTab}</span>
               </h2>
             </div>
             <div className="flex-1 overflow-y-auto custom-scrollbar px-5 pb-6 flex flex-col gap-6">
               
-              <NavSection title="ACCOUNT">
-                <NavItem icon={User} label="My Profile" compact />
-                <NavItem icon={Home} label="General" active={activeTab === 'general'} onClick={() => setActiveTab('general')} compact />
-                <NavItem icon={Monitor} label="Display" active={activeTab === 'display'} onClick={() => setActiveTab('display')} compact />
-                <NavItem icon={Paintbrush} label="Personalization" active={activeTab === 'personalization'} onClick={() => setActiveTab('personalization')} compact />
-                <NavItem icon={Sliders} label="Preferences" compact />
-                <NavItem icon={AppWindow} label="Applications" compact />
+              <NavSection title="ACCOUNT" theme={theme}>
+                <NavItem icon={User} label="My Profile" compact theme={theme} />
+                <NavItem icon={Home} label="General" active={activeTab === 'general'} onClick={() => setActiveTab('general')} compact theme={theme} />
+                <NavItem icon={Monitor} label="Display" active={activeTab === 'display'} onClick={() => setActiveTab('display')} compact theme={theme} />
+                <NavItem icon={Paintbrush} label="Personalization" active={activeTab === 'personalization'} onClick={() => setActiveTab('personalization')} compact theme={theme} />
+                <NavItem icon={Sliders} label="Preferences" compact theme={theme} />
+                <NavItem icon={AppWindow} label="Applications" compact theme={theme} />
               </NavSection>
 
-              <NavSection title="WORKSPACE">
-                <NavItem icon={Settings} label="Settings" compact />
-                <NavItem icon={Users} label="Members" compact />
-                <NavItem icon={ArrowUpCircle} label="Upgrade" compact />
-                <NavItem icon={Shield} label="Security" compact />
-                <NavItem icon={LayoutTemplate} label="Templates" compact />
-                <NavItem icon={CreditCard} label="Billing" compact />
-                <NavItem icon={Map} label="Roadmaps" compact />
+              <NavSection title="WORKSPACE" theme={theme}>
+                <NavItem icon={Settings} label="Settings" compact theme={theme} />
+                <NavItem icon={Users} label="Members" compact theme={theme} />
+                <NavItem icon={ArrowUpCircle} label="Upgrade" compact theme={theme} />
+                <NavItem icon={Shield} label="Security" compact theme={theme} />
+                <NavItem icon={LayoutTemplate} label="Templates" compact theme={theme} />
+                <NavItem icon={CreditCard} label="Billing" compact theme={theme} />
+                <NavItem icon={Map} label="Roadmaps" compact theme={theme} />
               </NavSection>
 
             </div>
@@ -176,32 +176,32 @@ const SettingsApp = () => {
                   </div>
                   
                   <div className="flex flex-col gap-3 mb-10">
-                    <CustomCheckbox label="Daily productivity update" checked />
-                    <CustomCheckbox label="New event created" checked />
-                    <CustomCheckbox label="When added on new team" checked />
+                    <CustomCheckbox label="Daily productivity update" checked theme={theme} />
+                    <CustomCheckbox label="New event created" checked theme={theme} />
+                    <CustomCheckbox label="When added on new team" checked theme={theme} />
                   </div>
 
                   <div className="flex flex-col gap-8 mb-12">
                     <ToggleRow 
                       title="Mobile push notifications" 
                       desc="Receive push notification whenever your organisation requires your attentions" 
-                      checked={mobilePush} onChange={() => setMobilePush(!mobilePush)} 
+                      checked={mobilePush} onChange={() => setMobilePush(!mobilePush)} theme={theme}
                     />
                     <ToggleRow 
                       title="Desktop Notification" 
                       desc="Receive desktop notification whenever your organisation requires your attentions" 
-                      checked={desktopPush} onChange={() => setDesktopPush(!desktopPush)} 
+                      checked={desktopPush} onChange={() => setDesktopPush(!desktopPush)} theme={theme}
                     />
                     <ToggleRow 
                       title="Email Notification" 
                       desc="Receive email whenever your organisation requires your attentions" 
-                      checked={emailPush} onChange={() => setEmailPush(!emailPush)} 
+                      checked={emailPush} onChange={() => setEmailPush(!emailPush)} theme={theme}
                     />
                   </div>
 
                   {/* Settings Section */}
-                  <div className="w-full h-[1px] bg-white/5 mb-8"></div>
-                  <h3 className="text-xl font-semibold mb-6 text-white/90">My Settings</h3>
+                  <div className={`w-full h-[1px] ${theme === 'light' ? 'bg-black/5' : 'bg-white/5'} mb-8`}></div>
+                  <h3 className={`text-xl font-semibold mb-6 ${theme === 'light' ? 'text-black/90' : 'text-white/90'}`}>My Settings</h3>
 
                   <div className="flex flex-col gap-8 pb-10">
                     <DropdownRow 
@@ -209,17 +209,19 @@ const SettingsApp = () => {
                       desc="Customize how the theme looks on your device." 
                       value={theme === 'dark' ? 'Dark' : 'Light'}
                       onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                      theme={theme}
                     />
 
                     <ToggleRow 
                       title="Two-factor authentication" 
                       desc="Keep your account secure by enabling 2FA via SMS or using a temporary one-time passcode (TOTP)." 
-                      checked={twoFactor} onChange={() => setTwoFactor(!twoFactor)} 
+                      checked={twoFactor} onChange={() => setTwoFactor(!twoFactor)} theme={theme}
                     />
                     <DropdownRow 
                       title="Language" 
                       desc="Customize the language of the system." 
                       value="English" 
+                      theme={theme}
                     />
                   </div>
                 </>
@@ -227,39 +229,40 @@ const SettingsApp = () => {
 
               {activeTab === 'personalization' && (
                 <>
-                  <h3 className="text-xl font-semibold mb-6 text-white/90">Personalization</h3>
+                  <h3 className={`text-xl font-semibold mb-6 ${theme === 'light' ? 'text-black/90' : 'text-white/90'}`}>Personalization</h3>
                   
                   <div className="flex flex-col gap-4 mb-8">
-                    <span className="text-[14px] text-white/80">System Theme</span>
+                    <span className={`text-[14px] ${theme === 'light' ? 'text-black/80' : 'text-white/80'}`}>System Theme</span>
                     <DropdownRow 
                       title="Appearance" 
                       desc="Customize how the theme looks on your device." 
                       value={theme === 'dark' ? 'Dark' : 'Light'}
                       onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                      theme={theme}
                     />
                   </div>
 
-                  <div className="w-full h-[1px] bg-white/5 mb-8"></div>
+                  <div className={`w-full h-[1px] ${theme === 'light' ? 'bg-black/5' : 'bg-white/5'} mb-8`}></div>
 
                   <div className="flex flex-col gap-4 mb-6">
-                    <span className="text-[14px] text-white/80">Background</span>
-                    <span className="text-[13px] text-white/40">Personalize your desktop background.</span>
+                    <span className={`text-[14px] ${theme === 'light' ? 'text-black/80' : 'text-white/80'}`}>Background</span>
+                    <span className={`text-[13px] ${theme === 'light' ? 'text-black/50' : 'text-white/40'}`}>Personalize your desktop background.</span>
                   </div>
 
                   {/* Monitor Selection Dropdown */}
                   {isMultiMonitor && (
-                    <div className="flex items-center justify-between gap-4 mb-6 bg-[#1a1a1a]/50 p-4 rounded-xl border border-white/5">
+                    <div className={`flex items-center justify-between gap-4 mb-6 ${theme === 'light' ? 'bg-[#f0f0f0] border-black/5' : 'bg-[#1a1a1a]/50 border-white/5'} p-4 rounded-xl border`}>
                       <div className="flex flex-col">
-                        <span className="text-[14px] font-medium text-white/90">Choose a display</span>
-                        <span className="text-[13px] text-white/40">Select which monitor to apply the background.</span>
+                        <span className={`text-[14px] font-medium ${theme === 'light' ? 'text-black/90' : 'text-white/90'}`}>Choose a display</span>
+                        <span className={`text-[13px] ${theme === 'light' ? 'text-black/50' : 'text-white/40'}`}>Select which monitor to apply the background.</span>
                       </div>
                       <select
                         value={targetMonitorId}
                         onChange={(e) => setTargetMonitorId(e.target.value)}
-                        className="bg-[#2d2d2d] border border-white/10 rounded-lg px-3 py-2 text-[13px] outline-none focus:border-blue-500/50 transition-colors cursor-pointer min-w-[150px]"
+                        className={`${theme === 'light' ? 'bg-white border-black/10 text-black' : 'bg-[#2d2d2d] border-white/10 text-white'} border rounded-lg px-3 py-2 text-[13px] outline-none focus:border-blue-500/50 transition-colors cursor-pointer min-w-[150px]`}
                       >
                         <option value="all">All Displays</option>
-                        {displays.map((d, i) => (
+                        {displays.map((d) => (
                           <option key={d.id} value={d.id}>{d.name} {d.isPrimary ? '(Primary)' : ''}</option>
                         ))}
                       </select>
@@ -268,27 +271,27 @@ const SettingsApp = () => {
 
                   {/* Recent Wallpapers (History) */}
                   <div className="flex flex-col gap-4 mb-8">
-                    <span className="text-[13px] text-white/60">Recent images</span>
+                    <span className={`text-[13px] ${theme === 'light' ? 'text-black/60' : 'text-white/60'}`}>Recent images</span>
                     <div className="flex flex-wrap gap-4">
                       {wallpaperHistory.map((path, index) => (
                         <div 
                           key={index}
                           onClick={() => setWallpaper(path, targetMonitorId, true)}
-                          className="w-32 h-24 rounded-lg bg-white/10 border border-white/10 overflow-hidden cursor-pointer hover:border-blue-500 transition-colors hover:shadow-[0_0_15px_rgba(59,130,246,0.3)] relative group flex items-center justify-center"
+                          className={`w-32 h-24 rounded-lg ${theme === 'light' ? 'bg-black/5 border-black/10' : 'bg-white/10 border-white/10'} border overflow-hidden cursor-pointer hover:border-blue-500 transition-colors hover:shadow-[0_0_15px_rgba(59,130,246,0.3)] relative group flex items-center justify-center`}
                         >
                           {historyBlobs[path] ? (
                             <img src={historyBlobs[path]} alt={`Wallpaper ${index}`} className="w-full h-full object-cover" />
                           ) : (
-                            <ImageIcon size={24} className="text-white/20" />
+                            <ImageIcon size={24} className={`${theme === 'light' ? 'text-black/20' : 'text-white/20'}`} />
                           )}
                         </div>
                       ))}
                       <div 
                         onClick={() => setShowFilePicker(true)}
-                        className="w-32 h-24 rounded-lg border-2 border-dashed border-white/20 flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-white/5 hover:border-white/40 transition-colors"
+                        className={`w-32 h-24 rounded-lg border-2 border-dashed ${theme === 'light' ? 'border-black/20 hover:bg-black/5 hover:border-black/40' : 'border-white/20 hover:bg-white/5 hover:border-white/40'} flex flex-col items-center justify-center gap-2 cursor-pointer transition-colors`}
                       >
-                        <Plus size={20} className="text-white/60" />
-                        <span className="text-[12px] text-white/60">Browse</span>
+                        <Plus size={20} className={`${theme === 'light' ? 'text-black/60' : 'text-white/60'}`} />
+                        <span className={`text-[12px] ${theme === 'light' ? 'text-black/60' : 'text-white/60'}`}>Browse</span>
                       </div>
                     </div>
                   </div>
@@ -297,16 +300,16 @@ const SettingsApp = () => {
               )}
               {activeTab === 'display' && (
                 <>
-                  <h3 className="text-xl font-semibold mb-6 text-white/90">Display</h3>
+                  <h3 className={`text-xl font-semibold mb-6 ${theme === 'light' ? 'text-black/90' : 'text-white/90'}`}>Display</h3>
                   <div className="flex flex-col gap-4 mb-8">
-                    <span className="text-[14px] text-white/80">Your displays</span>
-                    <span className="text-[13px] text-white/40">These are the displays currently connected to your system. Their arrangement is managed by your operating system.</span>
+                    <span className={`text-[14px] ${theme === 'light' ? 'text-black/80' : 'text-white/80'}`}>Your displays</span>
+                    <span className={`text-[13px] ${theme === 'light' ? 'text-black/50' : 'text-white/40'}`}>These are the displays currently connected to your system. Their arrangement is managed by your operating system.</span>
                   </div>
 
                   {/* Monitor Arrangement Area */}
-                  <div className="w-full h-[300px] bg-[#0a0a0a] border border-white/10 rounded-xl relative overflow-hidden flex items-center justify-center p-8 mb-8">
+                  <div className={`w-full h-[300px] ${theme === 'light' ? 'bg-[#ebebeb] border-black/10' : 'bg-[#0a0a0a] border-white/10'} border rounded-xl relative overflow-hidden flex items-center justify-center p-8 mb-8`}>
                     {!isMultiMonitor ? (
-                      <div className="flex flex-col items-center justify-center text-white/40 gap-4">
+                      <div className={`flex flex-col items-center justify-center ${theme === 'light' ? 'text-black/40' : 'text-white/40'} gap-4`}>
                         <Monitor size={48} strokeWidth={1} />
                         <span className="text-sm">Only one display detected.</span>
                       </div>
@@ -327,7 +330,7 @@ const SettingsApp = () => {
                             <div
                               key={d.id}
                               className={`absolute flex flex-col items-center justify-center rounded-lg border-2 shadow-lg transition-colors ${
-                                d.isPrimary ? 'bg-blue-600/20 border-blue-500 z-10' : 'bg-white/5 border-white/20 z-0'
+                                d.isPrimary ? `bg-blue-600/20 border-blue-500 z-10 ${theme === 'light' ? 'text-black' : 'text-white'}` : `${theme === 'light' ? 'bg-black/5 border-black/20 text-black' : 'bg-white/5 border-white/20 text-white'} z-0`
                               }`}
                               style={{
                                 width: d.logicalWidth * scale,
@@ -347,17 +350,17 @@ const SettingsApp = () => {
                     )}
                   </div>
 
-                  <div className="w-full h-[1px] bg-white/5 mb-8"></div>
+                  <div className={`w-full h-[1px] ${theme === 'light' ? 'bg-black/5' : 'bg-white/5'} mb-8`}></div>
                   
-                  <h3 className="text-xl font-semibold mb-6 text-white/90">Multiple displays</h3>
+                  <h3 className={`text-xl font-semibold mb-6 ${theme === 'light' ? 'text-black/90' : 'text-white/90'}`}>Multiple displays</h3>
                   <div className="flex flex-col gap-8 pb-10">
-                    {displays.map((d, i) => (
-                      <div key={d.id} className="flex items-center justify-between gap-4 p-4 border border-white/5 rounded-xl bg-[#1a1a1a]/50">
+                    {displays.map((d) => (
+                      <div key={d.id} className={`flex items-center justify-between gap-4 p-4 border ${theme === 'light' ? 'border-black/5 bg-[#f0f0f0]' : 'border-white/5 bg-[#1a1a1a]/50'} rounded-xl`}>
                         <div className="flex items-center gap-4">
-                          <Monitor size={24} className={d.isPrimary ? "text-blue-500" : "text-white/40"} />
+                          <Monitor size={24} className={d.isPrimary ? "text-blue-500" : (theme === 'light' ? "text-black/40" : "text-white/40")} />
                           <div className="flex flex-col">
-                            <span className="text-[14px] font-semibold text-white/90">{d.name} {d.isPrimary ? '(Primary)' : ''}</span>
-                            <span className="text-[13px] text-white/40 mt-1">{d.physicalWidth} x {d.physicalHeight}</span>
+                            <span className={`text-[14px] font-semibold ${theme === 'light' ? 'text-black/90' : 'text-white/90'}`}>{d.name} {d.isPrimary ? '(Primary)' : ''}</span>
+                            <span className={`text-[13px] ${theme === 'light' ? 'text-black/40' : 'text-white/40'} mt-1`}>{d.physicalWidth} x {d.physicalHeight}</span>
                           </div>
                         </div>
                         
@@ -403,53 +406,53 @@ const SettingsApp = () => {
 
 /* --- Componentes Reutilizáveis Baseados no Design --- */
 
-const IconBtn = ({ icon: Icon, active = false }) => (
+const IconBtn = ({ icon: Icon, active = false, theme = 'dark' }: any) => (
   <div className={`w-10 h-10 rounded-full flex items-center justify-center cursor-pointer transition-all ${
-    active ? 'bg-blue-600/10 text-blue-500' : 'text-white/40 hover:bg-white/5 hover:text-white/80'
+    active ? 'bg-blue-600/10 text-blue-500' : (theme === 'light' ? 'text-black/40 hover:bg-black/5 hover:text-black/80' : 'text-white/40 hover:bg-white/5 hover:text-white/80')
   }`}>
     <Icon size={20} />
   </div>
 );
 
-const NavSection = ({ title, children }) => (
+const NavSection = ({ title, children, theme = 'dark' }: any) => (
   <div className="flex flex-col gap-1">
-    <span className="text-[10px] font-bold text-white/30 tracking-wider mb-2 px-3">{title}</span>
+    <span className={`text-[10px] font-bold ${theme === 'light' ? 'text-black/40' : 'text-white/30'} tracking-wider mb-2 px-3`}>{title}</span>
     {children}
   </div>
 );
 
-const NavItem = ({ icon: Icon, label, active = false, compact = false, onClick }: any) => (
+const NavItem = ({ icon: Icon, label, active = false, compact = false, onClick, theme = 'dark' }: any) => (
   <div onClick={onClick} className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-all ${
     active 
-      ? 'bg-[#1a1a1a] text-white font-medium' 
-      : 'text-white/60 hover:bg-white/5 hover:text-white/90'
+      ? (theme === 'light' ? 'bg-[#e0e0e0] text-black font-medium' : 'bg-[#1a1a1a] text-white font-medium')
+      : (theme === 'light' ? 'text-black/60 hover:bg-black/5 hover:text-black/90' : 'text-white/60 hover:bg-white/5 hover:text-white/90')
   }`}>
-    <Icon size={compact ? 16 : 18} className={active ? 'text-blue-500' : 'text-white/40'} />
+    <Icon size={compact ? 16 : 18} className={active ? 'text-blue-500' : (theme === 'light' ? 'text-black/40' : 'text-white/40')} />
     <span className={`text-[13px] ${compact ? '' : 'mt-0.5'}`}>{label}</span>
   </div>
 );
 
-const CustomCheckbox = ({ label, checked }) => (
+const CustomCheckbox = ({ label, checked, theme = 'dark' }: any) => (
   <label className="flex items-center gap-3 cursor-pointer group w-fit">
     <div className={`w-[18px] h-[18px] rounded-[4px] flex items-center justify-center transition-colors ${
-      checked ? 'bg-blue-600' : 'bg-transparent border border-white/20 group-hover:border-white/40'
+      checked ? 'bg-blue-600' : `bg-transparent border ${theme === 'light' ? 'border-black/20 group-hover:border-black/40' : 'border-white/20 group-hover:border-white/40'}`
     }`}>
       {checked && <Check size={12} className="text-white" strokeWidth={3} />}
     </div>
-    <span className="text-[13px] text-white/80 group-hover:text-white transition-colors">{label}</span>
+    <span className={`text-[13px] ${theme === 'light' ? 'text-black/80 group-hover:text-black' : 'text-white/80 group-hover:text-white'} transition-colors`}>{label}</span>
   </label>
 );
 
-const ToggleRow = ({ title, desc, checked, onChange }) => (
+const ToggleRow = ({ title, desc, checked, onChange, theme = 'dark' }: any) => (
   <div className="flex items-center justify-between gap-4">
     <div className="flex flex-col">
-      <span className="text-[14px] font-semibold text-white/90">{title}</span>
-      <span className="text-[13px] text-white/40 mt-1">{desc}</span>
+      <span className={`text-[14px] font-semibold ${theme === 'light' ? 'text-black/90' : 'text-white/90'}`}>{title}</span>
+      <span className={`text-[13px] ${theme === 'light' ? 'text-black/50' : 'text-white/40'} mt-1`}>{desc}</span>
     </div>
     <div 
       onClick={onChange}
       className={`w-11 h-6 rounded-full flex items-center p-1 cursor-pointer transition-colors shrink-0 ${
-        checked ? 'bg-blue-600' : 'bg-white/10'
+        checked ? 'bg-blue-600' : (theme === 'light' ? 'bg-black/10' : 'bg-white/10')
       }`}
     >
       <motion.div 
@@ -462,15 +465,15 @@ const ToggleRow = ({ title, desc, checked, onChange }) => (
   </div>
 );
 
-const DropdownRow = ({ title, desc, value, onClick }: any) => (
+const DropdownRow = ({ title, desc, value, onClick, theme = 'dark' }: any) => (
   <div className="flex items-center justify-between gap-4">
     <div className="flex flex-col">
-      <span className="text-[14px] font-semibold text-white/90">{title}</span>
-      <span className="text-[13px] text-white/40 mt-1">{desc}</span>
+      <span className={`text-[14px] font-semibold ${theme === 'light' ? 'text-black/90' : 'text-white/90'}`}>{title}</span>
+      <span className={`text-[13px] ${theme === 'light' ? 'text-black/50' : 'text-white/40'} mt-1`}>{desc}</span>
     </div>
-    <div onClick={onClick} className="flex items-center gap-2 bg-[#1a1a1a] border border-white/10 px-3 py-1.5 rounded-lg cursor-pointer hover:bg-white/5 transition-colors shrink-0">
-      <span className="text-[13px] text-white/80">{value}</span>
-      <ChevronDown size={14} className="text-white/40" />
+    <div onClick={onClick} className={`flex items-center gap-2 ${theme === 'light' ? 'bg-[#ffffff] border-black/10 hover:bg-black/5' : 'bg-[#1a1a1a] border-white/10 hover:bg-white/5'} border px-3 py-1.5 rounded-lg cursor-pointer transition-colors shrink-0`}>
+      <span className={`text-[13px] ${theme === 'light' ? 'text-black/80' : 'text-white/80'}`}>{value}</span>
+      <ChevronDown size={14} className={`${theme === 'light' ? 'text-black/40' : 'text-white/40'}`} />
     </div>
   </div>
 );

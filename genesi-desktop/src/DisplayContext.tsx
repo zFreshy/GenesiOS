@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { availableMonitors, currentMonitor, Monitor } from '@tauri-apps/api/window';
+import { availableMonitors } from '@tauri-apps/api/window';
 import { LazyStore } from '@tauri-apps/plugin-store';
 import { isTauri } from '@tauri-apps/api/core';
 

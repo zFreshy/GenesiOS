@@ -111,6 +111,35 @@ fn read_file_bytes(path: &str) -> Result<Vec<u8>, String> {
     fs::read(path).map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+fn create_desktop_shortcut(target_path: &str, file_name: &str) -> Result<(), String> {
+    #[cfg(windows)]
+    {
+        let ps_script = format!(
+            "$WshShell = New-Object -comObject WScript.Shell; \
+             $Shortcut = $WshShell.CreateShortcut([Environment]::GetFolderPath('Desktop') + '\\{}.lnk'); \
+             $Shortcut.TargetPath = '{}'; \
+             $Shortcut.Save()",
+            file_name, target_path
+        );
+        
+        let output = std::process::Command::new("powershell")
+            .args(&["-NoProfile", "-Command", &ps_script])
+            .output()
+            .map_err(|e| e.to_string())?;
+            
+        if !output.status.success() {
+            return Err(String::from_utf8_lossy(&output.stderr).to_string());
+        }
+        Ok(())
+    }
+    #[cfg(not(windows))]
+    {
+        // For non-Windows platforms, just return OK or implement symbolic link
+        Err("Not implemented for this OS".into())
+    }
+}
+
 #[derive(serde::Serialize)]
 pub struct WifiNetwork {
     ssid: String,
@@ -284,21 +313,41 @@ async fn connect_bluetooth(id: String) -> Result<bool, String> {
     Err("Device not found".to_string())
 }
 
+#[tauri::command]
+fn get_default_paths() -> Result<std::collections::HashMap<String, String>, String> {
+    let mut paths = std::collections::HashMap::new();
+    #[cfg(windows)]
+    {
+        if let Ok(user_profile) = std::env::var("USERPROFILE") {
+            paths.insert("desktop".to_string(), format!("{}\\Desktop", user_profile));
+            paths.insert("downloads".to_string(), format!("{}\\Downloads", user_profile));
+            paths.insert("documents".to_string(), format!("{}\\Documents", user_profile));
+            paths.insert("pictures".to_string(), format!("{}\\Pictures", user_profile));
+            paths.insert("music".to_string(), format!("{}\\Music", user_profile));
+            paths.insert("videos".to_string(), format!("{}\\Videos", user_profile));
+        }
+    }
+    Ok(paths)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_store::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             greet, 
             get_drives, 
             read_dir, 
             read_file_bytes,
+            create_desktop_shortcut,
             get_wifi_networks,
             connect_wifi,
             get_bluetooth_devices,
-            connect_bluetooth
+            connect_bluetooth,
+            get_default_paths
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

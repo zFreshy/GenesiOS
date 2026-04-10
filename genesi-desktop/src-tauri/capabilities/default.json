@@ -11,6 +11,7 @@
     "opener:default",
     "store:default",
     "shell:default",
+    "dialog:default",
     {
       "identifier": "shell:allow-execute",
       "allow": [
