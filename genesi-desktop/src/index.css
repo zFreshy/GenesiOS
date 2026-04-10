@@ -4,7 +4,7 @@
 
 @layer utilities {
   .glass {
-    @apply bg-black/40 backdrop-blur-2xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.3)] rounded-3xl;
+    @apply bg-black/40 backdrop-blur-2xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.3)];
   }
   
   .glass-btn {
@@ -31,3 +31,17 @@ body {
   user-select: none;
   overflow: hidden;
 }
+
+/* Custom Resize Handles - Invisíveis mas funcionais */
+.resize-handle {
+  position: absolute;
+  z-index: 50;
+}
+.resize-top { top: -5px; left: 0; right: 0; height: 10px; cursor: n-resize; }
+.resize-bottom { bottom: -5px; left: 0; right: 0; height: 10px; cursor: s-resize; }
+.resize-left { top: 0; left: -5px; bottom: 0; width: 10px; cursor: w-resize; }
+.resize-right { top: 0; right: -5px; bottom: 0; width: 10px; cursor: e-resize; }
+.resize-top-left { top: -5px; left: -5px; width: 15px; height: 15px; cursor: nw-resize; }
+.resize-top-right { top: -5px; right: -5px; width: 15px; height: 15px; cursor: ne-resize; }
+.resize-bottom-left { bottom: -5px; left: -5px; width: 15px; height: 15px; cursor: sw-resize; }
+.resize-bottom-right { bottom: -5px; right: -5px; width: 15px; height: 15px; cursor: se-resize; }
