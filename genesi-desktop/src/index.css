@@ -45,3 +45,21 @@ body {
 .resize-top-right { top: -5px; right: -5px; width: 15px; height: 15px; cursor: ne-resize; }
 .resize-bottom-left { bottom: -5px; left: -5px; width: 15px; height: 15px; cursor: sw-resize; }
 .resize-bottom-right { bottom: -5px; right: -5px; width: 15px; height: 15px; cursor: se-resize; }
+
+/* Custom Scrollbar for sleek UI */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+  margin-top: 10px;
+  margin-bottom: 10px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.4);
+}

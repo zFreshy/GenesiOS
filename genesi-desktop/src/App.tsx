@@ -3,15 +3,20 @@ import { motion, AnimatePresence, useDragControls } from 'framer-motion';
 import {
   Wifi, Bluetooth, Bell, Sun, Moon, Battery,
   Search, Globe, Mail, List, Power, Lock, RotateCcw, MoonStar,
-  Play, SkipBack, SkipForward, CloudSun, CalendarClock, Settings, X, Terminal, Package
+  Play, SkipBack, SkipForward, CloudSun, CalendarClock, Settings, X, Terminal, Package, Folder
 } from 'lucide-react';
 import './index.css';
+import StartMenu from './StartMenu';
+import StartContextMenu from './StartContextMenu';
+import SettingsApp from './SettingsApp';
+import FileExplorer from './FileExplorer';
 
 // --- COMPONENTE DE JANELA (DRAGGABLE, RESIZABLE E ANIMADA) ---
 const DesktopWindow = ({ app, onClose, onMinimize, onMaximize, onFocus, isFullscreen, onUpdateBounds }) => {
   const dragControls = useDragControls();
   const [isResizing, setIsResizing] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const windowRef = useRef(null);
 
   // Handles de resize manuais
   const handleResize = (e, direction) => {
@@ -67,6 +72,7 @@ const DesktopWindow = ({ app, onClose, onMinimize, onMaximize, onFocus, isFullsc
 
   return (
     <motion.div
+      ref={windowRef}
       initial={{ opacity: 0, scale: 0.8, y: 50 }}
       animate={
         app.minimized ? {
@@ -92,15 +98,22 @@ const DesktopWindow = ({ app, onClose, onMinimize, onMaximize, onFocus, isFullsc
         }
       }
       onClick={onFocus}
-      drag={!app.maximized && !isFullscreen}
+      drag={!isFullscreen}
       dragControls={dragControls}
       dragListener={false} // Só deixa arrastar pela titlebar
       dragMomentum={false}
-      onDragStart={() => setIsDragging(true)}
+      onDragStart={(event, info) => {
+        setIsDragging(true);
+        if (app.maximized) {
+          const rect = windowRef.current?.getBoundingClientRect();
+          const w = rect?.width || window.innerWidth;
+          const h = rect?.height || window.innerHeight;
+          onUpdateBounds(app.id, { maximized: false, width: w, height: h, x: 0, y: 0 });
+        }
+      }}
       onDragEnd={() => setIsDragging(false)}
       onDrag={(event, info) => {
-        // Atualiza a posição real da janela no estado enquanto arrasta, para o maximize funcionar certo
-        onUpdateBounds(app.id, { x: app.x + info.delta.x, y: app.y + info.delta.y });
+        onUpdateBounds(app.id, (prev) => ({ x: prev.x + info.delta.x, y: prev.y + info.delta.y }));
       }}
       className={`absolute flex flex-col shadow-2xl ${
         isFullscreen ? 'rounded-none border-none z-[999]' : 
@@ -133,7 +146,7 @@ const DesktopWindow = ({ app, onClose, onMinimize, onMaximize, onFocus, isFullsc
         <div 
           onPointerDown={(e) => dragControls.start(e)}
           onDoubleClick={onMaximize}
-          className={`bg-black/80 p-3 flex justify-between items-center cursor-move border-b border-white/10 select-none shrink-0 ${app.maximized ? '' : 'rounded-t-xl'}`}
+          className={`bg-black/80 p-3 flex justify-between items-center cursor-default border-b border-white/10 select-none shrink-0 ${app.maximized ? '' : 'rounded-t-xl'}`}
         >
           <div className="flex gap-2 pl-2">
              <div className="w-3.5 h-3.5 rounded-full bg-[#ff5f56] cursor-pointer hover:bg-red-400 transition-colors flex items-center justify-center group" onClick={(e) => { e.stopPropagation(); onClose(); }}><X size={10} className="opacity-0 group-hover:opacity-100 text-black"/></div>
@@ -156,8 +169,10 @@ const DesktopWindow = ({ app, onClose, onMinimize, onMaximize, onFocus, isFullsc
 function App() {
   const [time, setTime] = useState(new Date());
 
-  // Estado do Painel de Controle (Oculto por padrão)
+  // Estado do Painel de Controle e Menu Iniciar
   const [showControlCenter, setShowControlCenter] = useState(false);
+  const [showStartMenu, setShowStartMenu] = useState(false);
+  const [showStartContextMenu, setShowStartContextMenu] = useState(false);
   const [isFullscreenMode, setIsFullscreenMode] = useState(false);
 
   // States dos botões
@@ -210,6 +225,18 @@ function App() {
           <button className="bg-purple-600 hover:bg-purple-500 px-6 py-2 rounded-full transition-colors">Procurar Pacotes</button>
         </div>
       )
+    },
+    {
+      id: 'settings', title: 'Configurações', icon: Settings, color: 'bg-blue-600', 
+      defaultX: 250, defaultY: 100, x: 250, y: 100, width: 900, height: 600,
+      isOpen: false, minimized: false, maximized: false, zIndex: 10,
+      content: <SettingsApp />
+    },
+    {
+      id: 'files', title: 'File Explorer', icon: Folder, color: 'bg-yellow-500', 
+      defaultX: 300, defaultY: 120, x: 300, y: 120, width: 850, height: 550,
+      isOpen: false, minimized: false, maximized: false, zIndex: 10,
+      content: <FileExplorer />
     }
   ]);
 
@@ -219,8 +246,14 @@ function App() {
   }, []);
 
   // Funções do Window Manager
-  const updateAppBounds = (id: string, bounds: any) => {
-    setApps(apps => apps.map(a => a.id === id ? { ...a, ...bounds } : a));
+  const updateAppBounds = (id: string, boundsOrUpdater: any) => {
+    setApps(apps => apps.map(a => {
+      if (a.id === id) {
+        const newBounds = typeof boundsOrUpdater === 'function' ? boundsOrUpdater(a) : boundsOrUpdater;
+        return { ...a, ...newBounds };
+      }
+      return a;
+    }));
   };
   const openApp = (id: string) => {
     setApps(apps.map(a => {
@@ -228,6 +261,8 @@ function App() {
       return a;
     }));
     setShowControlCenter(false); // Fecha o control center se abrir um app
+    setShowStartMenu(false); // Fecha o start menu
+    setShowStartContextMenu(false); // Fecha o menu de contexto
   };
 
   const closeApp = (id: string) => {
@@ -267,7 +302,8 @@ function App() {
   return (
     <div className="relative w-screen h-screen bg-cover bg-center overflow-hidden flex flex-col items-center justify-center pb-24" 
          style={{ backgroundImage: "url('/wallpaper1.png')" }}
-         onClick={() => setShowControlCenter(false)}>
+         onClick={() => { setShowControlCenter(false); setShowStartMenu(false); setShowStartContextMenu(false); }}
+         onContextMenu={(e) => e.preventDefault()}>
       
       {/* ======= CONTROL CENTER & WIDGETS (Aparece ao clicar no tray) ======= */}
       <AnimatePresence>
@@ -345,6 +381,21 @@ function App() {
         )}
       </AnimatePresence>
 
+      {/* ======= START MENU ======= */}
+      <StartMenu 
+        show={showStartMenu} 
+        onClose={() => setShowStartMenu(false)} 
+        onOpenApp={openApp}
+        apps={apps}
+      />
+
+      {/* ======= START CONTEXT MENU ======= */}
+      <StartContextMenu
+        show={showStartContextMenu}
+        onClose={() => setShowStartContextMenu(false)}
+        onOpenApp={openApp}
+      />
+
       {/* ======= WINDOW MANAGER ======= */}
       <AnimatePresence>
         {apps.filter(a => a.isOpen).map(app => (
@@ -368,7 +419,10 @@ function App() {
         className="absolute bottom-5 left-1/2 -translate-x-1/2 h-[60px] px-5 bg-black/40 backdrop-blur-2xl border border-white/10 shadow-2xl rounded-full flex items-center justify-between w-[95%] max-w-[1100px] z-[100]"
       >
          <div className="flex items-center gap-4">
-            <button className="w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 flex justify-center items-center transition-colors font-bold text-lg font-mono">
+            <button 
+               onClick={(e) => { e.stopPropagation(); setShowStartMenu(!showStartMenu); setShowControlCenter(false); setShowStartContextMenu(false); }}
+               onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setShowStartContextMenu(!showStartContextMenu); setShowStartMenu(false); setShowControlCenter(false); }}
+               className="w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 flex justify-center items-center transition-colors font-bold text-lg font-mono">
                G
             </button>
             <div className="w-[1px] h-6 bg-white/20 mx-2"></div>
@@ -401,7 +455,7 @@ function App() {
          {/* TRAY SYSTEM (Clica aqui para abrir o Painel) */}
          <div 
            className="flex items-center gap-4 cursor-pointer hover:bg-white/10 p-2 rounded-full transition-colors ml-auto"
-           onClick={() => setShowControlCenter(!showControlCenter)}
+           onClick={(e) => { e.stopPropagation(); setShowControlCenter(!showControlCenter); setShowStartMenu(false); }}
          >
             <div className="flex flex-col items-end">
               <span className="font-semibold text-sm">{time.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
