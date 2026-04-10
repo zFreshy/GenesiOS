@@ -10,7 +10,6 @@ import { invoke, isTauri } from '@tauri-apps/api/core';
 
 interface ControlCenterProps {
   show: boolean;
-  time: Date;
   x: number;
   y: number;
 }
@@ -28,8 +27,14 @@ const MOCK_BT_DEVICES = [
   { id: '3', name: 'Keychron K2', is_connected: false },
 ];
 
-const ControlCenter: React.FC<ControlCenterProps> = ({ show, time, x, y }) => {
+const ControlCenter: React.FC<ControlCenterProps> = ({ show, x, y }) => {
   const { theme, setTheme } = useTheme();
+  
+  const [time, setTime] = useState(new Date());
+  useEffect(() => {
+    const timer = setInterval(() => setTime(new Date()), 60000); // update every minute is enough here
+    return () => clearInterval(timer);
+  }, []);
   
   const [wifiOn, setWifiOn] = useState(true);
   const [btOn, setBtOn] = useState(false);

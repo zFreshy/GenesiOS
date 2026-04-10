@@ -17,6 +17,21 @@ import { useDisplay } from './DisplayContext';
 
 import { Command } from '@tauri-apps/plugin-shell';
 
+// --- Relógio isolado para a Taskbar ---
+const TaskbarClock = () => {
+  const [time, setTime] = useState(new Date());
+  useEffect(() => {
+    const timer = setInterval(() => setTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+  return (
+    <div className="flex flex-col text-right text-[10px] leading-tight opacity-80">
+      <span>{time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+      <span>{time.toLocaleDateString()}</span>
+    </div>
+  );
+};
+
 let globalZIndex = 10;
 const appStateStore = new LazyStore('appState.json');
 
@@ -222,7 +237,7 @@ const DesktopWindow = ({ app, onClose, onMinimize, onMaximize, onFocus, isFullsc
 function App() {
   const { theme, wallpapers, isLoading } = useTheme();
   const { displays } = useDisplay();
-  const [time, setTime] = useState(new Date());
+  const [desktopShortcuts, setDesktopShortcuts] = useState<any[]>([]);
 
   // Pega as dimensões totais da janela que agora cobre todos os monitores
   useEffect(() => {
@@ -334,11 +349,6 @@ function App() {
     'chrome': { title: 'Google Chrome', icon: IconBrandChrome, isExternal: true },
   };
 
-  useEffect(() => {
-    const timer = setInterval(() => setTime(new Date()), 1000);
-    return () => clearInterval(timer);
-  }, []);
-
   // Load saved bounds on mount
   useEffect(() => {
     const loadBounds = async () => {
@@ -356,7 +366,25 @@ function App() {
         console.error('Failed to load window bounds:', e);
       }
     };
+    
+    const loadShortcuts = async () => {
+      try {
+        const store = new LazyStore('settings.json');
+        const shortcuts = await store.get<any[]>('desktop_shortcuts');
+        if (shortcuts && Array.isArray(shortcuts)) {
+          setDesktopShortcuts(shortcuts);
+        }
+      } catch (e) {
+        console.error('Failed to load desktop shortcuts:', e);
+      }
+    };
+
     loadBounds();
+    loadShortcuts();
+    
+    // Poll for shortcut changes periodically since FileExplorer might change them
+    const interval = setInterval(loadShortcuts, 2000);
+    return () => clearInterval(interval);
   }, []);
 
   const saveAppBounds = async (id: string) => {
@@ -489,7 +517,7 @@ function App() {
       return { ...a, content: <TaskManager apps={apps} onCloseApp={closeApp} /> };
     }
     if (a.baseId === 'files') {
-      return { ...a, content: <FileExplorer onOpenInApp={(baseId, props) => openApp(baseId, true, props)} /> };
+      return { ...a, content: <FileExplorer onOpenInApp={(baseId, props) => openApp(baseId, true, props)} initialPath={a.defaultPath} /> };
     }
     return a;
   });
@@ -595,6 +623,36 @@ function App() {
           <IconBrandChrome size={40} strokeWidth={1} className="text-green-500 group-hover:scale-105 transition-transform" />
           <span className="text-xs font-medium text-white drop-shadow-md">Chrome</span>
         </div>
+
+        {/* Custom User Shortcuts */}
+        {desktopShortcuts.map((shortcut, i) => (
+          <div 
+            key={`sc-${i}`}
+            onDoubleClick={() => {
+              if (shortcut.is_dir) {
+                openApp('files', true, { defaultPath: shortcut.path }); // Need to pass defaultPath somehow? Or currentPath
+              } else {
+                openApp('files', false); // Open files and let it handle, or trigger a command to open path
+                Command.create('open-path', [shortcut.path]).execute().catch(e => console.error(e));
+              }
+            }}
+            className="w-20 h-20 flex flex-col items-center justify-center gap-1 rounded-md hover:bg-white/10 cursor-pointer group transition-colors relative"
+          >
+            {shortcut.is_dir ? (
+               <Folder size={40} strokeWidth={1} className="text-yellow-400 group-hover:scale-105 transition-transform" />
+            ) : (
+               <div className="w-10 h-10 bg-white/20 rounded flex items-center justify-center group-hover:scale-105 transition-transform">
+                 <span className="text-white text-xs font-bold">{shortcut.name.split('.').pop()?.toUpperCase() || '?'}</span>
+               </div>
+            )}
+            <span className="text-[11px] font-medium text-white drop-shadow-md text-center leading-tight truncate w-full px-1" title={shortcut.name}>
+              {shortcut.name}
+            </span>
+            <div className="absolute bottom-6 left-5 w-3 h-3 bg-white rounded-sm flex items-center justify-center">
+              <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M10 9l-6 6 6 6"/><path d="M20 4v7a4 4 0 0 1-4 4H4"/></svg>
+            </div>
+          </div>
+        ))}
       </div>
 
       {/* ======= CONTROL CENTER & WIDGETS (Aparece ao clicar no tray) ======= */}
@@ -606,7 +664,6 @@ function App() {
           return (
             <ControlCenter 
               show={showControlCenter} 
-              time={time}
               x={activeMon.logicalWidth - ((activeMon.logicalWidth / 2) + (taskbarWidth / 2))} 
               y={90}
             />
@@ -823,12 +880,9 @@ function App() {
               className={`flex items-center gap-4 cursor-pointer p-2 rounded-full transition-colors ml-auto ${
                 theme === 'light' ? 'hover:bg-black/5 text-black' : 'hover:bg-white/10 text-white'
               }`}
-              onClick={(e) => { e.stopPropagation(); setShowControlCenter(!showControlCenter); setShowStartMenu(false); setShowStartContextMenu(false); }}
+              onClick={(e) => { e.stopPropagation(); setActiveMonitorId(d.id); setShowControlCenter(!showControlCenter); setShowStartMenu(false); setShowStartContextMenu(false); }}
             >
-              <div className="flex flex-col items-end">
-                <span className="font-semibold text-sm leading-tight">{time.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-                <span className={`text-[10px] uppercase leading-tight mt-0.5 ${theme === 'light' ? 'text-black/60' : 'text-white/60'}`}>{time.toLocaleDateString([], {weekday: 'short', day: 'numeric', month: 'short'})}</span>
-              </div>
+              <TaskbarClock />
               <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs shadow-inner ${
                 theme === 'light' ? 'bg-black/5 text-black' : 'bg-white/10 text-white'
               }`}>

@@ -33,11 +33,11 @@ interface FileInfo {
   modified_at: number;
 }
 
-export const FileExplorerBase = ({ isPicker = false, pickerMode = 'file', onFileSelect, onFolderSelect, onClosePicker, onOpenInApp }: { isPicker?: boolean, pickerMode?: 'file' | 'folder', onFileSelect?: (url: string, path?: string) => void, onFolderSelect?: (path: string) => void, onClosePicker?: () => void, onOpenInApp?: (baseId: string, props: any) => void }) => {
+export const FileExplorerBase = ({ isPicker = false, pickerMode = 'file', initialPath = 'Home', onFileSelect, onFolderSelect, onClosePicker, onOpenInApp }: { isPicker?: boolean, pickerMode?: 'file' | 'folder', initialPath?: string, onFileSelect?: (url: string, path?: string) => void, onFolderSelect?: (path: string) => void, onClosePicker?: () => void, onOpenInApp?: (baseId: string, props: any) => void }) => {
   if (false) console.log(onClosePicker); // bypass unused warning
   const { theme } = useTheme();
-  const [currentPath, setCurrentPath] = useState<string>('Home');
-  const [history, setHistory] = useState<string[]>(['Home']);
+  const [currentPath, setCurrentPath] = useState<string>(initialPath);
+  const [history, setHistory] = useState<string[]>([initialPath]);
   const [historyIndex, setHistoryIndex] = useState<number>(0);
   
   const [drives, setDrives] = useState<DiskInfo[]>([]);
@@ -51,6 +51,23 @@ export const FileExplorerBase = ({ isPicker = false, pickerMode = 'file', onFile
   
   // Folder Picker Target
   const [folderPickerTarget, setFolderPickerTarget] = useState<any | null>(null);
+
+  // Renaming State
+  const [renamingFile, setRenamingFile] = useState<string | null>(null);
+  const [renamingText, setRenamingText] = useState<string>('');
+  const [showExtensionWarning, setShowExtensionWarning] = useState<boolean>(false);
+  const [pendingRename, setPendingRename] = useState<{ file: FileInfo, newName: string } | null>(null);
+  const clickTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+
+  // Lazy loading (Pagination) to prevent lag on huge folders
+  const [visibleCount, setVisibleCount] = useState<number>(100);
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const bottom = e.currentTarget.scrollHeight - e.currentTarget.scrollTop <= e.currentTarget.clientHeight + 200;
+    if (bottom) {
+      setVisibleCount(prev => prev + 100);
+    }
+  };
 
   // Quick Access state
   const defaultQuickAccess = [
@@ -240,6 +257,7 @@ export const FileExplorerBase = ({ isPicker = false, pickerMode = 'file', onFile
 
   const loadFiles = async (path: string) => {
     setLoading(true);
+    setVisibleCount(100);
     try {
       const result: FileInfo[] = await invoke('read_dir', { path });
       setFiles(result);
@@ -290,10 +308,69 @@ export const FileExplorerBase = ({ isPicker = false, pickerMode = 'file', onFile
   };
 
   const handleFileClick = (file: FileInfo) => {
-    setSelectedFile(file.path);
+    if (selectedFile === file.path) {
+      // Slow double click detection for rename
+      if (clickTimeoutRef.current) {
+        clearTimeout(clickTimeoutRef.current);
+        clickTimeoutRef.current = null;
+      } else {
+        clickTimeoutRef.current = setTimeout(() => {
+          startRenaming(file);
+          clickTimeoutRef.current = null;
+        }, 500); // Wait 500ms before triggering rename
+      }
+    } else {
+      if (clickTimeoutRef.current) {
+        clearTimeout(clickTimeoutRef.current);
+        clickTimeoutRef.current = null;
+      }
+      setSelectedFile(file.path);
+      setRenamingFile(null); // Cancel rename if clicking another file
+    }
+  };
+
+  const startRenaming = (file: FileInfo) => {
+    setRenamingFile(file.path);
+    setRenamingText(file.name);
+  };
+
+  const submitRename = async (file: FileInfo, newName: string, force: boolean = false) => {
+    if (!newName || newName.trim() === '' || newName === file.name) {
+      setRenamingFile(null);
+      return;
+    }
+
+    const oldExt = getFileExtension(file.name);
+    const newExt = getFileExtension(newName);
+
+    if (!force && !file.is_dir && oldExt !== newExt && oldExt !== '') {
+      setPendingRename({ file, newName });
+      setShowExtensionWarning(true);
+      return;
+    }
+
+    try {
+      const parts = file.path.split(/[\\/]/);
+      parts.pop(); // remove old name
+      const newPath = parts.join(file.path.includes('\\') ? '\\' : '/') + (file.path.includes('\\') ? '\\' : '/') + newName;
+      
+      await invoke('rename_file', { oldPath: file.path, newPath });
+      setRenamingFile(null);
+      setPendingRename(null);
+      loadFiles(currentPath); // Refresh
+    } catch (e) {
+      console.error('Failed to rename file', e);
+      // maybe show an error toast here
+      setRenamingFile(null);
+    }
   };
 
   const handleFileDoubleClick = async (file: FileInfo) => {
+    if (clickTimeoutRef.current) {
+      clearTimeout(clickTimeoutRef.current);
+      clickTimeoutRef.current = null;
+    }
+    setRenamingFile(null);
     if (file.is_dir) {
       navigateTo(file.path);
     } else if (isPicker && onFileSelect) {
@@ -355,10 +432,29 @@ export const FileExplorerBase = ({ isPicker = false, pickerMode = 'file', onFile
   };
 
   useEffect(() => {
-    const handleClickOutside = () => setContextMenu(null);
+    const handleClickOutside = () => {
+      setContextMenu(null);
+      // Cancel rename if clicked outside without submitting
+      if (renamingFile && !pendingRename) {
+        setRenamingFile(null);
+      }
+    };
     window.addEventListener('click', handleClickOutside);
     return () => window.removeEventListener('click', handleClickOutside);
-  }, []);
+  }, [renamingFile, pendingRename]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'F2' && selectedFile) {
+        const file = files.find(f => f.path === selectedFile);
+        if (file) {
+          startRenaming(file);
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedFile, files]);
 
   const handlePinToQuickAccess = async (folder: FileInfo) => {
     const newQuickAccess = [...quickAccess, {
@@ -387,13 +483,22 @@ export const FileExplorerBase = ({ isPicker = false, pickerMode = 'file', onFile
 
   const handleCreateDesktopShortcut = async (file: FileInfo) => {
     try {
-      // Remove extension for shortcut name if desired, or keep it
-      const shortcutName = file.name.replace(/\.[^/.]+$/, "");
-      await invoke('create_desktop_shortcut', { 
-        targetPath: file.path, 
-        fileName: shortcutName 
-      });
-      console.log('Shortcut created successfully');
+      const currentShortcuts = await store.get<any[]>('desktop_shortcuts') || [];
+      const newShortcut = {
+        name: file.name,
+        path: file.path,
+        is_dir: file.is_dir
+      };
+      
+      const exists = currentShortcuts.find(s => s.path === newShortcut.path);
+      if (!exists) {
+        const updatedShortcuts = [...currentShortcuts, newShortcut];
+        await store.set('desktop_shortcuts', updatedShortcuts);
+        await store.save();
+        console.log('Shortcut created successfully in GenesiOS');
+      } else {
+        console.log('Shortcut already exists');
+      }
     } catch (error) {
       console.error('Failed to create shortcut', error);
     }
@@ -565,7 +670,10 @@ export const FileExplorerBase = ({ isPicker = false, pickerMode = 'file', onFile
         </div>
 
         {/* File View Area */}
-        <div className={`flex-1 ${theme === 'light' ? 'bg-white' : 'bg-[#191919]'} overflow-y-auto custom-scrollbar relative`}>
+        <div 
+          className={`flex-1 ${theme === 'light' ? 'bg-white' : 'bg-[#191919]'} overflow-y-auto custom-scrollbar relative`}
+          onScroll={handleScroll}
+        >
           
           {loading && (
             <div className={`absolute inset-0 flex items-center justify-center ${theme === 'light' ? 'bg-white/50' : 'bg-[#191919]/50'} z-10`}>
@@ -619,7 +727,7 @@ export const FileExplorerBase = ({ isPicker = false, pickerMode = 'file', onFile
             <div className="p-2">
               {viewMode === 'grid' ? (
                 <div className="grid grid-cols-[repeat(auto-fill,minmax(100px,1fr))] gap-2 p-2">
-                  {filteredAndSortedFiles.map((file, i) => {
+                  {filteredAndSortedFiles.slice(0, visibleCount).map((file, i) => {
                     const isImage = file.name.match(/\.(jpg|jpeg|png|gif|webp)$/i);
                     return (
                     <div 
@@ -644,7 +752,32 @@ export const FileExplorerBase = ({ isPicker = false, pickerMode = 'file', onFile
                       ) : (
                         <IconFile size={48} stroke={1.5} className={`${theme === 'light' ? 'text-black/60' : 'text-white/80'} group-hover:scale-105 transition-transform`} />
                       )}
-                      <span className="text-[12px] break-words w-full line-clamp-2 leading-tight" title={file.name}>{file.name}</span>
+                      <span className="text-[12px] break-words w-full line-clamp-2 leading-tight" title={file.name}>
+                        {renamingFile === file.path ? (
+                          <input 
+                            autoFocus
+                            value={renamingText}
+                            onChange={(e) => setRenamingText(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') submitRename(file, renamingText);
+                              if (e.key === 'Escape') setRenamingFile(null);
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                            onBlur={() => submitRename(file, renamingText)}
+                            className="w-full text-black px-1 text-center border-blue-500 border rounded outline-none"
+                            onFocus={(e) => {
+                              const extIndex = renamingText.lastIndexOf('.');
+                              if (extIndex > 0 && !file.is_dir) {
+                                e.target.setSelectionRange(0, extIndex);
+                              } else {
+                                e.target.select();
+                              }
+                            }}
+                          />
+                        ) : (
+                          file.name
+                        )}
+                      </span>
                     </div>
                   )})}
                 </div>
@@ -675,7 +808,7 @@ export const FileExplorerBase = ({ isPicker = false, pickerMode = 'file', onFile
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredAndSortedFiles.map((file, i) => (
+                    {filteredAndSortedFiles.slice(0, visibleCount).map((file, i) => (
                       <tr 
                         key={i} 
                         onClick={() => handleFileClick(file)}
@@ -696,7 +829,30 @@ export const FileExplorerBase = ({ isPicker = false, pickerMode = 'file', onFile
                             <div className="shrink-0 flex items-center justify-center">
                               {file.is_dir ? <IconFolderFilled size={16} className="text-yellow-500" /> : <IconFile size={16} stroke={1.5} className={`${theme === 'light' ? 'text-black/60' : 'text-white/60'}`} />}
                             </div>
-                            <span className="truncate" title={file.name}>{file.name}</span>
+                            {renamingFile === file.path ? (
+                              <input 
+                                autoFocus
+                                value={renamingText}
+                                onChange={(e) => setRenamingText(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') submitRename(file, renamingText);
+                                  if (e.key === 'Escape') setRenamingFile(null);
+                                }}
+                                onClick={(e) => e.stopPropagation()}
+                                onBlur={() => submitRename(file, renamingText)}
+                                className="w-full text-black px-1 border-blue-500 border rounded outline-none"
+                                onFocus={(e) => {
+                                  const extIndex = renamingText.lastIndexOf('.');
+                                  if (extIndex > 0 && !file.is_dir) {
+                                    e.target.setSelectionRange(0, extIndex);
+                                  } else {
+                                    e.target.select();
+                                  }
+                                }}
+                              />
+                            ) : (
+                              <span className="truncate" title={file.name}>{file.name}</span>
+                            )}
                           </div>
                         </td>
                         <td className={`px-4 py-2 ${theme === 'light' ? 'text-black/50' : 'text-white/50'} truncate`}>{file.modified_at ? new Date(file.modified_at * 1000).toLocaleDateString() : ''}</td>
@@ -829,6 +985,18 @@ export const FileExplorerBase = ({ isPicker = false, pickerMode = 'file', onFile
               </div>
               <div 
                 className={`px-4 py-1.5 cursor-pointer ${theme === 'light' ? 'hover:bg-black/5' : 'hover:bg-white/10'}`}
+                onClick={() => { startRenaming(contextMenu.item); setContextMenu(null); }}
+              >
+                Rename
+              </div>
+              <div 
+                className={`px-4 py-1.5 cursor-pointer ${theme === 'light' ? 'hover:bg-black/5' : 'hover:bg-white/10'}`}
+                onClick={() => { startRenaming(contextMenu.item); setContextMenu(null); }}
+              >
+                Rename
+              </div>
+              <div 
+                className={`px-4 py-1.5 cursor-pointer ${theme === 'light' ? 'hover:bg-black/5' : 'hover:bg-white/10'}`}
                 onClick={() => { handleCreateDesktopShortcut(contextMenu.item); setContextMenu(null); }}
               >
                 Create Desktop Shortcut
@@ -857,6 +1025,48 @@ export const FileExplorerBase = ({ isPicker = false, pickerMode = 'file', onFile
               </div>
             </>
           )}
+        </div>,
+        document.body
+      )}
+
+      {/* Extension Warning Modal */}
+      {showExtensionWarning && pendingRename && createPortal(
+        <div className="fixed inset-0 z-[9999999] flex items-center justify-center bg-black/50 p-4">
+          <div className={`w-full max-w-sm flex flex-col rounded-xl overflow-hidden shadow-2xl ${theme === 'light' ? 'bg-white text-black' : 'bg-[#1e1e1e] text-white'}`}>
+            <div className={`px-4 py-3 border-b flex justify-between items-center ${theme === 'light' ? 'border-black/10' : 'border-white/10'}`}>
+              <span className="font-semibold text-[14px]">Rename</span>
+              <button onClick={() => {
+                setShowExtensionWarning(false);
+                setPendingRename(null);
+                setRenamingFile(null);
+              }} className={`p-1 rounded-md ${theme === 'light' ? 'hover:bg-black/10' : 'hover:bg-white/10'}`}><IconX size={18} /></button>
+            </div>
+            <div className="p-6">
+              <p className="text-[13px] mb-4">If you change a file name extension, the file might become unusable.</p>
+              <p className="text-[13px] font-semibold">Are you sure you want to change it?</p>
+            </div>
+            <div className={`px-4 py-3 border-t flex justify-end gap-2 ${theme === 'light' ? 'bg-[#f5f5f5] border-black/10' : 'bg-[#2d2d2d] border-white/10'}`}>
+              <button 
+                className={`px-4 py-1.5 rounded-md text-[13px] font-medium transition-colors ${theme === 'light' ? 'bg-black/5 hover:bg-black/10 text-black' : 'bg-white/10 hover:bg-white/20 text-white'}`}
+                onClick={() => {
+                  setShowExtensionWarning(false);
+                  setPendingRename(null);
+                  setRenamingFile(null);
+                }}
+              >
+                No
+              </button>
+              <button 
+                className="px-4 py-1.5 rounded-md text-[13px] font-medium bg-blue-500 hover:bg-blue-600 text-white transition-colors"
+                onClick={() => {
+                  setShowExtensionWarning(false);
+                  submitRename(pendingRename.file, pendingRename.newName, true);
+                }}
+              >
+                Yes
+              </button>
+            </div>
+          </div>
         </div>,
         document.body
       )}

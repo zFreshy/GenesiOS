@@ -314,6 +314,11 @@ async fn connect_bluetooth(id: String) -> Result<bool, String> {
 }
 
 #[tauri::command]
+fn rename_file(old_path: &str, new_path: &str) -> Result<(), String> {
+    std::fs::rename(old_path, new_path).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 fn get_default_paths() -> Result<std::collections::HashMap<String, String>, String> {
     let mut paths = std::collections::HashMap::new();
     #[cfg(windows)]
@@ -347,7 +352,8 @@ pub fn run() {
             connect_wifi,
             get_bluetooth_devices,
             connect_bluetooth,
-            get_default_paths
+            get_default_paths,
+            rename_file
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
