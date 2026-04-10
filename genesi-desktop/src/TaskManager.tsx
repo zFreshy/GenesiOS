@@ -6,10 +6,19 @@ import {
   ChevronRight, StopCircle, Terminal, Globe
 } from 'lucide-react';
 import { useTheme } from './ThemeContext';
+import { invoke, isTauri } from '@tauri-apps/api/core';
 
 interface TaskManagerProps {
   apps: any[];
   onCloseApp: (id: string) => void;
+}
+
+interface ProcessInfo {
+  pid: number;
+  name: string;
+  memory: number;
+  cpu: number;
+  parent_id: number | null;
 }
 
 const TaskManager: React.FC<TaskManagerProps> = ({ apps, onCloseApp }) => {
@@ -24,8 +33,45 @@ const TaskManager: React.FC<TaskManagerProps> = ({ apps, onCloseApp }) => {
   // Mock dynamic process metrics
   const [processMetrics, setProcessMetrics] = useState<Record<string, { cpu: number, mem: number, disk: number, net: number }>>({});
 
+  const [realProcesses, setRealProcesses] = useState<ProcessInfo[]>([]);
+  const [totalMemory, setTotalMemory] = useState<number>(32 * 1024 * 1024 * 1024); // mock fallback
+  const [searchQuery, setSearchQuery] = useState('');
+  
+  const groupedProcesses = React.useMemo(() => {
+    if (!isTauri()) return [];
+
+    const groupMap: Record<string, { pids: number[], memory: number, cpu: number, name: string }> = {};
+
+    realProcesses.forEach(p => {
+      // Clean up common windows names (e.g., "chrome.exe" -> "Google Chrome", or just group by exe name)
+      let baseName = p.name;
+      if (baseName.toLowerCase() === 'chrome.exe') baseName = 'Google Chrome';
+      else if (baseName.toLowerCase() === 'msedge.exe') baseName = 'Microsoft Edge';
+      else if (baseName.toLowerCase() === 'discord.exe') baseName = 'Discord';
+      else if (baseName.toLowerCase() === 'code.exe') baseName = 'Visual Studio Code';
+      else if (baseName.toLowerCase() === 'explorer.exe') baseName = 'Windows Explorer';
+
+      if (!groupMap[baseName]) {
+        groupMap[baseName] = { pids: [], memory: 0, cpu: 0, name: baseName };
+      }
+      groupMap[baseName].pids.push(p.pid);
+      groupMap[baseName].memory += p.memory;
+      groupMap[baseName].cpu += p.cpu;
+    });
+
+    // Convert to array and sort by memory
+    const arr = Object.values(groupMap);
+    arr.sort((a, b) => b.memory - a.memory);
+
+    // Apply search filter
+    if (searchQuery) {
+      return arr.filter(g => g.name.toLowerCase().includes(searchQuery.toLowerCase()));
+    }
+    return arr;
+  }, [realProcesses, searchQuery]);
+
   useEffect(() => {
-    // Generate initial metrics for all apps
+    // Generate initial metrics for all apps (mock fallback)
     const initialMetrics: any = {
       'system': { cpu: 5.2, mem: 1200, disk: 0.1, net: 0.1 },
       'dwm': { cpu: 1.5, mem: 150, disk: 0, net: 0 },
@@ -43,44 +89,120 @@ const TaskManager: React.FC<TaskManagerProps> = ({ apps, onCloseApp }) => {
     
     setProcessMetrics(initialMetrics);
 
-    const interval = setInterval(() => {
-      // Fluctuate global
-      setCpuUsage(prev => Math.max(1, Math.min(100, prev + (Math.random() * 10 - 5))));
-      setMemUsage(prev => Math.max(10, Math.min(100, prev + (Math.random() * 2 - 1))));
-      
-      // Fluctuate processes
-      setProcessMetrics(prev => {
-        const next = { ...prev };
-        Object.keys(next).forEach(key => {
-          next[key] = {
-            cpu: Math.max(0, Math.min(100, next[key].cpu + (Math.random() * 1 - 0.5))),
-            mem: Math.max(10, next[key].mem + (Math.random() * 10 - 5)),
-            disk: Math.max(0, next[key].disk + (Math.random() * 0.2 - 0.1)),
-            net: Math.max(0, next[key].net + (Math.random() * 0.5 - 0.25))
-          };
+    const updateProcesses = async () => {
+      if (isTauri()) {
+        try {
+          const payload: any = await invoke('get_system_processes');
+          setRealProcesses(payload.processes);
+          
+          // Uso global real via Rust
+          setCpuUsage(payload.global_cpu);
+          setTotalMemory(payload.total_memory);
+          
+          // Cálculo real da porcentagem
+          const usedMemPct = (payload.used_memory / payload.total_memory) * 100;
+          setMemUsage(Math.min(100, Math.max(0, usedMemPct)));
+          
+          // Distribuir o uso real do GenesiOS (app_process_total) entre os apps abertos do Genesi
+          // Vamos adicionar um "Desktop Window Manager (Genesi)" pra absorver uma parte do peso fixo do sistema (ex: 40%)
+          // E o restante dividimos entre os apps que o usuario abriu.
+          const openApps = apps.filter(a => a.isOpen);
+          
+          const dwmWeight = 0.4;
+          const dwmCpu = payload.genesi_cpu * dwmWeight;
+          const dwmMem = (payload.genesi_memory / (1024 * 1024)) * dwmWeight;
+
+          setProcessMetrics(prev => {
+             const next = { ...prev };
+             
+             // Atualiza o DWM
+             next['dwm'] = { 
+               cpu: dwmCpu * (0.9 + Math.random() * 0.2), 
+               mem: dwmMem * (0.9 + Math.random() * 0.2), 
+               disk: 0, 
+               net: 0 
+             };
+
+             if (openApps.length > 0) {
+               const remainingCpu = payload.genesi_cpu * (1 - dwmWeight);
+               const remainingMem = (payload.genesi_memory / (1024 * 1024)) * (1 - dwmWeight);
+               const baseCpuPerApp = remainingCpu / openApps.length;
+               const baseMemPerApp = remainingMem / openApps.length;
+               
+               openApps.forEach(app => {
+                 // Adiciona uma variação aleatória de 10% para não ficarem todos com o mesmo número cravado
+                 const cpuVar = baseCpuPerApp * (0.9 + Math.random() * 0.2);
+                 const memVar = baseMemPerApp * (0.9 + Math.random() * 0.2);
+                 next[app.id] = { cpu: cpuVar, mem: memVar, disk: 0, net: 0 };
+               });
+             }
+             return next;
+          });
+
+        } catch (e) {
+          console.error('Failed to get real processes:', e);
+        }
+      } else {
+        // Fluctuate global mock
+        setCpuUsage(prev => Math.max(1, Math.min(100, prev + (Math.random() * 10 - 5))));
+        setMemUsage(prev => Math.max(10, Math.min(100, prev + (Math.random() * 2 - 1))));
+        
+        // Fluctuate processes mock
+        setProcessMetrics(prev => {
+          const next = { ...prev };
+          Object.keys(next).forEach(key => {
+            next[key] = {
+              cpu: Math.max(0, Math.min(100, next[key].cpu + (Math.random() * 1 - 0.5))),
+              mem: Math.max(10, next[key].mem + (Math.random() * 10 - 5)),
+              disk: Math.max(0, next[key].disk + (Math.random() * 0.2 - 0.1)),
+              net: Math.max(0, next[key].net + (Math.random() * 0.5 - 0.25))
+            };
+          });
+          return next;
         });
-        return next;
-      });
-    }, 2000);
+      }
+    };
+
+    updateProcesses(); // initial call
+    const interval = setInterval(updateProcesses, 2000);
 
     return () => clearInterval(interval);
   }, [apps]);
 
-  const handleEndTask = () => {
+  const handleEndTask = async () => {
     if (selectedProcess) {
-      // Se for um app do Genesi, podemos fechar de verdade
       const appExists = apps.find(a => a.id === selectedProcess);
+      
+      // Se for um app do GenesiOS, fecha ele nativamente pelo frontend
       if (appExists) {
         onCloseApp(selectedProcess);
+        setSelectedProcess(null);
+        return;
+      }
+
+      if (isTauri() && groupedProcesses.length > 0) {
+        try {
+          const group = groupedProcesses.find(g => g.name === selectedProcess);
+          if (group && group.pids.length > 0) {
+             const { Command } = await import('@tauri-apps/plugin-shell');
+             // Mata todos os PIDs agrupados daquele app
+             for (const pid of group.pids) {
+                await Command.create('taskkill', ['/PID', pid.toString(), '/F']).execute().catch(() => {});
+             }
+             setSelectedProcess(null);
+          }
+        } catch (e) {
+          console.error('Failed to kill process group', e);
+        }
       } else {
-        // Se for um mock do sistema, apenas removemos da lista (mock kill)
+        // Mock fallback logic
         setProcessMetrics(prev => {
           const next = { ...prev };
           delete next[selectedProcess];
           return next;
         });
+        setSelectedProcess(null);
       }
-      setSelectedProcess(null);
     }
   };
 
@@ -99,7 +221,7 @@ const TaskManager: React.FC<TaskManagerProps> = ({ apps, onCloseApp }) => {
 
   const getProcessName = (id: string) => {
     const app = apps.find(a => a.id === id);
-    if (app) return app.name;
+    if (app) return app.title || app.name;
     
     switch(id) {
       case 'system': return 'System Interrupts';
@@ -140,6 +262,8 @@ const TaskManager: React.FC<TaskManagerProps> = ({ apps, onCloseApp }) => {
             <input 
               type="text" 
               placeholder="Type to search" 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               className={`pl-9 pr-4 py-1.5 text-sm rounded-md outline-none w-64 ${theme === 'light' ? 'bg-white border border-black/10 text-black' : 'bg-black/40 border border-white/10 text-white focus:border-blue-500/50'}`}
             />
           </div>
@@ -229,9 +353,9 @@ const TaskManager: React.FC<TaskManagerProps> = ({ apps, onCloseApp }) => {
 
               {/* PROCESS LIST */}
               <div className="px-2 pb-4">
-                {/* Apps Group */}
-                <div className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold ${theme === 'light' ? 'text-gray-500' : 'text-gray-400'}`}>
-                  <ChevronRight size={14} /> Apps ({apps.filter(a => a.isOpen).length})
+                {/* Genesi OS Apps Group */}
+                <div className={`flex items-center gap-2 px-4 py-2 mt-4 text-xs font-semibold ${theme === 'light' ? 'text-gray-500' : 'text-gray-400'}`}>
+                  <ChevronRight size={14} /> Genesi Apps ({apps.filter(a => a.isOpen).length})
                 </div>
                 {apps.filter(a => a.isOpen).map(app => {
                   const m = processMetrics[app.id] || { cpu: 0, mem: 0, disk: 0, net: 0 };
@@ -249,7 +373,7 @@ const TaskManager: React.FC<TaskManagerProps> = ({ apps, onCloseApp }) => {
                     >
                       <div className="flex items-center gap-3 pl-6">
                         {getIconForProcess(app.id)}
-                        <span>{app.name}</span>
+                        <span>{app.title || app.name}</span>
                       </div>
                       <div className={`px-2 py-1 rounded ${m.cpu > 5 ? 'bg-[#ffe0e0] text-red-900 dark:bg-[#4a1c1c] dark:text-red-200' : ''}`}>{m.cpu.toFixed(1)}%</div>
                       <div className="px-2 py-1">{m.mem.toFixed(1)} MB</div>
@@ -259,12 +383,53 @@ const TaskManager: React.FC<TaskManagerProps> = ({ apps, onCloseApp }) => {
                   );
                 })}
 
+                {isTauri() && groupedProcesses.length > 0 ? (
+                  <>
+                    <div className={`flex items-center gap-2 px-4 py-2 mt-4 text-xs font-semibold ${theme === 'light' ? 'text-gray-500' : 'text-gray-400'}`}>
+                      <ChevronRight size={14} /> Windows Processes ({groupedProcesses.length})
+                    </div>
+                    {groupedProcesses
+                      .slice(0, 150) // limit render for perf
+                      .map(p => {
+                        // Use the first pid as an identifier or the group name
+                        const isSelected = selectedProcess === p.name;
+                        // O Windows Task Manager divide por 1024, mas sysinfo memory() traz o Resident Set Size (Working Set total).
+                        // O Windows Task Manager mostra "Private Working Set".
+                        // Uma conversão que se aproxima mais do visual do Windows Task Manager é dividir por (1024 * 1024) e aplicar um fator
+                        // ou usar virtual_memory() no Rust. Por padrão, deixamos em MB (base 1024).
+                        const memMB = p.memory / (1024 * 1024);
+                        // Para não poluir, vamos arredondar pra 1 casa decimal como no Windows.
+                        return (
+                          <div 
+                            key={p.name}
+                            onClick={() => setSelectedProcess(p.name)}
+                            className={`grid grid-cols-[3fr_1fr_1fr_1fr_1fr] gap-4 px-4 py-1.5 text-sm items-center rounded-md cursor-default mb-0.5 ${
+                              isSelected 
+                                ? (theme === 'light' ? 'bg-blue-500/10' : 'bg-blue-500/20') 
+                                : (theme === 'light' ? 'hover:bg-black/5' : 'hover:bg-white/5')
+                            }`}
+                          >
+                            <div className="flex items-center gap-3 pl-6 overflow-hidden">
+                              <Box size={16} className="text-gray-400 shrink-0" />
+                              <span className="truncate">{p.name} {p.pids.length > 1 ? `(${p.pids.length})` : ''}</span>
+                            </div>
+                            <div className={`px-2 py-1 rounded ${p.cpu > 5 ? 'bg-[#ffe0e0] text-red-900 dark:bg-[#4a1c1c] dark:text-red-200' : ''}`}>{p.cpu.toFixed(1)}%</div>
+                            <div className="px-2 py-1">{memMB.toFixed(1)} MB</div>
+                            <div className="px-2 py-1">0.0 MB/s</div>
+                            <div className="px-2 py-1">0.0 Mbps</div>
+                          </div>
+                        );
+                    })}
+                  </>
+                ) : (
+                  <>
                 {/* Background Processes Group */}
                 <div className={`flex items-center gap-2 px-4 py-2 mt-4 text-xs font-semibold ${theme === 'light' ? 'text-gray-500' : 'text-gray-400'}`}>
                   <ChevronRight size={14} /> Background processes
                 </div>
-                {Object.keys(processMetrics).filter(k => !apps.some(a => a.id === k)).map(id => {
+                {['dwm'].map(id => {
                   const m = processMetrics[id];
+                  if (!m) return null;
                   const isSelected = selectedProcess === id;
                   
                   return (
@@ -288,6 +453,8 @@ const TaskManager: React.FC<TaskManagerProps> = ({ apps, onCloseApp }) => {
                     </div>
                   );
                 })}
+                </>
+                )}
               </div>
             </div>
           )}
@@ -311,7 +478,9 @@ const TaskManager: React.FC<TaskManagerProps> = ({ apps, onCloseApp }) => {
                       <div className="flex items-center gap-2"><MemoryStick size={16}/> Memory</div>
                       <span>{memUsage.toFixed(0)}%</span>
                     </div>
-                    <div className="text-xs text-gray-400">14.2 / 32.0 GB</div>
+                    <div className="text-xs text-gray-400">
+                      {((totalMemory * (memUsage / 100)) / (1024 * 1024 * 1024)).toFixed(1)} / {(totalMemory / (1024 * 1024 * 1024)).toFixed(1)} GB
+                    </div>
                   </div>
                   <div className={`p-3 rounded-lg flex flex-col gap-1 cursor-pointer transition-colors ${theme === 'light' ? 'hover:bg-white' : 'hover:bg-white/5'}`}>
                     <div className="flex justify-between items-center text-sm font-medium">

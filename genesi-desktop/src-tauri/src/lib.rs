@@ -1,7 +1,8 @@
 use std::fs;
 use std::path::Path;
 use std::time::UNIX_EPOCH;
-use sysinfo::Disks;
+use std::sync::Mutex;
+use sysinfo::{Disks, System, Process};
 use btleplug::api::{Central, Manager as _, Peripheral, ScanFilter};
 use btleplug::platform::Manager;
 use tokio::time;
@@ -318,6 +319,86 @@ fn rename_file(old_path: &str, new_path: &str) -> Result<(), String> {
     std::fs::rename(old_path, new_path).map_err(|e| e.to_string())
 }
 
+#[derive(serde::Serialize, Clone)]
+pub struct ProcessInfo {
+    pid: u32,
+    name: String,
+    memory: u64, // bytes
+    cpu: f32, // percentage
+    parent_id: Option<u32>,
+}
+
+#[derive(serde::Serialize)]
+pub struct SystemInfoPayload {
+    processes: Vec<ProcessInfo>,
+    total_memory: u64,
+    used_memory: u64,
+    global_cpu: f32,
+    genesi_cpu: f32,
+    genesi_memory: u64,
+}
+
+lazy_static::lazy_static! {
+    static ref SYSTEM: Mutex<System> = Mutex::new(System::new_all());
+}
+
+#[tauri::command]
+fn get_system_processes() -> Result<SystemInfoPayload, String> {
+    let mut sys = SYSTEM.lock().map_err(|e| e.to_string())?;
+    sys.refresh_all();
+    
+    let cpu_count = sys.cpus().len() as f32;
+    let mut processes = Vec::new();
+    
+    let current_pid = std::process::id();
+    let mut genesi_pids = std::collections::HashSet::new();
+    genesi_pids.insert(current_pid);
+    
+    // Localiza todos os filhos e subprocessos (ex: WebView2) do nosso PID atual
+    loop {
+        let mut added = false;
+        for (pid, process) in sys.processes() {
+            if let Some(parent) = process.parent() {
+                if genesi_pids.contains(&parent.as_u32()) && !genesi_pids.contains(&pid.as_u32()) {
+                    genesi_pids.insert(pid.as_u32());
+                    added = true;
+                }
+            }
+        }
+        if !added { break; }
+    }
+
+    let mut genesi_total_memory = 0;
+    let mut genesi_total_cpu = 0.0;
+    
+    for (pid, process) in sys.processes() {
+        let p_cpu = if cpu_count > 0.0 { process.cpu_usage() / cpu_count } else { process.cpu_usage() };
+        let p_mem = process.memory();
+        
+        if genesi_pids.contains(&pid.as_u32()) {
+            genesi_total_memory += p_mem;
+            genesi_total_cpu += p_cpu;
+        }
+
+        processes.push(ProcessInfo {
+            pid: pid.as_u32(),
+            name: process.name().to_string_lossy().to_string(),
+            memory: p_mem,
+            cpu: p_cpu,
+            parent_id: process.parent().map(|p| p.as_u32()),
+        });
+    }
+    
+    Ok(SystemInfoPayload {
+        processes,
+        total_memory: sys.total_memory(),
+        used_memory: sys.used_memory(),
+        global_cpu: sys.global_cpu_usage(),
+        genesi_cpu: genesi_total_cpu,
+        genesi_memory: genesi_total_memory,
+    })
+}
+
 #[tauri::command]
 fn get_default_paths() -> Result<std::collections::HashMap<String, String>, String> {
     let mut paths = std::collections::HashMap::new();
@@ -353,7 +434,8 @@ pub fn run() {
             get_bluetooth_devices,
             connect_bluetooth,
             get_default_paths,
-            rename_file
+            rename_file,
+            get_system_processes
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

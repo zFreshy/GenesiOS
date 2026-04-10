@@ -17,6 +17,10 @@ import { useDisplay } from './DisplayContext';
 
 import { Command } from '@tauri-apps/plugin-shell';
 
+import ImageViewer from './ImageViewer';
+import VideoPlayer from './VideoPlayer';
+import TextEditor from './TextEditor';
+
 // --- Relógio isolado para a Taskbar ---
 const TaskbarClock = () => {
   const [time, setTime] = useState(new Date());
@@ -519,6 +523,15 @@ function App() {
     if (a.baseId === 'files') {
       return { ...a, content: <FileExplorer onOpenInApp={(baseId, props) => openApp(baseId, true, props)} initialPath={a.defaultPath} /> };
     }
+    if (a.baseId === 'image-viewer' && a.filePath) {
+      return { ...a, content: <ImageViewer filePath={a.filePath} fileName={a.fileName} /> };
+    }
+    if (a.baseId === 'video-player' && a.filePath) {
+      return { ...a, content: <VideoPlayer filePath={a.filePath} fileName={a.fileName} /> };
+    }
+    if (a.baseId === 'text-editor' && a.filePath) {
+      return { ...a, content: <TextEditor filePath={a.filePath} fileName={a.fileName} /> };
+    }
     return a;
   });
 
@@ -539,6 +552,24 @@ function App() {
       if (e.ctrlKey && e.shiftKey && e.key === 'Escape') {
         e.preventDefault();
         openApp('taskmgr');
+      }
+      
+      // ALT + TAB Switcher Logic
+      if (e.altKey && e.key === 'Tab') {
+        e.preventDefault();
+        setApps(currentApps => {
+           const openAppsList = currentApps.filter(a => a.isOpen);
+           if (openAppsList.length <= 1) return currentApps;
+           
+           // Sort by zIndex descending to find the top two windows
+           const sorted = [...openAppsList].sort((a, b) => b.zIndex - a.zIndex);
+           
+           // The currently focused app is sorted[0]. The next app to focus is sorted[1].
+           const nextApp = sorted[1];
+           
+           // Focus the next app
+           return currentApps.map(a => a.id === nextApp.id ? { ...a, zIndex: ++globalZIndex } : a);
+        });
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -628,12 +659,25 @@ function App() {
         {desktopShortcuts.map((shortcut, i) => (
           <div 
             key={`sc-${i}`}
-            onDoubleClick={() => {
+            onDoubleClick={async () => {
               if (shortcut.is_dir) {
-                openApp('files', true, { defaultPath: shortcut.path }); // Need to pass defaultPath somehow? Or currentPath
+                openApp('files', true, { defaultPath: shortcut.path });
               } else {
-                openApp('files', false); // Open files and let it handle, or trigger a command to open path
-                Command.create('open-path', [shortcut.path]).execute().catch(e => console.error(e));
+                try {
+                  const { openPath } = await import('@tauri-apps/plugin-opener');
+                  await openPath(shortcut.path);
+                } catch (e) {
+                  console.error('Failed to open shortcut file natively', e);
+                  // Fallback para abrir no próprio Genesi se for formato suportado
+                  const ext = shortcut.name.split('.').pop()?.toLowerCase();
+                  if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext || '')) {
+                    openApp('image-viewer', true, { title: `Photos - ${shortcut.name}`, content: null, filePath: shortcut.path, fileName: shortcut.name });
+                  } else if (['mp4', 'webm', 'ogg'].includes(ext || '')) {
+                    openApp('video-player', true, { title: `Video Player - ${shortcut.name}`, content: null, filePath: shortcut.path, fileName: shortcut.name });
+                  } else if (['txt', 'md', 'json', 'js', 'ts', 'jsx', 'tsx', 'css', 'html', 'xml'].includes(ext || '')) {
+                    openApp('text-editor', true, { title: `Text Editor - ${shortcut.name}`, content: null, filePath: shortcut.path, fileName: shortcut.name });
+                  }
+                }
               }
             }}
             className="w-20 h-20 flex flex-col items-center justify-center gap-1 rounded-md hover:bg-white/10 cursor-pointer group transition-colors relative"
