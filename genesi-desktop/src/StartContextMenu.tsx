@@ -31,7 +31,7 @@ const StartContextMenu = ({ onClose, onOpenApp, x, y }: StartContextMenuProps) =
             <MenuItem label="Terminal" />
             <MenuItem label="Terminal (Admin)" />
             <MenuSeparator />
-            <MenuItem label="Task Manager" />
+            <MenuItem label="Task Manager" onClick={() => { onOpenApp('taskmgr'); onClose(); }} />
             <MenuItem label="Settings" onClick={() => { onOpenApp('settings'); onClose(); }} />
             <MenuItem label="File Explorer" onClick={() => { onOpenApp('files'); onClose(); }} />
             <MenuItem label="Search" />

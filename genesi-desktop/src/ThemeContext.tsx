@@ -95,26 +95,30 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const setWallpaper = async (newWallpaper: string, monitorId: string | 'all', isLocalPath: boolean = false) => {
+    // Determine the actual path/url to save and render
+    const actualPath = newWallpaper;
+    const blobUrl = isLocalPath ? await loadBlobUrl(newWallpaper) : newWallpaper;
+
     // 1. Update Visual State
     setWallpapersState(prev => ({
       ...prev,
-      [monitorId]: newWallpaper
+      [monitorId]: blobUrl
     }));
 
     if (!isTauri()) return;
 
-    // 2. Persist to Disk (if it's an absolute path or default path)
-    if (isLocalPath || newWallpaper.startsWith('/')) {
+    // 2. Persist to Disk (using the actual path, not the blob url)
+    if (isLocalPath || actualPath.startsWith('/')) {
       // Update history (keep last 5)
       setWallpaperHistory(prev => {
-        const newHistory = [newWallpaper, ...prev.filter(p => p !== newWallpaper)].slice(0, 5);
+        const newHistory = [actualPath, ...prev.filter(p => p !== actualPath)].slice(0, 5);
         store.set('wallpaper_history', newHistory).then(() => store.save());
         return newHistory;
       });
 
       // Update monitor mapping
       const savedWallpapersPaths = await store.get<Record<string, string>>('wallpapers_paths') || {};
-      savedWallpapersPaths[monitorId] = newWallpaper;
+      savedWallpapersPaths[monitorId] = actualPath;
       await store.set('wallpapers_paths', savedWallpapersPaths);
       await store.save();
     }

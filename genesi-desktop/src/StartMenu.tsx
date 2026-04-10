@@ -3,6 +3,8 @@ import {
   Search, Power, User, Settings, Globe, Terminal,
   Image as ImageIcon, Folder, FileText, LayoutGrid, CheckCircle, ChevronRight
 } from 'lucide-react';
+import { getCurrentWindow } from '@tauri-apps/api/window';
+import { isTauri } from '@tauri-apps/api/core';
 
 interface StartMenuProps {
   show: boolean;
@@ -179,7 +181,17 @@ const StartMenu = ({ show, onClose, onOpenApp, apps, x }: StartMenuProps) => {
               <span className="text-[13px] font-medium">Matheus Vinícius</span>
             </div>
             
-            <button className="w-10 h-10 flex items-center justify-center hover:bg-white/10 rounded-full transition-colors group">
+            <button 
+              onClick={() => {
+                if (isTauri()) {
+                  getCurrentWindow().close();
+                } else {
+                  console.log("Mock Exit: GenesiOS is shutting down");
+                }
+              }}
+              className="w-10 h-10 flex items-center justify-center hover:bg-white/10 rounded-full transition-colors group"
+              title="Shut Down GenesiOS"
+            >
               <Power size={18} className="text-white/80 group-hover:text-red-400 transition-colors" />
             </button>
           </div>

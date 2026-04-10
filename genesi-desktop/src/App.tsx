@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, useDragControls } from 'framer-motion';
+import { LazyStore } from '@tauri-apps/plugin-store';
 import {
   Wifi, Bluetooth, Bell, Sun, Moon, Battery,
   Search, Globe, Mail, List, Power, Lock, RotateCcw, MoonStar,
-  Play, SkipBack, SkipForward, CloudSun, CalendarClock, Settings, X, Terminal, Package, Folder
+  Play, SkipBack, SkipForward, CloudSun, CalendarClock, Settings, X, Terminal, Package, Folder, Activity
 } from 'lucide-react';
 import { IconChevronUp, IconDeviceDesktop } from '@tabler/icons-react';
 import './index.css';
@@ -11,17 +12,27 @@ import StartMenu from './StartMenu';
 import StartContextMenu from './StartContextMenu';
 import SettingsApp from './SettingsApp';
 import FileExplorer from './FileExplorer';
+import TaskManager from './TaskManager';
 import { useTheme } from './ThemeContext';
 import { useDisplay } from './DisplayContext';
 
 let globalZIndex = 10;
+const appStateStore = new LazyStore('appState.json');
 
 // --- COMPONENTE DE JANELA (DRAGGABLE, RESIZABLE E ANIMADA) ---
-const DesktopWindow = ({ app, onClose, onMinimize, onMaximize, onFocus, isFullscreen, onUpdateBounds, monitor }) => {
+const DesktopWindow = ({ app, onClose, onMinimize, onMaximize, onFocus, isFullscreen, onUpdateBounds, displays, onSaveBounds }) => {
   const dragControls = useDragControls();
   const [isResizing, setIsResizing] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const windowRef = useRef(null);
+
+  // Calcula em qual monitor a janela está baseada no seu X e Y
+  const monitor = displays?.find(d => 
+    app.x + 50 >= d.logicalX && 
+    app.x + 50 <= d.logicalX + d.logicalWidth && 
+    app.y + 10 >= d.logicalY && 
+    app.y + 10 <= d.logicalY + d.logicalHeight
+  ) || displays?.find(d => d.isPrimary) || displays?.[0];
 
   // Handles de resize manuais
   const handleResize = (e, direction) => {
@@ -69,6 +80,7 @@ const DesktopWindow = ({ app, onClose, onMinimize, onMaximize, onFocus, isFullsc
       setIsResizing(false);
       document.removeEventListener('mousemove', onMouseMove);
       document.removeEventListener('mouseup', onMouseUp);
+      if (onSaveBounds) onSaveBounds(app.id);
     };
 
     document.addEventListener('mousemove', onMouseMove);
@@ -92,11 +104,11 @@ const DesktopWindow = ({ app, onClose, onMinimize, onMaximize, onFocus, isFullsc
           scale: 1, 
           x: app.maximized || isFullscreen ? (monitor ? monitor.logicalX : 0) : app.x, 
           y: app.maximized || isFullscreen ? (monitor ? monitor.logicalY : 0) : app.y,
-          width: app.maximized || isFullscreen ? (monitor ? monitor.physicalWidth : '100vw') : (app.width || 800),
+          width: app.maximized || isFullscreen ? (monitor ? monitor.logicalWidth : '100vw') : (app.width || 800),
           height: isFullscreen 
-                  ? (monitor ? monitor.physicalHeight : '100vh') 
+                  ? (monitor ? monitor.logicalHeight : '100vh') 
                   : app.maximized 
-                    ? (monitor ? (monitor.physicalHeight - 60) : '100vh') 
+                    ? (monitor ? (monitor.logicalHeight - 80) : '100vh') // Subtrai o tamanho da taskbar (80px)
                     : (app.height || 500)
         }
       }
@@ -130,13 +142,40 @@ const DesktopWindow = ({ app, onClose, onMinimize, onMaximize, onFocus, isFullsc
           onUpdateBounds(app.id, { maximized: false, width: w, height: h, x: 0, y: 0 });
         }
       }}
-      onDragEnd={() => setIsDragging(false)}
+      onDragEnd={() => {
+        setIsDragging(false);
+        
+        // Impede que a janela se perca no "vazio" entre os monitores ou fora da tela
+        if (displays && displays.length > 0) {
+          // Checa se o topo da janela (titlebar) está dentro de algum monitor
+          const titleX = app.x + 50;
+          const titleY = app.y + 10;
+          
+          const isInsideAnyMonitor = displays.some(d => 
+            titleX >= d.logicalX && 
+            titleX <= d.logicalX + d.logicalWidth && 
+            titleY >= d.logicalY && 
+            titleY <= d.logicalY + d.logicalHeight
+          );
+
+          if (!isInsideAnyMonitor) {
+            // Se perdeu no limbo, teletransporta de volta pro monitor principal
+            const primary = displays.find(d => d.isPrimary) || displays[0];
+            onUpdateBounds(app.id, { 
+              x: primary.logicalX + 100, 
+              y: primary.logicalY + 100 
+            });
+          }
+        }
+        
+        if (onSaveBounds) onSaveBounds(app.id);
+      }}
       onDrag={(event, info) => {
         onUpdateBounds(app.id, (prev) => ({ x: prev.x + info.delta.x, y: prev.y + info.delta.y }));
       }}
       className={`absolute flex flex-col shadow-2xl ${
         isFullscreen ? 'rounded-none border-none z-[99999]' : 
-        app.maximized ? 'rounded-none border-none pb-[80px]' : 
+        app.maximized ? 'rounded-none border-none' : 
         'rounded-xl border border-white/20 glass'
       }`}
     >
@@ -262,6 +301,12 @@ function App() {
       defaultX: 300, defaultY: 120, x: 300, y: 120, width: 850, height: 550,
       isOpen: false, minimized: false, maximized: false, zIndex: 10,
       content: <FileExplorer />
+    },
+    {
+      id: 'taskmgr', title: 'Task Manager', icon: Activity, color: 'bg-blue-500', 
+      defaultX: 350, defaultY: 150, x: 350, y: 150, width: 800, height: 500,
+      isOpen: false, minimized: false, maximized: false, zIndex: 10,
+      content: null // Injetado abaixo para evitar problemas de escopo circular com apps e closeApp
     }
   ]);
 
@@ -269,6 +314,47 @@ function App() {
     const timer = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
+
+  // Load saved bounds on mount
+  useEffect(() => {
+    const loadBounds = async () => {
+      try {
+        const savedBounds = await appStateStore.get('windowBounds');
+        if (savedBounds) {
+          setApps(prevApps => prevApps.map(app => {
+            if (savedBounds[app.id]) {
+              return { ...app, ...savedBounds[app.id] };
+            }
+            return app;
+          }));
+        }
+      } catch (e) {
+        console.error('Failed to load window bounds:', e);
+      }
+    };
+    loadBounds();
+  }, []);
+
+  const saveAppBounds = async (id: string) => {
+    // Only save when user drops/resizes to prevent heavy disk writes
+    setApps(currentApps => {
+      const app = currentApps.find(a => a.id === id);
+      if (app) {
+        appStateStore.get('windowBounds').then((savedBounds: any) => {
+          const newBounds = { ...(savedBounds || {}) };
+          newBounds[id] = {
+            x: app.x,
+            y: app.y,
+            width: app.width,
+            height: app.height,
+            maximized: app.maximized
+          };
+          appStateStore.set('windowBounds', newBounds).then(() => appStateStore.save());
+        });
+      }
+      return currentApps;
+    });
+  };
 
   // Funções do Window Manager
   const updateAppBounds = (id: string, boundsOrUpdater: any) => {
@@ -282,7 +368,9 @@ function App() {
   };
   const openApp = (id: string) => {
     setApps(apps.map(a => {
-      if (a.id === id) return { ...a, isOpen: true, minimized: false, zIndex: ++globalZIndex };
+      if (a.id === id) {
+        return { ...a, isOpen: true, minimized: false, zIndex: ++globalZIndex };
+      }
       return a;
     }));
     setShowControlCenter(false); // Fecha o control center se abrir um app
@@ -291,7 +379,14 @@ function App() {
   };
 
   const closeApp = (id: string) => {
-    setApps(apps.map(a => a.id === id ? { ...a, isOpen: false, minimized: false, maximized: false } : a));
+    setApps(apps.map(a => {
+      if (a.id === id) {
+        // Schedule save of its final state before closing
+        setTimeout(() => saveAppBounds(id), 100);
+        return { ...a, isOpen: false, minimized: false };
+      }
+      return a;
+    }));
   };
 
   const toggleMinimize = (id: string) => {
@@ -303,7 +398,12 @@ function App() {
 
   const toggleMaximize = (id: string) => {
     setApps(apps.map(a => {
-      if (a.id === id) return { ...a, maximized: !a.maximized, zIndex: ++globalZIndex };
+      if (a.id === id) {
+        const newMaximized = !a.maximized;
+        // Schedule save after state update
+        setTimeout(() => saveAppBounds(id), 100);
+        return { ...a, maximized: newMaximized, zIndex: ++globalZIndex };
+      }
       return a;
     }));
   };
@@ -312,12 +412,31 @@ function App() {
     setApps(apps.map(a => a.id === id ? { ...a, zIndex: ++globalZIndex } : a));
   };
 
-  // Lidar com F11 para tela cheia de verdade
+  // Injeta o conteúdo dinâmico que depende do state "apps" no Task Manager
+  const appsWithDynamicContent = apps.map(a => {
+    if (a.id === 'taskmgr') {
+      return { ...a, content: <TaskManager apps={apps} onCloseApp={closeApp} /> };
+    }
+    return a;
+  });
+
+  // Lidar com F11 para tela cheia de verdade e Tecla Windows
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'F11') {
         e.preventDefault(); // Impede o browser de roubar o F11 se tiver rodando em web
         setIsFullscreenMode(prev => !prev);
+      }
+      if (e.key === 'Meta') {
+        e.preventDefault();
+        setShowStartMenu(prev => !prev);
+        setShowControlCenter(false);
+        setShowStartContextMenu(false);
+      }
+      // Atalho para o Task Manager (Ctrl + Shift + Esc)
+      if (e.ctrlKey && e.shiftKey && e.key === 'Escape') {
+        e.preventDefault();
+        openApp('taskmgr');
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -385,6 +504,14 @@ function App() {
         >
           <Settings size={40} strokeWidth={1} className="text-gray-300 group-hover:scale-105 transition-transform" />
           <span className="text-xs font-medium text-white drop-shadow-md">Settings</span>
+        </div>
+
+        <div 
+          onDoubleClick={() => openApp('taskmgr')}
+          className="w-20 h-20 flex flex-col items-center justify-center gap-1 rounded-md hover:bg-white/10 cursor-pointer group transition-colors"
+        >
+          <Activity size={40} strokeWidth={1} className="text-blue-400 group-hover:scale-105 transition-transform" />
+          <span className="text-xs font-medium text-white drop-shadow-md text-center leading-tight">Task<br/>Manager</span>
         </div>
       </div>
 
@@ -501,7 +628,7 @@ function App() {
 
       {/* ======= WINDOW MANAGER ======= */}
       <AnimatePresence>
-        {apps.filter(a => a.isOpen).map(app => (
+        {appsWithDynamicContent.filter(a => a.isOpen).map(app => (
           <DesktopWindow 
             key={app.id} 
             app={app} 
@@ -511,6 +638,8 @@ function App() {
             onMinimize={() => toggleMinimize(app.id)}
             onMaximize={() => toggleMaximize(app.id)}
             onFocus={() => focusApp(app.id)}
+            displays={displays}
+            onSaveBounds={saveAppBounds}
           />
         ))}
       </AnimatePresence>
