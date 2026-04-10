@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence, useDragControls } from 'framer-motion';
+import { motion, AnimatePresence, useDragControls, useAnimation } from 'framer-motion';
 import { LazyStore } from '@tauri-apps/plugin-store';
 import {
-  Wifi, Battery, Globe, Terminal, Package, Folder, Activity, Settings, X, Play, List
+  Wifi, Battery, Globe, Terminal, Package, Folder, Activity, Settings, X, Play, List, Trash2, LayoutGrid, Monitor, MonitorUp
 } from 'lucide-react';
 import { IconBrandChrome } from '@tabler/icons-react';
 import './index.css';
@@ -38,6 +38,53 @@ const TaskbarClock = () => {
 
 let globalZIndex = 10;
 const appStateStore = new LazyStore('appState.json');
+
+const DesktopIconItem = ({ 
+  id, defaultIndex, primaryDisplay, getGridSnapSize, 
+  iconPositions, updateIconPosition, onDoubleClick, 
+  children, getIconClasses 
+}: any) => {
+  const controls = useAnimation();
+  
+  const step = getGridSnapSize();
+  const maxRows = Math.max(1, Math.floor((primaryDisplay.logicalHeight - 60) / step));
+  const maxCols = Math.max(1, Math.floor(primaryDisplay.logicalWidth / step));
+  
+  const defaultCol = Math.floor(defaultIndex / maxRows);
+  const defaultRow = defaultIndex % maxRows;
+  const pos = iconPositions[id] || { col: defaultCol, row: defaultRow };
+  
+  const boundedCol = Math.max(0, Math.min(pos.col, maxCols - 1));
+  const boundedRow = Math.max(0, Math.min(pos.row, maxRows - 1));
+
+  const targetX = 16 + (boundedCol * step);
+  const targetY = 16 + (boundedRow * step);
+
+  useEffect(() => {
+    controls.start({ x: targetX, y: targetY, transition: { type: 'spring', bounce: 0, duration: 0.3 } });
+  }, [targetX, targetY, controls]);
+
+  return (
+    <motion.div
+      drag
+      dragMomentum={false}
+      animate={controls}
+      initial={{ x: targetX, y: targetY }}
+      transition={{ type: 'spring', bounce: 0, duration: 0.3 }}
+      dragConstraints={{ left: 16, top: 16, right: primaryDisplay.logicalWidth - step, bottom: primaryDisplay.logicalHeight - 60 - step }}
+      onDragEnd={(_, info) => {
+        updateIconPosition(id, info.point.x, info.point.y, defaultIndex);
+        // Force snap back even if state doesn't change
+        controls.start({ x: targetX, y: targetY, transition: { type: 'spring', bounce: 0, duration: 0.3 } });
+      }}
+      className={`absolute flex flex-col items-center justify-center rounded-md hover:bg-white/10 cursor-pointer group transition-colors pointer-events-auto ${getIconClasses()}`}
+      style={{ left: 0, top: 0 }}
+      onDoubleClick={onDoubleClick}
+    >
+      {children}
+    </motion.div>
+  );
+};
 
 // --- COMPONENTE DE JANELA (DRAGGABLE, RESIZABLE E ANIMADA) ---
 const DesktopWindow = ({ app, onClose, onMinimize, onMaximize, onFocus, isFullscreen, onUpdateBounds, displays, onSaveBounds }: any) => {
@@ -242,6 +289,9 @@ function App() {
   const { theme, wallpapers, isLoading } = useTheme();
   const { displays } = useDisplay();
   const [desktopShortcuts, setDesktopShortcuts] = useState<any[]>([]);
+  const [desktopIconSize, setDesktopIconSize] = useState<'small' | 'medium' | 'large'>('medium');
+  const [showDesktopIcons, setShowDesktopIcons] = useState<boolean>(true);
+  const [desktopContextMenu, setDesktopContextMenu] = useState<{x: number, y: number} | null>(null);
 
   // Pega as dimensões totais da janela que agora cobre todos os monitores
   useEffect(() => {
@@ -256,6 +306,7 @@ function App() {
   const [showStartContextMenu, setShowStartContextMenu] = useState(false);
   const [isFullscreenMode, setIsFullscreenMode] = useState(false);
   const [activeMonitorId, setActiveMonitorId] = useState<string | null>(null);
+  const [iconPositions, setIconPositions] = useState<Record<string, { col: number, row: number }>>({});
 
   // Gerenciamento Avançado de Janelas
   const [apps, setApps] = useState([
@@ -378,6 +429,16 @@ function App() {
         if (shortcuts && Array.isArray(shortcuts)) {
           setDesktopShortcuts(shortcuts);
         }
+        
+        const size = await store.get<'small' | 'medium' | 'large'>('desktop_icon_size');
+        if (size) setDesktopIconSize(size);
+
+        const show = await store.get<boolean>('show_desktop_icons');
+        if (show !== undefined && show !== null) setShowDesktopIcons(show);
+
+        const pos = await store.get<Record<string, { col: number, row: number }>>('desktop_icon_positions');
+        if (pos) setIconPositions(pos);
+
       } catch (e) {
         console.error('Failed to load desktop shortcuts:', e);
       }
@@ -390,6 +451,60 @@ function App() {
     const interval = setInterval(loadShortcuts, 2000);
     return () => clearInterval(interval);
   }, []);
+
+  const updateIconPosition = async (id: string, dropX: number, dropY: number, defaultIndex: number) => {
+    const step = getGridSnapSize();
+    
+    // Cálculo puramente matemático da célula baseada nas coordenadas de soltura
+    const relX = dropX - primaryDisplay.logicalX;
+    const relY = dropY - primaryDisplay.logicalY;
+
+    const maxCols = Math.max(1, Math.floor(primaryDisplay.logicalWidth / step));
+    const maxRows = Math.max(1, Math.floor((primaryDisplay.logicalHeight - 60) / step));
+
+    let targetCol = Math.floor((relX - 16) / step);
+    let targetRow = Math.floor((relY - 16) / step);
+
+    // Limitar para não sair da tela matematicamente
+    targetCol = Math.max(0, Math.min(targetCol, maxCols - 1));
+    targetRow = Math.max(0, Math.min(targetRow, maxRows - 1));
+
+    setIconPositions(prev => {
+      const getDefPos = (idx: number) => ({ col: Math.floor(idx / maxRows), row: idx % maxRows });
+      const currentPos = prev[id] || getDefPos(defaultIndex);
+
+      let overlappingId: string | null = null;
+      
+      const allIds = [
+        { id: 'default-trash', idx: 0 },
+        { id: 'default-files', idx: 1 },
+        { id: 'default-settings', idx: 2 },
+        { id: 'default-taskmgr', idx: 3 },
+        { id: 'default-chrome', idx: 4 },
+        ...desktopShortcuts.map((s, i) => ({ id: `custom-${s.path}`, idx: 5 + i }))
+      ];
+
+      for (const item of allIds) {
+        if (item.id === id) continue;
+        const itemPos = prev[item.id] || getDefPos(item.idx);
+        if (itemPos.col === targetCol && itemPos.row === targetRow) {
+          overlappingId = item.id;
+          break;
+        }
+      }
+
+      const next = { ...prev, [id]: { col: targetCol, row: targetRow } };
+      
+      // Se houver sobreposição, faz o swap (troca) matemático para o lugar antigo
+      if (overlappingId) {
+        next[overlappingId] = currentPos;
+      }
+
+      const store = new LazyStore('settings.json');
+      store.set('desktop_icon_positions', next).then(() => store.save());
+      return next;
+    });
+  };
 
   const saveAppBounds = async (id: string) => {
     // Only save when user drops/resizes to prevent heavy disk writes
@@ -521,16 +636,16 @@ function App() {
       return { ...a, content: <TaskManager apps={apps} onCloseApp={closeApp} /> };
     }
     if (a.baseId === 'files') {
-      return { ...a, content: <FileExplorer onOpenInApp={(baseId, props) => openApp(baseId, true, props)} initialPath={a.defaultPath} /> };
+      return { ...a, content: <FileExplorer onOpenInApp={(baseId, props) => openApp(baseId, true, props)} initialPath={(a as any).defaultPath} /> };
     }
-    if (a.baseId === 'image-viewer' && a.filePath) {
-      return { ...a, content: <ImageViewer filePath={a.filePath} fileName={a.fileName} /> };
+    if (a.baseId === 'image-viewer' && (a as any).filePath) {
+      return { ...a, content: <ImageViewer filePath={(a as any).filePath} fileName={(a as any).fileName} /> };
     }
-    if (a.baseId === 'video-player' && a.filePath) {
-      return { ...a, content: <VideoPlayer filePath={a.filePath} fileName={a.fileName} /> };
+    if (a.baseId === 'video-player' && (a as any).filePath) {
+      return { ...a, content: <VideoPlayer filePath={(a as any).filePath} fileName={(a as any).fileName} /> };
     }
-    if (a.baseId === 'text-editor' && a.filePath) {
-      return { ...a, content: <TextEditor filePath={a.filePath} fileName={a.fileName} /> };
+    if (a.baseId === 'text-editor' && (a as any).filePath) {
+      return { ...a, content: <TextEditor filePath={(a as any).filePath} fileName={(a as any).fileName} /> };
     }
     return a;
   });
@@ -576,6 +691,56 @@ function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  const handleDesktopContextMenu = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      e.preventDefault();
+      setDesktopContextMenu({ x: e.clientX, y: e.clientY });
+      setShowStartMenu(false);
+      setShowControlCenter(false);
+    }
+  };
+
+  const handleUpdateDesktopIcons = async (updates: { size?: 'small' | 'medium' | 'large', show?: boolean }) => {
+    const store = new LazyStore('settings.json');
+    if (updates.size) {
+      setDesktopIconSize(updates.size);
+      await store.set('desktop_icon_size', updates.size);
+    }
+    if (updates.show !== undefined) {
+      setShowDesktopIcons(updates.show);
+      await store.set('show_desktop_icons', updates.show);
+    }
+    await store.save();
+    setDesktopContextMenu(null);
+  };
+
+  const getIconClasses = () => {
+    switch(desktopIconSize) {
+      case 'small': return 'w-16 h-16 text-[10px] gap-1';
+      case 'large': return 'w-24 h-24 text-sm gap-2';
+      case 'medium':
+      default: return 'w-20 h-20 text-xs gap-1';
+    }
+  };
+
+  const getIconSize = () => {
+    switch(desktopIconSize) {
+      case 'small': return 32;
+      case 'large': return 48;
+      case 'medium':
+      default: return 40;
+    }
+  };
+
+  const getGridSnapSize = () => {
+    switch(desktopIconSize) {
+      case 'small': return 80;
+      case 'large': return 120;
+      case 'medium':
+      default: return 96;
+    }
+  };
+
   // If theme/wallpaper is still loading from the store, don't render the main app yet
   if (isLoading || displays.length === 0) {
     return <div className="w-screen h-screen bg-black flex items-center justify-center text-white font-sans">Loading...</div>;
@@ -591,12 +756,12 @@ function App() {
 
       
       {/* Background/Wallpapers for each monitor based on logical position */}
-      {displays.map(d => {
-        const bgUrl = wallpapers[d.id] || wallpapers['all'] || '/wallpaper1.png';
+      {displays.map((d, i) => {
+        const bgUrl = wallpapers[d.id] || wallpapers['all'] || "https://images.unsplash.com/photo-1707343843437-caacff5cfa74?q=80&w=3375&auto=format&fit=crop";
         return (
           <div 
-            key={d.id}
-            className="absolute"
+            key={`bg-${d.id}`}
+            className="absolute z-0"
             style={{
               left: d.logicalX,
               top: d.logicalY,
@@ -608,96 +773,170 @@ function App() {
               backgroundRepeat: 'no-repeat',
               borderRight: displays.length > 1 ? '1px solid rgba(255,255,255,0.05)' : 'none' // Subtile divisor
             }}
-            onContextMenu={(e) => e.preventDefault()}
+            onContextMenu={handleDesktopContextMenu}
+            onClick={() => setDesktopContextMenu(null)}
           />
         );
       })}
 
-      {/* Desktop Icons - Rendizados no Monitor Principal */}
-      <div 
-        className="absolute p-4 flex flex-col gap-4 flex-wrap content-start"
-        style={{
-          left: primaryDisplay.logicalX,
-          top: primaryDisplay.logicalY,
-          width: primaryDisplay.logicalWidth,
-          height: primaryDisplay.logicalHeight - 60 // subtrai a taskbar
-        }}
-      >
+      {/* Desktop Context Menu */}
+      {desktopContextMenu && (
         <div 
-          onDoubleClick={() => openApp('files')}
-          className="w-20 h-20 flex flex-col items-center justify-center gap-1 rounded-md hover:bg-white/10 cursor-pointer group transition-colors"
+          className={`absolute z-[999999] w-48 py-1 rounded-md shadow-xl border text-[13px] ${
+            theme === 'light' ? 'bg-white border-black/10 text-black' : 'bg-[#2d2d2d] border-white/10 text-white'
+          }`}
+          style={{ top: desktopContextMenu.y, left: desktopContextMenu.x }}
+          onClick={(e) => e.stopPropagation()}
+          onContextMenu={(e) => e.preventDefault()}
         >
-          <Folder size={40} strokeWidth={1} className="text-yellow-400 group-hover:scale-105 transition-transform" />
-          <span className="text-xs font-medium text-white drop-shadow-md">Files</span>
-        </div>
-
-        <div 
-          onDoubleClick={() => openApp('settings')}
-          className="w-20 h-20 flex flex-col items-center justify-center gap-1 rounded-md hover:bg-white/10 cursor-pointer group transition-colors"
-        >
-          <Settings size={40} strokeWidth={1} className="text-gray-300 group-hover:scale-105 transition-transform" />
-          <span className="text-xs font-medium text-white drop-shadow-md">Settings</span>
-        </div>
-
-        <div 
-          onDoubleClick={() => openApp('taskmgr')}
-          className="w-20 h-20 flex flex-col items-center justify-center gap-1 rounded-md hover:bg-white/10 cursor-pointer group transition-colors"
-        >
-          <Activity size={40} strokeWidth={1} className="text-blue-400 group-hover:scale-105 transition-transform" />
-          <span className="text-xs font-medium text-white drop-shadow-md text-center leading-tight">Task<br/>Manager</span>
-        </div>
-
-        <div 
-          onDoubleClick={() => openApp('chrome')}
-          className="w-20 h-20 flex flex-col items-center justify-center gap-1 rounded-md hover:bg-white/10 cursor-pointer group transition-colors"
-        >
-          <IconBrandChrome size={40} strokeWidth={1} className="text-green-500 group-hover:scale-105 transition-transform" />
-          <span className="text-xs font-medium text-white drop-shadow-md">Chrome</span>
-        </div>
-
-        {/* Custom User Shortcuts */}
-        {desktopShortcuts.map((shortcut, i) => (
+          <div className="px-4 py-1.5 font-semibold opacity-50 cursor-default">View</div>
           <div 
-            key={`sc-${i}`}
-            onDoubleClick={async () => {
-              if (shortcut.is_dir) {
-                openApp('files', true, { defaultPath: shortcut.path });
-              } else {
-                try {
-                  const { openPath } = await import('@tauri-apps/plugin-opener');
-                  await openPath(shortcut.path);
-                } catch (e) {
-                  console.error('Failed to open shortcut file natively', e);
-                  // Fallback para abrir no próprio Genesi se for formato suportado
-                  const ext = shortcut.name.split('.').pop()?.toLowerCase();
-                  if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext || '')) {
-                    openApp('image-viewer', true, { title: `Photos - ${shortcut.name}`, content: null, filePath: shortcut.path, fileName: shortcut.name });
-                  } else if (['mp4', 'webm', 'ogg'].includes(ext || '')) {
-                    openApp('video-player', true, { title: `Video Player - ${shortcut.name}`, content: null, filePath: shortcut.path, fileName: shortcut.name });
-                  } else if (['txt', 'md', 'json', 'js', 'ts', 'jsx', 'tsx', 'css', 'html', 'xml'].includes(ext || '')) {
-                    openApp('text-editor', true, { title: `Text Editor - ${shortcut.name}`, content: null, filePath: shortcut.path, fileName: shortcut.name });
+            className={`px-6 py-1.5 cursor-pointer flex items-center justify-between ${theme === 'light' ? 'hover:bg-black/5' : 'hover:bg-white/10'}`}
+            onClick={() => handleUpdateDesktopIcons({ size: 'large' })}
+          >
+            Large icons {desktopIconSize === 'large' && '✓'}
+          </div>
+          <div 
+            className={`px-6 py-1.5 cursor-pointer flex items-center justify-between ${theme === 'light' ? 'hover:bg-black/5' : 'hover:bg-white/10'}`}
+            onClick={() => handleUpdateDesktopIcons({ size: 'medium' })}
+          >
+            Medium icons {desktopIconSize === 'medium' && '✓'}
+          </div>
+          <div 
+            className={`px-6 py-1.5 cursor-pointer flex items-center justify-between ${theme === 'light' ? 'hover:bg-black/5' : 'hover:bg-white/10'}`}
+            onClick={() => handleUpdateDesktopIcons({ size: 'small' })}
+          >
+            Small icons {desktopIconSize === 'small' && '✓'}
+          </div>
+          <div className={`h-[1px] w-full my-1 ${theme === 'light' ? 'bg-black/10' : 'bg-white/10'}`}></div>
+          <div 
+            className={`px-4 py-1.5 cursor-pointer flex items-center justify-between ${theme === 'light' ? 'hover:bg-black/5' : 'hover:bg-white/10'}`}
+            onClick={() => handleUpdateDesktopIcons({ show: !showDesktopIcons })}
+          >
+            Show desktop icons {showDesktopIcons && '✓'}
+          </div>
+          <div className={`h-[1px] w-full my-1 ${theme === 'light' ? 'bg-black/10' : 'bg-white/10'}`}></div>
+          <div 
+            className={`px-4 py-1.5 cursor-pointer ${theme === 'light' ? 'hover:bg-black/5' : 'hover:bg-white/10'}`}
+            onClick={() => { openApp('settings'); setDesktopContextMenu(null); }}
+          >
+            Personalize
+          </div>
+        </div>
+      )}
+
+      {/* Desktop Icons - Rendizados no Monitor Principal */}
+      {showDesktopIcons && (
+        <div 
+          className="absolute p-4 pointer-events-none"
+          style={{
+            left: primaryDisplay.logicalX,
+            top: primaryDisplay.logicalY,
+            width: primaryDisplay.logicalWidth,
+            height: primaryDisplay.logicalHeight - 60 // subtrai a taskbar
+          }}
+        >
+          {/* Recycle Bin (First Icon) */}
+          <DesktopIconItem 
+            id="default-trash" defaultIndex={0} 
+            primaryDisplay={primaryDisplay} getGridSnapSize={getGridSnapSize} 
+            iconPositions={iconPositions} updateIconPosition={updateIconPosition} 
+            getIconClasses={getIconClasses} onDoubleClick={() => openApp('files', true, { defaultPath: 'C:\\$Recycle.Bin' })}
+          >
+            <Trash2 size={getIconSize()} strokeWidth={1} className="text-gray-300 group-hover:scale-105 transition-transform" />
+            <span className="font-medium text-white drop-shadow-md truncate w-full text-center px-1">Recycle Bin</span>
+          </DesktopIconItem>
+
+          <DesktopIconItem 
+            id="default-files" defaultIndex={1} 
+            primaryDisplay={primaryDisplay} getGridSnapSize={getGridSnapSize} 
+            iconPositions={iconPositions} updateIconPosition={updateIconPosition} 
+            getIconClasses={getIconClasses} onDoubleClick={() => openApp('files')}
+          >
+            <Folder size={getIconSize()} strokeWidth={1} className="text-yellow-400 group-hover:scale-105 transition-transform" />
+            <span className="font-medium text-white drop-shadow-md truncate w-full text-center px-1">Files</span>
+          </DesktopIconItem>
+
+          <DesktopIconItem 
+            id="default-settings" defaultIndex={2} 
+            primaryDisplay={primaryDisplay} getGridSnapSize={getGridSnapSize} 
+            iconPositions={iconPositions} updateIconPosition={updateIconPosition} 
+            getIconClasses={getIconClasses} onDoubleClick={() => openApp('settings')}
+          >
+            <Settings size={getIconSize()} strokeWidth={1} className="text-gray-300 group-hover:scale-105 transition-transform" />
+            <span className="font-medium text-white drop-shadow-md truncate w-full text-center px-1">Settings</span>
+          </DesktopIconItem>
+
+          <DesktopIconItem 
+            id="default-taskmgr" defaultIndex={3} 
+            primaryDisplay={primaryDisplay} getGridSnapSize={getGridSnapSize} 
+            iconPositions={iconPositions} updateIconPosition={updateIconPosition} 
+            getIconClasses={getIconClasses} onDoubleClick={() => openApp('taskmgr')}
+          >
+            <Activity size={getIconSize()} strokeWidth={1} className="text-blue-400 group-hover:scale-105 transition-transform" />
+            <span className="font-medium text-white drop-shadow-md truncate w-full text-center px-1 leading-tight">Task Manager</span>
+          </DesktopIconItem>
+
+          <DesktopIconItem 
+            id="default-chrome" defaultIndex={4} 
+            primaryDisplay={primaryDisplay} getGridSnapSize={getGridSnapSize} 
+            iconPositions={iconPositions} updateIconPosition={updateIconPosition} 
+            getIconClasses={getIconClasses} onDoubleClick={() => openApp('chrome')}
+          >
+            <IconBrandChrome size={getIconSize()} strokeWidth={1} className="text-green-500 group-hover:scale-105 transition-transform" />
+            <span className="font-medium text-white drop-shadow-md truncate w-full text-center px-1">Chrome</span>
+          </DesktopIconItem>
+
+          {/* Custom User Shortcuts */}
+          {desktopShortcuts.map((shortcut, i) => {
+            const index = i + 5; // offset pelos ícones padrão
+            
+            return (
+            <DesktopIconItem 
+              id={`custom-${shortcut.path}`} defaultIndex={index} 
+              primaryDisplay={primaryDisplay} getGridSnapSize={getGridSnapSize} 
+              iconPositions={iconPositions} updateIconPosition={updateIconPosition} 
+              getIconClasses={getIconClasses} key={`sc-${i}`}
+              onDoubleClick={async () => {
+                if (shortcut.is_dir) {
+                  openApp('files', true, { defaultPath: shortcut.path });
+                } else {
+                  try {
+                    const { openPath } = await import('@tauri-apps/plugin-opener');
+                    await openPath(shortcut.path);
+                  } catch (e) {
+                    console.error('Failed to open shortcut file natively', e);
+                    // Fallback para abrir no próprio Genesi se for formato suportado
+                    const ext = shortcut.name.split('.').pop()?.toLowerCase();
+                    if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext || '')) {
+                      openApp('image-viewer', true, { title: `Photos - ${shortcut.name}`, content: null, filePath: shortcut.path, fileName: shortcut.name });
+                    } else if (['mp4', 'webm', 'ogg'].includes(ext || '')) {
+                      openApp('video-player', true, { title: `Video Player - ${shortcut.name}`, content: null, filePath: shortcut.path, fileName: shortcut.name });
+                    } else if (['txt', 'md', 'json', 'js', 'ts', 'jsx', 'tsx', 'css', 'html', 'xml'].includes(ext || '')) {
+                      openApp('text-editor', true, { title: `Text Editor - ${shortcut.name}`, content: null, filePath: shortcut.path, fileName: shortcut.name });
+                    }
                   }
                 }
-              }
-            }}
-            className="w-20 h-20 flex flex-col items-center justify-center gap-1 rounded-md hover:bg-white/10 cursor-pointer group transition-colors relative"
-          >
-            {shortcut.is_dir ? (
-               <Folder size={40} strokeWidth={1} className="text-yellow-400 group-hover:scale-105 transition-transform" />
-            ) : (
-               <div className="w-10 h-10 bg-white/20 rounded flex items-center justify-center group-hover:scale-105 transition-transform">
-                 <span className="text-white text-xs font-bold">{shortcut.name.split('.').pop()?.toUpperCase() || '?'}</span>
-               </div>
-            )}
-            <span className="text-[11px] font-medium text-white drop-shadow-md text-center leading-tight truncate w-full px-1" title={shortcut.name}>
-              {shortcut.name}
-            </span>
-            <div className="absolute bottom-6 left-5 w-3 h-3 bg-white rounded-sm flex items-center justify-center">
-              <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M10 9l-6 6 6 6"/><path d="M20 4v7a4 4 0 0 1-4 4H4"/></svg>
-            </div>
-          </div>
-        ))}
-      </div>
+              }}
+            >
+              {shortcut.is_dir ? (
+                 <Folder size={getIconSize()} strokeWidth={1} className="text-yellow-400 group-hover:scale-105 transition-transform" />
+              ) : (
+                 <div className="w-10 h-10 bg-white/20 rounded flex items-center justify-center group-hover:scale-105 transition-transform">
+                   <span className="text-white font-bold">{shortcut.name.split('.').pop()?.toUpperCase() || '?'}</span>
+                 </div>
+              )}
+              <span className="font-medium text-white drop-shadow-md text-center leading-tight truncate w-full px-1" title={shortcut.name}>
+                {shortcut.name}
+              </span>
+              <div className="absolute bottom-6 left-5 w-3 h-3 bg-white rounded-sm flex items-center justify-center">
+                <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M10 9l-6 6 6 6"/><path d="M20 4v7a4 4 0 0 1-4 4H4"/></svg>
+              </div>
+            </DesktopIconItem>
+            );
+          })}
+        </div>
+      )}
 
       {/* ======= CONTROL CENTER & WIDGETS (Aparece ao clicar no tray) ======= */}
       <AnimatePresence>
