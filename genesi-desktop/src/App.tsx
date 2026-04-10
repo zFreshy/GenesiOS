@@ -41,7 +41,7 @@ const appStateStore = new LazyStore('appState.json');
 
 const DesktopIconItem = ({ 
   id, defaultIndex, primaryDisplay, getGridSnapSize, 
-  iconPositions, updateIconPosition, onDoubleClick, 
+  iconPositions, updateIconPosition, onDoubleClick, onContextMenu,
   children, getIconClasses 
 }: any) => {
   const controls = useAnimation();
@@ -80,6 +80,7 @@ const DesktopIconItem = ({
       className={`absolute flex flex-col items-center justify-center rounded-md hover:bg-white/10 cursor-pointer group transition-colors pointer-events-auto ${getIconClasses()}`}
       style={{ left: 0, top: 0 }}
       onDoubleClick={onDoubleClick}
+      onContextMenu={onContextMenu}
     >
       {children}
     </motion.div>
@@ -292,6 +293,7 @@ function App() {
   const [desktopIconSize, setDesktopIconSize] = useState<'small' | 'medium' | 'large'>('medium');
   const [showDesktopIcons, setShowDesktopIcons] = useState<boolean>(true);
   const [desktopContextMenu, setDesktopContextMenu] = useState<{x: number, y: number} | null>(null);
+  const [iconContextMenu, setIconContextMenu] = useState<{x: number, y: number, id: string, isCustom: boolean, shortcut?: any} | null>(null);
 
   // Pega as dimensões totais da janela que agora cobre todos os monitores
   useEffect(() => {
@@ -694,6 +696,7 @@ function App() {
   const handleDesktopContextMenu = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {
       e.preventDefault();
+      setIconContextMenu(null);
       setDesktopContextMenu({ x: e.clientX, y: e.clientY });
       setShowStartMenu(false);
       setShowControlCenter(false);
@@ -774,7 +777,10 @@ function App() {
               borderRight: displays.length > 1 ? '1px solid rgba(255,255,255,0.05)' : 'none' // Subtile divisor
             }}
             onContextMenu={handleDesktopContextMenu}
-            onClick={() => setDesktopContextMenu(null)}
+            onClick={() => {
+              setDesktopContextMenu(null);
+              setIconContextMenu(null);
+            }}
           />
         );
       })}
@@ -825,6 +831,91 @@ function App() {
         </div>
       )}
 
+      {/* Icon Context Menu */}
+      {iconContextMenu && (
+        <div 
+          className={`absolute z-[999999] w-48 py-1 rounded-md shadow-xl border text-[13px] ${
+            theme === 'light' ? 'bg-white border-black/10 text-black' : 'bg-[#2d2d2d] border-white/10 text-white'
+          }`}
+          style={{ top: iconContextMenu.y, left: iconContextMenu.x }}
+          onClick={(e) => e.stopPropagation()}
+          onContextMenu={(e) => e.preventDefault()}
+        >
+          <div 
+            className={`px-4 py-1.5 cursor-pointer ${theme === 'light' ? 'hover:bg-black/5' : 'hover:bg-white/10'}`}
+            onClick={async () => {
+              if (iconContextMenu.id === 'default-trash') {
+                try {
+                  const cmd = Command.create('open-path', ['/c', 'start', 'shell:RecycleBinFolder']);
+                  await cmd.execute();
+                } catch (e) {
+                  console.error('Failed to open recycle bin', e);
+                }
+              } else if (iconContextMenu.id === 'default-files') {
+                openApp('files');
+              } else if (iconContextMenu.id === 'default-settings') {
+                openApp('settings');
+              } else if (iconContextMenu.id === 'default-taskmgr') {
+                openApp('taskmgr');
+              } else if (iconContextMenu.id === 'default-chrome') {
+                openApp('chrome');
+              } else if (iconContextMenu.isCustom && iconContextMenu.shortcut) {
+                const shortcut = iconContextMenu.shortcut;
+                if (shortcut.is_dir) {
+                  openApp('files', true, { defaultPath: shortcut.path });
+                } else {
+                  try {
+                    const { openPath } = await import('@tauri-apps/plugin-opener');
+                    await openPath(shortcut.path);
+                  } catch (e) {
+                    console.error('Failed to open shortcut file natively', e);
+                  }
+                }
+              }
+              setIconContextMenu(null);
+            }}
+          >
+            Open
+          </div>
+          
+          {iconContextMenu.id === 'default-trash' && (
+            <div 
+              className={`px-4 py-1.5 cursor-pointer ${theme === 'light' ? 'hover:bg-black/5' : 'hover:bg-white/10'}`}
+              onClick={async () => {
+                try {
+                  const cmd = Command.create('open-path', ['/c', 'PowerShell.exe', '-NoProfile', '-Command', 'Clear-RecycleBin -Force']);
+                  await cmd.execute();
+                } catch (e) {
+                  console.error('Failed to empty recycle bin', e);
+                }
+                setIconContextMenu(null);
+              }}
+            >
+              Empty Recycle Bin
+            </div>
+          )}
+
+          {iconContextMenu.isCustom && (
+            <>
+              <div className={`h-[1px] w-full my-1 ${theme === 'light' ? 'bg-black/10' : 'bg-white/10'}`}></div>
+              <div 
+                className={`px-4 py-1.5 cursor-pointer text-red-500 ${theme === 'light' ? 'hover:bg-red-50' : 'hover:bg-red-900/30'}`}
+                onClick={async () => {
+                  const newShortcuts = desktopShortcuts.filter(s => s.path !== iconContextMenu.shortcut?.path);
+                  setDesktopShortcuts(newShortcuts);
+                  const store = new LazyStore('settings.json');
+                  await store.set('desktop_shortcuts', newShortcuts);
+                  await store.save();
+                  setIconContextMenu(null);
+                }}
+              >
+                Delete shortcut
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
       {/* Desktop Icons - Rendizados no Monitor Principal */}
       {showDesktopIcons && (
         <div 
@@ -841,7 +932,20 @@ function App() {
             id="default-trash" defaultIndex={0} 
             primaryDisplay={primaryDisplay} getGridSnapSize={getGridSnapSize} 
             iconPositions={iconPositions} updateIconPosition={updateIconPosition} 
-            getIconClasses={getIconClasses} onDoubleClick={() => openApp('files', true, { defaultPath: 'C:\\$Recycle.Bin' })}
+            getIconClasses={getIconClasses} onDoubleClick={async () => {
+              try {
+                const cmd = Command.create('open-path', ['/c', 'start', 'shell:RecycleBinFolder']);
+                await cmd.execute();
+              } catch (e) {
+                console.error('Failed to open recycle bin', e);
+              }
+            }}
+            onContextMenu={(e: React.MouseEvent) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setDesktopContextMenu(null);
+              setIconContextMenu({ x: e.clientX, y: e.clientY, id: 'default-trash', isCustom: false });
+            }}
           >
             <Trash2 size={getIconSize()} strokeWidth={1} className="text-gray-300 group-hover:scale-105 transition-transform" />
             <span className="font-medium text-white drop-shadow-md truncate w-full text-center px-1">Recycle Bin</span>
@@ -852,6 +956,12 @@ function App() {
             primaryDisplay={primaryDisplay} getGridSnapSize={getGridSnapSize} 
             iconPositions={iconPositions} updateIconPosition={updateIconPosition} 
             getIconClasses={getIconClasses} onDoubleClick={() => openApp('files')}
+            onContextMenu={(e: React.MouseEvent) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setDesktopContextMenu(null);
+              setIconContextMenu({ x: e.clientX, y: e.clientY, id: 'default-files', isCustom: false });
+            }}
           >
             <Folder size={getIconSize()} strokeWidth={1} className="text-yellow-400 group-hover:scale-105 transition-transform" />
             <span className="font-medium text-white drop-shadow-md truncate w-full text-center px-1">Files</span>
@@ -862,6 +972,12 @@ function App() {
             primaryDisplay={primaryDisplay} getGridSnapSize={getGridSnapSize} 
             iconPositions={iconPositions} updateIconPosition={updateIconPosition} 
             getIconClasses={getIconClasses} onDoubleClick={() => openApp('settings')}
+            onContextMenu={(e: React.MouseEvent) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setDesktopContextMenu(null);
+              setIconContextMenu({ x: e.clientX, y: e.clientY, id: 'default-settings', isCustom: false });
+            }}
           >
             <Settings size={getIconSize()} strokeWidth={1} className="text-gray-300 group-hover:scale-105 transition-transform" />
             <span className="font-medium text-white drop-shadow-md truncate w-full text-center px-1">Settings</span>
@@ -872,6 +988,12 @@ function App() {
             primaryDisplay={primaryDisplay} getGridSnapSize={getGridSnapSize} 
             iconPositions={iconPositions} updateIconPosition={updateIconPosition} 
             getIconClasses={getIconClasses} onDoubleClick={() => openApp('taskmgr')}
+            onContextMenu={(e: React.MouseEvent) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setDesktopContextMenu(null);
+              setIconContextMenu({ x: e.clientX, y: e.clientY, id: 'default-taskmgr', isCustom: false });
+            }}
           >
             <Activity size={getIconSize()} strokeWidth={1} className="text-blue-400 group-hover:scale-105 transition-transform" />
             <span className="font-medium text-white drop-shadow-md truncate w-full text-center px-1 leading-tight">Task Manager</span>
@@ -882,6 +1004,12 @@ function App() {
             primaryDisplay={primaryDisplay} getGridSnapSize={getGridSnapSize} 
             iconPositions={iconPositions} updateIconPosition={updateIconPosition} 
             getIconClasses={getIconClasses} onDoubleClick={() => openApp('chrome')}
+            onContextMenu={(e: React.MouseEvent) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setDesktopContextMenu(null);
+              setIconContextMenu({ x: e.clientX, y: e.clientY, id: 'default-chrome', isCustom: false });
+            }}
           >
             <IconBrandChrome size={getIconSize()} strokeWidth={1} className="text-green-500 group-hover:scale-105 transition-transform" />
             <span className="font-medium text-white drop-shadow-md truncate w-full text-center px-1">Chrome</span>
@@ -917,6 +1045,12 @@ function App() {
                     }
                   }
                 }
+              }}
+              onContextMenu={(e: React.MouseEvent) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setDesktopContextMenu(null);
+                setIconContextMenu({ x: e.clientX, y: e.clientY, id: `custom-${shortcut.path}`, isCustom: true, shortcut });
               }}
             >
               {shortcut.is_dir ? (
