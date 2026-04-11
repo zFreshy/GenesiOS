@@ -434,12 +434,11 @@ fn get_default_paths() -> Result<std::collections::HashMap<String, String>, Stri
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // Força o WebView2 (Linux/WebKitGTK) a usar renderização via software no VM
+    // E DESTRÓI qualquer menção de X11, forçando ele a conversar 100% via Wayland nativo!
     std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
     std::env::set_var("WEBKIT_DISABLE_COMPOSITING_MODE", "1");
     std::env::set_var("LIBGL_ALWAYS_SOFTWARE", "1");
-    // O WebKitGTK tem um bug brutal rodando puro no Wayland emulado. 
-    // Forçamos o GTK a desenhar via X11 (Xwayland) para ele abrir sem crashar.
-    std::env::set_var("GDK_BACKEND", "x11");
+    std::env::set_var("GDK_BACKEND", "wayland");
     
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
