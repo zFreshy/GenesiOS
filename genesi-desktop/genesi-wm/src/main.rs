@@ -151,6 +151,10 @@ pub fn send_frames_surface_tree(surface: &WlSurface, time: u32) {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Força a renderização via processador (Software) para evitar travamentos em Máquinas Virtuais
+    // É o equivalente ao WEBKIT_DISABLE_DMABUF_RENDERER que você usava no Tauri!
+    std::env::set_var("LIBGL_ALWAYS_SOFTWARE", "1");
+
     let subscriber = FmtSubscriber::builder()
         .with_max_level(Level::INFO)
         .finish();
