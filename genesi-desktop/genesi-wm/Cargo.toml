@@ -6,8 +6,8 @@ description = "Genesi OS Window Manager (Wayland Compositor)"
 
 [dependencies]
 # O coração do nosso sistema (Wayland compositor toolkit)
-# Usando a versão de desenvolvimento do Smithay, que tem a API moderna (delegate_compositor, etc)
-smithay = { git = "https://github.com/Smithay/smithay", rev = "9b646c0" }
+# Usando a versão de desenvolvimento do Smithay direto da branch principal
+smithay = { git = "https://github.com/Smithay/smithay" }
 
 # O protocolo Wayland oficial do Rust
 wayland-server = "0.31.1"
