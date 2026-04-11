@@ -15,9 +15,7 @@ wayland-server = "0.31.1"
 # Para gerenciar o loop de eventos (cliques, movimentos, tela)
 calloop = "0.13.0"
 
-# O Calloop moveu o módulo de sinais para uma crate separada na versão nova
-calloop-wayland-source = "0.3.0"
-rustix = { version = "0.38.30", features = ["process"] }
+rustix = { version = "0.38.30", features = ["process", "fs"] }
 
 # Para logs avançados
 tracing = "0.1.40"
