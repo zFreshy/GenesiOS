@@ -376,7 +376,11 @@ fn get_system_processes() -> Result<SystemInfoPayload, String> {
         let p_mem = process.memory();
         
         if genesi_pids.contains(&pid.as_u32()) {
-            genesi_total_memory += p_mem;
+            // Em sistemas Linux, processos filhos do WebKit compartilham o RSS, somar gera GBs falsos.
+            // Para ter a memória base do Genesi OS, consideramos o RSS apenas do processo pai (current_pid).
+            if pid.as_u32() == current_pid {
+                genesi_total_memory = p_mem;
+            }
             genesi_total_cpu += p_cpu;
         }
 

@@ -55,7 +55,9 @@ const TaskManager: React.FC<TaskManagerProps> = ({ apps, onCloseApp }) => {
         groupMap[baseName] = { pids: [], memory: 0, cpu: 0, name: baseName };
       }
       groupMap[baseName].pids.push(p.pid);
-      groupMap[baseName].memory += p.memory;
+      // Para processos com o mesmo nome (geralmente threads/workers que compartilham RSS no Linux),
+      // somar a memória gera valores irreais. Pegar o maior valor (Max) é uma heurística melhor para RSS.
+      groupMap[baseName].memory = Math.max(groupMap[baseName].memory, p.memory);
       groupMap[baseName].cpu += p.cpu;
     });
 
@@ -386,7 +388,7 @@ const TaskManager: React.FC<TaskManagerProps> = ({ apps, onCloseApp }) => {
                 {isTauri() && groupedProcesses.length > 0 ? (
                   <>
                     <div className={`flex items-center gap-2 px-4 py-2 mt-4 text-xs font-semibold ${theme === 'light' ? 'text-gray-500' : 'text-gray-400'}`}>
-                      <ChevronRight size={14} /> Windows Processes ({groupedProcesses.length})
+                      <ChevronRight size={14} /> System Processes ({groupedProcesses.length})
                     </div>
                     {groupedProcesses
                       .slice(0, 150) // limit render for perf
