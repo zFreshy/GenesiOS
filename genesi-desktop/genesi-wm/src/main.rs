@@ -232,6 +232,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!("✅ Genesi OS ativo e aguardando aplicativos!");
     info!("Pressione Ctrl+C para encerrar.");
 
+    info!("✨ Iniciando o Genesi Desktop Environment automaticamente...");
+    let _desktop_process = std::process::Command::new("npm")
+        .arg("run")
+        .arg("tauri")
+        .arg("dev")
+        .current_dir("../") // Volta para a raiz do genesi-desktop
+        .env("WAYLAND_DISPLAY", &socket_name)
+        .spawn()
+        .expect("Falha ao iniciar o Genesi Desktop");
+
     let keyboard = seat.add_keyboard(Default::default(), 200, 200).unwrap();
 
     loop {
@@ -272,17 +282,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             // Desenha as janelas principais
             for surface in state.xdg_shell_state.toplevel_surfaces() {
-                // Notifica a janela sobre o tamanho que ela deve ter (Tamanho total da tela menos uma borda pra ficar bonito)
+                // O Desktop deve ocupar a tela inteira, sem margens
                 let size_logical = size.to_logical(1);
                 surface.with_pending_state(|state| {
-                    state.size = Some((size_logical.w - 100, size_logical.h - 100).into());
+                    state.size = Some((size_logical.w, size_logical.h).into());
                 });
                 surface.send_configure();
 
                 elements.extend(render_elements_from_surface_tree(
                     renderer,
                     surface.wl_surface(),
-                    (50, 50), // Desenha a janela no centro com margem de 50px
+                    (0, 0), // (x,y) cravado no canto superior esquerdo
                     1.0,
                     1.0,
                     Kind::Unspecified,
@@ -295,7 +305,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 elements.extend(render_elements_from_surface_tree(
                     renderer,
                     surface.wl_surface(),
-                    (50 + location.x, 50 + location.y), // Posiciona o menu no lugar exato que o Firefox pediu
+                    (location.x, location.y), // Posiciona o menu no lugar exato que o cliente pediu (sem bordas da janela principal)
                     1.0,
                     1.0,
                     Kind::Unspecified,
