@@ -271,7 +271,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             // Desenha as janelas principais
             for surface in state.xdg_shell_state.toplevel_surfaces() {
                 // Notifica a janela sobre o tamanho que ela deve ter (Tamanho total da tela menos uma borda pra ficar bonito)
-                let size_logical = size.to_logical(1.0);
+                let size_logical = size.to_logical(1);
                 surface.with_pending_state(|state| {
                     state.size = Some((size_logical.w - 100, size_logical.h - 100).into());
                 });
@@ -289,7 +289,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             // Desenha os popups (menus e tooltips do Firefox)
             for surface in state.xdg_shell_state.popup_surfaces() {
-                let location: Point<i32, Logical> = surface.with_pending_state(|state| state.geometry.loc).unwrap_or_default();
+                let location: Point<i32, Logical> = surface.with_pending_state(|state| state.geometry.loc);
                 elements.extend(render_elements_from_surface_tree(
                     renderer,
                     surface.wl_surface(),
