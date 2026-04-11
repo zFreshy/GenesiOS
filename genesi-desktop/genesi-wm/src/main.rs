@@ -78,7 +78,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!("🛡️ Motor Wayland (Smithay): Carregando módulos Base");
     info!("===========================================");
 
-    let mut display: Display<GenesiState> = Display::new()?;
+    let display: Display<GenesiState> = Display::new()?;
     let display_handle = display.handle();
 
     let mut event_loop: EventLoop<GenesiState> = EventLoop::try_new()?;
@@ -100,7 +100,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     std::env::set_var("WAYLAND_DISPLAY", &socket_name);
     info!("🌐 Servidor Wayland escutando no socket: {}", socket_name);
 
-    let display_handle_clone = display_handle.clone();
+    let mut display_handle_clone = display_handle.clone();
     loop_handle.insert_source(source, move |client_stream, _, _state| {
         // Quando um app tentar conectar, aceitamos a conexão e registramos no servidor
         if let Err(err) = display_handle_clone.insert_client(client_stream, std::sync::Arc::new(ClientState::default())) {
