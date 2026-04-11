@@ -76,6 +76,10 @@ impl CompositorHandler for GenesiState {
         if let Some(state) = self.xdg_shell_state.toplevel_surfaces().iter().find(|s| s.wl_surface() == surface) {
             state.send_configure();
         }
+        
+        // Dispara frames para a árvore da surface atual para evitar que o cliente durma
+        let start_time = std::time::Instant::now();
+        send_frames_surface_tree(surface, start_time.elapsed().as_millis() as u32);
     }
 }
 
