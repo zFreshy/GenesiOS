@@ -26,6 +26,11 @@
           "args": true
         },
         {
+          "name": "powershell",
+          "cmd": "powershell",
+          "args": true
+        },
+        {
           "name": "taskkill",
           "cmd": "taskkill",
           "args": true

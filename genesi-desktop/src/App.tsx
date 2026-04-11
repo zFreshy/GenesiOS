@@ -20,6 +20,7 @@ import { Command } from '@tauri-apps/plugin-shell';
 import ImageViewer from './ImageViewer';
 import VideoPlayer from './VideoPlayer';
 import TextEditor from './TextEditor';
+import TerminalApp from './TerminalApp';
 
 // --- Relógio isolado para a Taskbar ---
 const TaskbarClock = () => {
@@ -394,7 +395,7 @@ function App() {
   const [pinnedApps] = useState(['browser', 'files', 'settings', 'taskmgr', 'chrome']);
   
   const APP_DEF: Record<string, any> = {
-    'browser': { title: 'Genesi Browser', icon: Globe },
+    'browser': { title: 'Genesi Browser', icon: Globe, isExternal: true },
     'terminal': { title: 'Terminal', icon: Terminal },
     'package': { title: 'Package Manager', icon: Package },
     'settings': { title: 'Configurações', icon: Settings },
@@ -540,6 +541,18 @@ function App() {
     }));
   };
   const openApp = async (baseId: string, forceNewInstance = false, additionalProps = {}) => {
+    if (baseId === 'browser') {
+      try {
+        const { openPath } = await import('@tauri-apps/plugin-opener');
+        await openPath('https://duckduckgo.com');
+      } catch (e) {
+        console.error('Failed to open system browser:', e);
+      }
+      setShowControlCenter(false);
+      setShowStartMenu(false);
+      setShowStartContextMenu(false);
+      return;
+    }
     if (baseId === 'chrome') {
       try {
         await Command.create('start-chrome').execute();
@@ -648,6 +661,9 @@ function App() {
     }
     if (a.baseId === 'text-editor' && (a as any).filePath) {
       return { ...a, content: <TextEditor filePath={(a as any).filePath} fileName={(a as any).fileName} /> };
+    }
+    if (a.baseId === 'terminal') {
+      return { ...a, content: <TerminalApp /> };
     }
     return a;
   });
