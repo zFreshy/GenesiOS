@@ -70,6 +70,12 @@ impl CompositorHandler for GenesiState {
     }
     fn commit(&mut self, surface: &WlSurface) {
         on_commit_buffer_handler::<Self>(surface);
+
+        // Bugfix WebKitGTK (Tauri):
+        // O WebkitGTK entra em deadlock e a tela do Tauri nunca é desenhada (fica preta).
+        if let Some(state) = self.xdg_shell_state.toplevel_surfaces().iter().find(|s| s.wl_surface() == surface) {
+            state.send_configure();
+        }
     }
 }
 
