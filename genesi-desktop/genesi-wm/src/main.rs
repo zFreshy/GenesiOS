@@ -1,8 +1,6 @@
-use std::sync::Arc;
-
 use tracing::{info, Level};
 use tracing_subscriber::FmtSubscriber;
-use wayland_server::{Display, Client, ListeningSocket};
+use wayland_server::{Display, Client};
 use calloop::{EventLoop, Interest, Mode, PostAction, generic::Generic};
 
 use smithay::{
@@ -165,7 +163,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!("===========================================");
 
     let display: Display<GenesiState> = Display::new()?;
-    let display_handle = display.handle();
+    let mut display_handle = display.handle();
 
     let mut event_loop: EventLoop<GenesiState> = EventLoop::try_new()?;
     let loop_handle = event_loop.handle();
@@ -174,7 +172,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let shm_state = ShmState::new::<GenesiState>(&display_handle, vec![]);
     let xdg_shell_state = XdgShellState::new::<GenesiState>(&display_handle);
     let mut seat_state = SeatState::new();
-    let seat = seat_state.new_wl_seat(&display_handle, "winit");
+    let mut seat = seat_state.new_wl_seat(&display_handle, "winit");
     let data_device_state = DataDeviceState::new::<GenesiState>(&display_handle);
 
     let mut state = GenesiState {
