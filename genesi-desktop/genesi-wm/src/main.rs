@@ -76,13 +76,17 @@ impl XdgShellHandler for GenesiState {
         // e enviaria o evento "configure" dizendo o tamanho que ela deve ter.
         // Por enquanto vamos apenas confirmar a criação pro app não travar.
         surface.with_pending_state(|state| {
-            state.states.set(smithay::wayland::shell::xdg::ToplevelState::Activated);
+            state.states.set(smithay::reexports::wayland_protocols::xdg::shell::server::xdg_toplevel::State::Activated);
         });
         surface.send_configure();
     }
 
     fn new_popup(&mut self, _surface: PopupSurface, _positioner: smithay::wayland::shell::xdg::PositionerState) {
         info!("🔽 Novo menu/popup solicitado!");
+    }
+
+    fn reposition_request(&mut self, surface: PopupSurface, _positioner: smithay::wayland::shell::xdg::PositionerState, token: u32) {
+        surface.send_repositioned(token);
     }
 
     fn grab(&mut self, _surface: PopupSurface, _seat: WlSeat, _serial: smithay::utils::Serial) {
