@@ -572,9 +572,10 @@ function App() {
     }
     if (baseId === 'chrome') {
       try {
-        await Command.create('start-chrome').execute();
+        const { openPath } = await import('@tauri-apps/plugin-opener');
+        await openPath('https://google.com');
       } catch (e) {
-        console.error('Failed to start Chrome:', e);
+        console.error('Failed to start Chrome/Browser:', e);
       }
       setShowControlCenter(false);
       setShowStartMenu(false);
