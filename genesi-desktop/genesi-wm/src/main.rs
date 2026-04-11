@@ -30,7 +30,7 @@ use smithay::{
     },
     input::{Seat, SeatHandler, SeatState, keyboard::FilterResult},
     reexports::wayland_server::protocol::{wl_surface::WlSurface, wl_buffer::WlBuffer, wl_seat::WlSeat},
-    utils::{Rectangle, Serial, Transform},
+    utils::{Rectangle, Serial, Transform, Point, Logical},
 };
 
 use wayland_protocols::xdg::shell::server::xdg_toplevel;
@@ -270,10 +270,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             // Desenha as janelas principais
             for surface in state.xdg_shell_state.toplevel_surfaces() {
+                // Notifica a janela sobre o tamanho que ela deve ter (Tamanho total da tela menos uma borda pra ficar bonito)
+                let size_logical = size.to_logical(1.0);
+                surface.with_pending_state(|state| {
+                    state.size = Some((size_logical.w - 100, size_logical.h - 100).into());
+                });
+                surface.send_configure();
+
                 elements.extend(render_elements_from_surface_tree(
                     renderer,
                     surface.wl_surface(),
-                    (0, 0),
+                    (50, 50), // Desenha a janela no centro com margem de 50px
                     1.0,
                     1.0,
                     Kind::Unspecified,
@@ -282,10 +289,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             // Desenha os popups (menus e tooltips do Firefox)
             for surface in state.xdg_shell_state.popup_surfaces() {
+                let location: Point<i32, Logical> = surface.with_pending_state(|state| state.geometry.loc).unwrap_or_default();
                 elements.extend(render_elements_from_surface_tree(
                     renderer,
                     surface.wl_surface(),
-                    (0, 0),
+                    (50 + location.x, 50 + location.y), // Posiciona o menu no lugar exato que o Firefox pediu
                     1.0,
                     1.0,
                     Kind::Unspecified,
