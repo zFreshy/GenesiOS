@@ -1,7 +1,7 @@
 use tracing::{info, Level};
 use tracing_subscriber::FmtSubscriber;
 use wayland_server::{Display, Client};
-use calloop::EventLoop;
+use calloop::{EventLoop, Interest, Mode, PostAction, generic::Generic};
 
 use smithay::{
     delegate_compositor, delegate_shm,
@@ -93,18 +93,29 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         shm_state,
     };
 
-    let socket = wayland_server::ListeningSocket::bind_auto("wayland", 1..10)?;
-    let socket_name = socket.socket_name().unwrap_or_default().to_string_lossy().into_owned();
+    use smithay::wayland::socket::ListeningSocketSource;
+    let source = ListeningSocketSource::new_auto()?;
+    let socket_name = source.socket_name().to_string_lossy().into_owned();
     
     std::env::set_var("WAYLAND_DISPLAY", &socket_name);
     info!("🌐 Servidor Wayland escutando no socket: {}", socket_name);
 
-    // O wayland-server 0.31 e calloop 0.13 possuem suporte nativo
-    // Não precisamos mais de wrappers ou generics como nas versões antigas!
+    let display_handle_clone = display_handle.clone();
+    loop_handle.insert_source(source, move |client_stream, _, _state| {
+        // Quando um app tentar conectar, aceitamos a conexão e registramos no servidor
+        if let Err(err) = display_handle_clone.insert_client(client_stream, std::sync::Arc::new(ClientState::default())) {
+            tracing::warn!("Erro ao adicionar cliente: {}", err);
+        }
+    }).map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?;
+
+    // O wayland-server moderno precisa do Generic e unsafe para gerenciar o display no calloop
     loop_handle.insert_source(
-        display_handle,
-        |_, _, _state| {
-            // Esse callback vazio apenas mantem a compatibilidade
+        Generic::new(display, Interest::READ, Mode::Level),
+        |_, display, data| {
+            unsafe {
+                display.get_mut().dispatch_clients(data).unwrap();
+            }
+            Ok(PostAction::Continue)
         },
     ).map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?;
 

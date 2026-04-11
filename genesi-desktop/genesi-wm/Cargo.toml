@@ -13,7 +13,7 @@ smithay = { git = "https://github.com/Smithay/smithay" }
 wayland-server = "0.31.1"
 
 # Para gerenciar o loop de eventos (cliques, movimentos, tela)
-calloop = "0.13.0"
+calloop = "0.14.4"
 
 rustix = { version = "0.38.30", features = ["process", "fs", "event"] }
 
