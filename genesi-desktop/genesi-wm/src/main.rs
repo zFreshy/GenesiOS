@@ -104,7 +104,7 @@ impl XdgShellHandler for GenesiState {
         surface.with_pending_state(|state| {
             state.geometry = positioner.get_geometry();
         });
-        surface.send_configure().unwrap_or_default();
+        let _ = surface.send_configure();
     }
     fn reposition_request(&mut self, surface: PopupSurface, _positioner: PositionerState, token: u32) {
         surface.send_repositioned(token);
@@ -266,7 +266,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         
         {
             let (renderer, mut framebuffer) = backend.bind().unwrap();
-            let mut elements = Vec::new();
+            let mut elements: Vec<WaylandSurfaceRenderElement<GlesRenderer>> = Vec::new();
 
             // Desenha as janelas principais
             for surface in state.xdg_shell_state.toplevel_surfaces() {
