@@ -1,67 +1,72 @@
 use tracing::{info, warn, Level};
 use tracing_subscriber::FmtSubscriber;
-use wayland_server::Display;
+use wayland_server::{Display, Client};
 use calloop::{EventLoop, loop_utils::Signals};
-use std::os::unix::io::AsRawFd;
+
+use smithay::{
+    delegate_compositor, delegate_shm,
+    wayland::{
+        buffer::BufferHandler,
+        compositor::{CompositorHandler, CompositorState, CompositorClientState},
+        shm::{ShmHandler, ShmState},
+    },
+    reexports::wayland_server::protocol::{wl_surface::WlSurface, wl_buffer::WlBuffer},
+};
+
+// O estado do cliente conectado (ex: um processo do Firefox)
+#[derive(Default)]
+pub struct ClientState {
+    pub compositor_state: CompositorClientState,
+}
+impl wayland_server::backend::ClientData for ClientState {
+    fn initialized(&self, _client_id: wayland_server::backend::ClientId) {}
+    fn disconnected(&self, _client_id: wayland_server::backend::ClientId, _reason: wayland_server::backend::DisconnectReason) {}
+}
 
 // Estrutura principal do nosso Sistema Operacional
 pub struct GenesiState {
-    // Aqui no futuro vamos guardar:
-    // - Lista de janelas abertas (Firefox, VSCode, etc)
-    // - Posição do mouse
-    // - Monitores detectados
+    pub compositor_state: CompositorState,
+    pub shm_state: ShmState,
+    // Aqui no futuro vamos guardar as janelas e ponteiro do mouse
 }
 
-// Estrutura wrapper para transformar o Display numa Source válida do Calloop
-struct WaylandSource(Display<GenesiState>);
+// =================================================================================
+// IMPLEMENTAÇÃO DOS PROTOCOLOS DO WAYLAND VIA SMITHAY
+// =================================================================================
 
-impl calloop::EventSource for WaylandSource {
-    type Event = ();
-    type Metadata = ();
-    type Ret = ();
-    type Error = std::io::Error;
-
-    fn process_events(
-        &mut self,
-        _readiness: calloop::Readiness,
-        _token: calloop::Token,
-        mut callback: impl FnMut((), &mut ()) -> Result<(), std::io::Error>,
-    ) -> Result<calloop::PostAction, std::io::Error> {
-        self.0.dispatch_clients(&mut GenesiState {}).map_err(|_| std::io::Error::last_os_error())?;
-        self.0.flush_clients().map_err(|_| std::io::Error::last_os_error())?;
-        callback((), &mut ())?;
-        Ok(calloop::PostAction::Continue)
+// 1. Compositor: Permite que os aplicativos criem "Superfícies" (Janelas invisíveis)
+impl CompositorHandler for GenesiState {
+    fn compositor_state(&mut self) -> &mut CompositorState {
+        &mut self.compositor_state
     }
-
-    fn register(&mut self, poll: &mut calloop::Poll, tokenFactory: &mut calloop::TokenFactory) -> calloop::Result<()> {
-        // Implementação básica usando o File Descriptor do Wayland Server
-        let fd = self.0.backend().poll_fd();
-        poll.register(
-            fd.as_raw_fd(),
-            calloop::Interest::READ,
-            calloop::Mode::Level,
-            tokenFactory.token(),
-        )
+    fn client_compositor_state<'c>(&self, client: &'c Client) -> &'c CompositorClientState {
+        &client.get_data::<ClientState>().unwrap().compositor_state
     }
-
-    fn reregister(&mut self, poll: &mut calloop::Poll, tokenFactory: &mut calloop::TokenFactory) -> calloop::Result<()> {
-        let fd = self.0.backend().poll_fd();
-        poll.reregister(
-            fd.as_raw_fd(),
-            calloop::Interest::READ,
-            calloop::Mode::Level,
-            tokenFactory.token(),
-        )
-    }
-
-    fn unregister(&mut self, poll: &mut calloop::Poll) -> calloop::Result<()> {
-        let fd = self.0.backend().poll_fd();
-        poll.unregister(fd.as_raw_fd())
+    fn commit(&mut self, surface: &WlSurface) {
+        // Chamado sempre que o app (ex: Firefox) atualiza os pixels da tela
+        info!("Quadro de vídeo recebido do app: {:?}", surface);
     }
 }
+
+// 2. SHM (Shared Memory): Permite que os aplicativos enviem blocos de memória RAM contendo a imagem
+impl ShmHandler for GenesiState {
+    fn shm_state(&self) -> &ShmState {
+        &self.shm_state
+    }
+}
+
+// 3. Buffer: Gerencia quando a memória de vídeo deve ser liberada
+impl BufferHandler for GenesiState {
+    fn buffer_destroyed(&mut self, _buffer: &WlBuffer) {
+        // Limpar a memória quando a janela fecha
+    }
+}
+
+// Macros do Smithay que geram todo o código pesado de conexão do Wayland nos bastidores!
+delegate_compositor!(GenesiState);
+delegate_shm!(GenesiState);
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // 1. Inicializa o sistema de logs
     let subscriber = FmtSubscriber::builder()
         .with_max_level(Level::INFO)
         .finish();
@@ -70,51 +75,46 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     info!("===========================================");
     info!("🚀 Iniciando o Genesi OS Window Manager...");
-    info!("🛡️ Motor Wayland (Smithay): Carregando");
+    info!("🛡️ Motor Wayland (Smithay): Carregando módulos Base");
     info!("===========================================");
 
-    // 2. Cria o servidor de Display do Wayland (onde os apps vão se conectar)
     let mut display: Display<GenesiState> = Display::new()?;
     let display_handle = display.handle();
 
-    // 3. Cria o Loop de Eventos (O coração que pulsa o sistema)
     let mut event_loop: EventLoop<GenesiState> = EventLoop::try_new()?;
     let loop_handle = event_loop.handle();
 
-    // 4. Cria o socket do Wayland (ex: wayland-1) para os apps acharem a gente
-    let socket_name = wayland_server::ListeningSocket::bind_auto("wayland", 1..10)?;
-    let socket_name_str = socket_name.socket_name().to_string_lossy().into_owned();
-    
-    // Configura para que o sistema saiba qual é o display do Genesi OS
-    std::env::set_var("WAYLAND_DISPLAY", &socket_name_str);
-    info!("🌐 Servidor Wayland escutando no socket: {}", socket_name_str);
+    // Cria as estruturas principais do Smithay
+    let compositor_state = CompositorState::new::<GenesiState>(&display_handle);
+    let shm_state = ShmState::new::<GenesiState>(&display_handle, vec![]);
 
-    // 5. Configura interrupções de sistema (Ctrl+C para desligar limpo)
+    let mut state = GenesiState {
+        compositor_state,
+        shm_state,
+    };
+
+    let socket = wayland_server::ListeningSocket::bind_auto("wayland", 1..10)?;
+    let socket_name = socket.socket_name().to_string_lossy().into_owned();
+    
+    std::env::set_var("WAYLAND_DISPLAY", &socket_name);
+    info!("🌐 Servidor Wayland escutando no socket: {}", socket_name);
+
     let signals = Signals::new(&[calloop::loop_utils::Signal::SIGINT, calloop::loop_utils::Signal::SIGTERM])?;
     loop_handle.insert_source(signals, |_, _, _| {
         warn!("Sinal recebido, desligando o Genesi OS...");
-        // Para parar o event_loop, nós não retornamos nada que chame stop aqui,
-        // apenas tratamos a lógica se precisasse, mas no Calloop 0.13, 
-        // precisamos de um token ou tratar o erro fora.
     })?;
 
-    // Insere o Display no Event Loop usando o generic impl do calloop para Wayland Display
+    use std::os::unix::io::AsRawFd;
     loop_handle.insert_source(
         calloop::Generic::new(display_handle.clone().into(), calloop::Interest::READ, calloop::Mode::Level),
         |_, _, _state| {
-            // Callback do Display do Wayland (Quando chegam conexões)
             Ok(calloop::PostAction::Continue)
         },
     ).map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?;
 
-    // 6. O Estado principal que será passado para os callbacks
-    let mut state = GenesiState {};
-
     info!("✅ Genesi OS ativo e aguardando aplicativos!");
     info!("Pressione Ctrl+C para encerrar.");
 
-    // 7. Roda o loop principal (aqui ele fica vivo e escutando conexões)
-    // O timeout None significa que ele vai dormir até algum evento acontecer (ex: mexer o mouse, app conectar)
     event_loop.run(None, &mut state, |_| {})?;
 
     Ok(())
