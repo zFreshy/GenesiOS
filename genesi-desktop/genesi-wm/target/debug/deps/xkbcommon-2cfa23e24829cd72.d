@@ -1,0 +1,11 @@
+/mnt/d/Desenvolvimento/Genesi/genesi-desktop/genesi-wm/target/debug/deps/xkbcommon-2cfa23e24829cd72.d: /home/mathe/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/xkbcommon-0.4.1/src/lib.rs /home/mathe/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/xkbcommon-0.4.1/src/xkb/mod.rs /home/mathe/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/xkbcommon-0.4.1/src/xkb/compose.rs /home/mathe/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/xkbcommon-0.4.1/src/xkb/ffi.rs /home/mathe/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/xkbcommon-0.4.1/src/xkb/keysyms.rs
+
+/mnt/d/Desenvolvimento/Genesi/genesi-desktop/genesi-wm/target/debug/deps/libxkbcommon-2cfa23e24829cd72.rlib: /home/mathe/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/xkbcommon-0.4.1/src/lib.rs /home/mathe/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/xkbcommon-0.4.1/src/xkb/mod.rs /home/mathe/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/xkbcommon-0.4.1/src/xkb/compose.rs /home/mathe/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/xkbcommon-0.4.1/src/xkb/ffi.rs /home/mathe/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/xkbcommon-0.4.1/src/xkb/keysyms.rs
+
+/mnt/d/Desenvolvimento/Genesi/genesi-desktop/genesi-wm/target/debug/deps/libxkbcommon-2cfa23e24829cd72.rmeta: /home/mathe/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/xkbcommon-0.4.1/src/lib.rs /home/mathe/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/xkbcommon-0.4.1/src/xkb/mod.rs /home/mathe/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/xkbcommon-0.4.1/src/xkb/compose.rs /home/mathe/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/xkbcommon-0.4.1/src/xkb/ffi.rs /home/mathe/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/xkbcommon-0.4.1/src/xkb/keysyms.rs
+
+/home/mathe/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/xkbcommon-0.4.1/src/lib.rs:
+/home/mathe/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/xkbcommon-0.4.1/src/xkb/mod.rs:
+/home/mathe/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/xkbcommon-0.4.1/src/xkb/compose.rs:
+/home/mathe/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/xkbcommon-0.4.1/src/xkb/ffi.rs:
+/home/mathe/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/xkbcommon-0.4.1/src/xkb/keysyms.rs:

@@ -1,0 +1,19 @@
+[package]
+name = "genesi-wm"
+version = "0.1.0"
+edition = "2021"
+description = "Genesi OS Window Manager (Wayland Compositor)"
+
+[dependencies]
+# O coração do nosso sistema (Wayland compositor toolkit)
+smithay = "0.3.0"
+
+# O protocolo Wayland oficial do Rust
+wayland-server = "0.31.1"
+
+# Para gerenciar o loop de eventos (cliques, movimentos, tela)
+calloop = "0.13.0"
+
+# Para logs avançados
+tracing = "0.1.40"
+tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
