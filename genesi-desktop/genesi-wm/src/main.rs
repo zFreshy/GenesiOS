@@ -1,4 +1,4 @@
-use tracing::{info, warn, Level};
+use tracing::{info, Level};
 use tracing_subscriber::FmtSubscriber;
 use wayland_server::{Display, Client};
 use calloop::EventLoop;
@@ -99,11 +99,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     std::env::set_var("WAYLAND_DISPLAY", &socket_name);
     info!("🌐 Servidor Wayland escutando no socket: {}", socket_name);
 
-    // Injeta o Wayland Display (Servidor) no event loop usando as abstrações do Calloop
+    // O wayland-server 0.31 e calloop 0.13 possuem suporte nativo
+    // Não precisamos mais de wrappers ou generics como nas versões antigas!
     loop_handle.insert_source(
-        calloop::generic::Generic::new(display_handle.clone().into(), calloop::Interest::READ, calloop::Mode::Level),
-        |_, _: &mut calloop::generic::NoIoDrop<rustix::event::PollFd>, _state| {
-            Ok(calloop::PostAction::Continue)
+        display_handle,
+        |_, _, _state| {
+            // Esse callback vazio apenas mantem a compatibilidade
         },
     ).map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?;
 
