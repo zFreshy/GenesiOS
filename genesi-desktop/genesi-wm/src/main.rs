@@ -122,7 +122,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!("✅ Genesi OS ativo e aguardando aplicativos!");
     info!("Pressione Ctrl+C para encerrar.");
 
-    event_loop.run(None, &mut state, |_| {})?;
+    let mut display_handle_flush = display_handle.clone();
+    event_loop.run(None, &mut state, move |_| {
+        // ESSENCIAL: Envia as mensagens e respostas do Wayland de volta para os clientes!
+        // Sem isso, os aplicativos conectam mas ficam "congelados" esperando o servidor responder.
+        let _ = display_handle_flush.flush_clients();
+    })?;
 
     Ok(())
 }
