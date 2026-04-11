@@ -95,12 +95,21 @@ const DesktopWindow = ({ app, onClose, onMinimize, onMaximize, onFocus, isFullsc
   const [isDragging, setIsDragging] = useState(false);
   const windowRef = useRef<HTMLDivElement>(null);
 
+  // Local bounds for high-performance drag and resize (prevents global re-renders)
+  const [localBounds, setLocalBounds] = useState({ x: app.x, y: app.y, width: app.width || 800, height: app.height || 500 });
+
+  useEffect(() => {
+    if (!isDragging && !isResizing) {
+      setLocalBounds({ x: app.x, y: app.y, width: app.width || 800, height: app.height || 500 });
+    }
+  }, [app.x, app.y, app.width, app.height, isDragging, isResizing]);
+
   // Calcula em qual monitor a janela está baseada no seu X e Y
   const monitor = displays?.find((d: any) => 
-    app.x + 50 >= d.logicalX && 
-    app.x + 50 <= d.logicalX + d.logicalWidth && 
-    app.y + 10 >= d.logicalY && 
-    app.y + 10 <= d.logicalY + d.logicalHeight
+    localBounds.x + 50 >= d.logicalX && 
+    localBounds.x + 50 <= d.logicalX + d.logicalWidth && 
+    localBounds.y + 10 >= d.logicalY && 
+    localBounds.y + 10 <= d.logicalY + d.logicalHeight
   ) || displays?.find((d: any) => d.isPrimary) || displays?.[0];
 
   // Handles de resize manuais
@@ -111,10 +120,10 @@ const DesktopWindow = ({ app, onClose, onMinimize, onMaximize, onFocus, isFullsc
     setIsResizing(true);
     const startX = e.clientX;
     const startY = e.clientY;
-    const startW = app.width || 800;
-    const startH = app.height || 500;
-    const startPosX = app.x;
-    const startPosY = app.y;
+    const startW = localBounds.width;
+    const startH = localBounds.height;
+    const startPosX = localBounds.x;
+    const startPosY = localBounds.y;
 
     const onMouseMove = (moveEvent: any) => {
       let newW = startW;
@@ -142,14 +151,19 @@ const DesktopWindow = ({ app, onClose, onMinimize, onMaximize, onFocus, isFullsc
         }
       }
 
-      onUpdateBounds(app.id, { width: newW, height: newH, x: newX, y: newY });
+      setLocalBounds({ width: newW, height: newH, x: newX, y: newY });
     };
 
     const onMouseUp = () => {
       setIsResizing(false);
       document.removeEventListener('mousemove', onMouseMove);
       document.removeEventListener('mouseup', onMouseUp);
-      if (onSaveBounds) onSaveBounds(app.id);
+      
+      setLocalBounds(current => {
+         onUpdateBounds(app.id, { width: current.width, height: current.height, x: current.x, y: current.y });
+         if (onSaveBounds) onSaveBounds(app.id);
+         return current;
+      });
     };
 
     document.addEventListener('mousemove', onMouseMove);
@@ -164,43 +178,43 @@ const DesktopWindow = ({ app, onClose, onMinimize, onMaximize, onFocus, isFullsc
         app.minimized ? {
           opacity: 0,
           scale: 0.4,
-          y: monitor ? monitor.logicalY + monitor.physicalHeight : window.innerHeight, // Vai para a taskbar DO SEU MONITOR
-          x: app.x,
-          width: app.maximized || isFullscreen ? (monitor ? monitor.physicalWidth : '100vw') : (app.width || 800),
-          height: app.maximized || isFullscreen ? (monitor ? monitor.physicalHeight : '100vh') : (app.height || 500)
+          y: monitor ? monitor.logicalY + monitor.physicalHeight : window.innerHeight,
+          x: localBounds.x,
+          width: app.maximized || isFullscreen ? (monitor ? monitor.physicalWidth : '100vw') : localBounds.width,
+          height: app.maximized || isFullscreen ? (monitor ? monitor.physicalHeight : '100vh') : localBounds.height
         } : { 
           opacity: 1, 
           scale: 1, 
-          x: app.maximized || isFullscreen ? (monitor ? monitor.logicalX : 0) : app.x, 
-          y: app.maximized || isFullscreen ? (monitor ? monitor.logicalY : 0) : app.y,
-          width: app.maximized || isFullscreen ? (monitor ? monitor.logicalWidth : '100vw') : (app.width || 800),
+          x: app.maximized || isFullscreen ? (monitor ? monitor.logicalX : 0) : localBounds.x, 
+          y: app.maximized || isFullscreen ? (monitor ? monitor.logicalY : 0) : localBounds.y,
+          width: app.maximized || isFullscreen ? (monitor ? monitor.logicalWidth : '100vw') : localBounds.width,
           height: isFullscreen 
                   ? (monitor ? monitor.logicalHeight : '100vh') 
                   : app.maximized 
-                    ? (monitor ? (monitor.logicalHeight - 80) : '100vh') // Subtrai o tamanho da taskbar (80px)
-                    : (app.height || 500)
+                    ? (monitor ? (monitor.logicalHeight - 80) : '100vh')
+                    : localBounds.height
         }
       }
       exit={{ opacity: 0, scale: 0.8, y: 50 }}
       transition={
-        isResizing || isDragging ? { duration: 0 } : { // Desliga a animação no resize/drag
+        isResizing || isDragging ? { duration: 0 } : { 
           type: "spring", 
           stiffness: 300, 
           damping: 30,
-          mass: 1.5 // Deixa a animação um pouco mais fluida e menos travada
+          mass: 1.5
         }
       }
       onClick={onFocus}
       drag={!isFullscreen}
       dragControls={dragControls}
-      dragListener={false} // Só deixa arrastar pela titlebar
+      dragListener={false}
       dragMomentum={false}
       style={{ 
         zIndex: isFullscreen ? 99999 : app.zIndex,
         position: 'absolute',
-        top: 0, left: 0, // Resetado porque o framer-motion vai controlar via x/y
-        pointerEvents: app.minimized ? 'none' : 'auto', // Impede cliques quando minimizada
-        willChange: 'transform, opacity, width, height' // Otimização de performance pesada
+        top: 0, left: 0,
+        pointerEvents: app.minimized ? 'none' : 'auto',
+        willChange: 'transform, opacity, width, height'
       }}
       onDragStart={() => {
         setIsDragging(true);
@@ -208,39 +222,42 @@ const DesktopWindow = ({ app, onClose, onMinimize, onMaximize, onFocus, isFullsc
           const rect = windowRef.current?.getBoundingClientRect();
           const w = rect?.width || window.innerWidth;
           const h = rect?.height || window.innerHeight;
+          setLocalBounds(prev => ({ ...prev, width: w, height: h, x: 0, y: 0 }));
           onUpdateBounds(app.id, { maximized: false, width: w, height: h, x: 0, y: 0 });
         }
       }}
       onDragEnd={() => {
         setIsDragging(false);
         
-        // Impede que a janela se perca no "vazio" entre os monitores ou fora da tela
-        if (displays && displays.length > 0) {
-          // Checa se o topo da janela (titlebar) está dentro de algum monitor
-          const titleX = app.x + 50;
-          const titleY = app.y + 10;
-          
-          const isInsideAnyMonitor = displays.some((d: any) => 
-            titleX >= d.logicalX && 
-            titleX <= d.logicalX + d.logicalWidth && 
-            titleY >= d.logicalY && 
-            titleY <= d.logicalY + d.logicalHeight
-          );
+        setLocalBounds(current => {
+          let finalX = current.x;
+          let finalY = current.y;
 
-          if (!isInsideAnyMonitor) {
-            // Se perdeu no limbo, teletransporta de volta pro monitor principal
-            const primary = displays.find((d: any) => d.isPrimary) || displays[0];
-            onUpdateBounds(app.id, { 
-              x: primary.logicalX + 100, 
-              y: primary.logicalY + 100 
-            });
+          if (displays && displays.length > 0) {
+            const titleX = finalX + 50;
+            const titleY = finalY + 10;
+            
+            const isInsideAnyMonitor = displays.some((d: any) => 
+              titleX >= d.logicalX && 
+              titleX <= d.logicalX + d.logicalWidth && 
+              titleY >= d.logicalY && 
+              titleY <= d.logicalY + d.logicalHeight
+            );
+
+            if (!isInsideAnyMonitor) {
+              const primary = displays.find((d: any) => d.isPrimary) || displays[0];
+              finalX = primary.logicalX + 100;
+              finalY = primary.logicalY + 100;
+            }
           }
-        }
-        
-        if (onSaveBounds) onSaveBounds(app.id);
+          
+          onUpdateBounds(app.id, { x: finalX, y: finalY });
+          if (onSaveBounds) onSaveBounds(app.id);
+          return { ...current, x: finalX, y: finalY };
+        });
       }}
       onDrag={(_, info) => {
-        onUpdateBounds(app.id, (prev: any) => ({ x: prev.x + info.delta.x, y: prev.y + info.delta.y }));
+        setLocalBounds(prev => ({ ...prev, x: prev.x + info.delta.x, y: prev.y + info.delta.y }));
       }}
       className={`absolute flex flex-col shadow-2xl ${
         isFullscreen ? 'rounded-none border-none z-[99999]' : 
