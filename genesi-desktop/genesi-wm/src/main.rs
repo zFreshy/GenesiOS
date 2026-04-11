@@ -292,25 +292,56 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .expect("Falha ao iniciar o Genesi Desktop");
 
     let keyboard = seat.add_keyboard(Default::default(), 200, 200).unwrap();
+    let pointer = seat.add_pointer();
 
     loop {
         let status = winit.dispatch_new_events(|event| match event {
             WinitEvent::Input(event) => match event {
                 InputEvent::Keyboard { event } => {
+                    use smithay::backend::input::Event;
                     keyboard.input::<(), _>(
                         &mut state,
                         event.key_code(),
                         event.state(),
                         0.into(),
-                        0,
+                        event.time_msec(),
                         |_, _, _| FilterResult::Forward,
                     );
                 }
-                InputEvent::PointerMotionAbsolute { .. } => {
-                    if let Some(surface) = state.xdg_shell_state.toplevel_surfaces().iter().next().cloned() {
-                        let surface = surface.wl_surface().clone();
-                        keyboard.set_focus(&mut state, Some(surface), 0.into());
-                    };
+                InputEvent::PointerMotionAbsolute { event } => {
+                    use smithay::backend::input::{Event, AbsolutePositionEvent};
+                    // No winit backend (e com nosso scale 1), physical e logical são quase 1:1,
+                    // mas o winit event nos dá position que podemos tentar usar.
+                    // Para evitar erros do OutputManagerState e transformações complicadas agora,
+                    // usaremos o valor base (em Physical) convertido para Logical.
+                    let position = event.position_transformed((1920, 1080).into());
+                    
+                    let under = state.xdg_shell_state.toplevel_surfaces().iter().next().cloned().map(|s| s.wl_surface().clone());
+                    if let Some(surface) = under.as_ref() {
+                        keyboard.set_focus(&mut state, Some(surface.clone()), 0.into());
+                    }
+
+                    pointer.motion(
+                        &mut state,
+                        under.map(|s| (s, (0.0, 0.0).into())),
+                        &smithay::input::pointer::MotionEvent {
+                            location: position,
+                            serial: 0.into(),
+                            time: event.time_msec(),
+                        },
+                    );
+                }
+                InputEvent::PointerButton { event } => {
+                    use smithay::backend::input::{Event, PointerButtonEvent};
+                    pointer.button(
+                        &mut state,
+                        &smithay::input::pointer::ButtonEvent {
+                            button: event.button_code(),
+                            state: event.state(),
+                            serial: 0.into(),
+                            time: event.time_msec(),
+                        },
+                    );
                 }
                 _ => {}
             },
