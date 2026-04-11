@@ -1,20 +1,44 @@
+use std::sync::Arc;
+
 use tracing::{info, Level};
 use tracing_subscriber::FmtSubscriber;
-use wayland_server::{Display, Client};
+use wayland_server::{Display, Client, ListeningSocket};
 use calloop::{EventLoop, Interest, Mode, PostAction, generic::Generic};
 
 use smithay::{
-    delegate_compositor, delegate_shm, delegate_xdg_shell,
+    delegate_compositor, delegate_shm, delegate_xdg_shell, delegate_seat, delegate_data_device,
+    backend::{
+        input::{InputEvent, KeyboardKeyEvent},
+        renderer::{
+            Color32F, Frame, Renderer,
+            element::{
+                Kind,
+                surface::{WaylandSurfaceRenderElement, render_elements_from_surface_tree},
+            },
+            gles::GlesRenderer,
+            utils::{draw_render_elements, on_commit_buffer_handler},
+        },
+        winit::{self, WinitEvent},
+    },
     wayland::{
         buffer::BufferHandler,
-        compositor::{CompositorHandler, CompositorState, CompositorClientState},
+        compositor::{CompositorHandler, CompositorState, CompositorClientState, SurfaceAttributes, TraversalAction, with_surface_tree_downward},
         shm::{ShmHandler, ShmState},
-        shell::xdg::{XdgShellHandler, XdgShellState, ToplevelSurface, PopupSurface},
+        shell::xdg::{XdgShellHandler, XdgShellState, ToplevelSurface, PopupSurface, PositionerState},
+        selection::{
+            SelectionHandler,
+            data_device::{DataDeviceHandler, DataDeviceState, WaylandDndGrabHandler},
+        },
     },
+    input::{Seat, SeatHandler, SeatState, keyboard::FilterResult},
     reexports::wayland_server::protocol::{wl_surface::WlSurface, wl_buffer::WlBuffer, wl_seat::WlSeat},
+    utils::{Rectangle, Serial, Transform},
 };
 
-// O estado do cliente conectado (ex: um processo do Firefox)
+use wayland_protocols::xdg::shell::server::xdg_toplevel;
+use winit::platform::pump_events::PumpStatus;
+
+// O estado do cliente conectado
 #[derive(Default)]
 pub struct ClientState {
     pub compositor_state: CompositorClientState,
@@ -29,14 +53,16 @@ pub struct GenesiState {
     pub compositor_state: CompositorState,
     pub shm_state: ShmState,
     pub xdg_shell_state: XdgShellState,
-    // Aqui no futuro vamos guardar as janelas e ponteiro do mouse
+    pub seat_state: SeatState<Self>,
+    pub data_device_state: DataDeviceState,
+    pub seat: Seat<Self>,
 }
 
 // =================================================================================
 // IMPLEMENTAÇÃO DOS PROTOCOLOS DO WAYLAND VIA SMITHAY
 // =================================================================================
 
-// 1. Compositor: Permite que os aplicativos criem "Superfícies" (Janelas invisíveis)
+// 1. Compositor
 impl CompositorHandler for GenesiState {
     fn compositor_state(&mut self) -> &mut CompositorState {
         &mut self.compositor_state
@@ -45,26 +71,23 @@ impl CompositorHandler for GenesiState {
         &client.get_data::<ClientState>().unwrap().compositor_state
     }
     fn commit(&mut self, surface: &WlSurface) {
-        // Chamado sempre que o app (ex: Firefox) atualiza os pixels da tela
-        info!("Quadro de vídeo recebido do app: {:?}", surface);
+        on_commit_buffer_handler::<Self>(surface);
     }
 }
 
-// 2. SHM (Shared Memory): Permite que os aplicativos enviem blocos de memória RAM contendo a imagem
+// 2. SHM (Shared Memory)
 impl ShmHandler for GenesiState {
     fn shm_state(&self) -> &ShmState {
         &self.shm_state
     }
 }
 
-// 3. Buffer: Gerencia quando a memória de vídeo deve ser liberada
+// 3. Buffer
 impl BufferHandler for GenesiState {
-    fn buffer_destroyed(&mut self, _buffer: &WlBuffer) {
-        // Limpar a memória quando a janela fecha
-    }
+    fn buffer_destroyed(&mut self, _buffer: &WlBuffer) {}
 }
 
-// 4. XDG Shell: O protocolo que os apps Linux usam para pedir "Crie uma janela pra mim!"
+// 4. XDG Shell
 impl XdgShellHandler for GenesiState {
     fn xdg_shell_state(&mut self) -> &mut XdgShellState {
         &mut self.xdg_shell_state
@@ -72,32 +95,62 @@ impl XdgShellHandler for GenesiState {
 
     fn new_toplevel(&mut self, surface: ToplevelSurface) {
         info!("🪟 Nova janela (Toplevel) solicitada pelo app!");
-        // Em um compositor real, aqui a gente guardaria essa janela num Vector
-        // e enviaria o evento "configure" dizendo o tamanho que ela deve ter.
-        // Por enquanto vamos apenas confirmar a criação pro app não travar.
         surface.with_pending_state(|state| {
-            state.states.set(smithay::reexports::wayland_protocols::xdg::shell::server::xdg_toplevel::State::Activated);
+            state.states.set(xdg_toplevel::State::Activated);
         });
         surface.send_configure();
     }
 
-    fn new_popup(&mut self, _surface: PopupSurface, _positioner: smithay::wayland::shell::xdg::PositionerState) {
-        info!("🔽 Novo menu/popup solicitado!");
-    }
-
-    fn reposition_request(&mut self, surface: PopupSurface, _positioner: smithay::wayland::shell::xdg::PositionerState, token: u32) {
+    fn new_popup(&mut self, _surface: PopupSurface, _positioner: PositionerState) {}
+    fn reposition_request(&mut self, surface: PopupSurface, _positioner: PositionerState, token: u32) {
         surface.send_repositioned(token);
     }
-
-    fn grab(&mut self, _surface: PopupSurface, _seat: WlSeat, _serial: smithay::utils::Serial) {
-        // Quando clica fora do popup pra ele sumir
-    }
+    fn grab(&mut self, _surface: PopupSurface, _seat: WlSeat, _serial: Serial) {}
 }
 
-// Macros do Smithay que geram todo o código pesado de conexão do Wayland nos bastidores!
+// 5. Seat e Data Device (Teclado, Mouse e Copiar/Colar)
+impl SeatHandler for GenesiState {
+    type KeyboardFocus = WlSurface;
+    type PointerFocus = WlSurface;
+    type TouchFocus = WlSurface;
+
+    fn seat_state(&mut self) -> &mut SeatState<Self> {
+        &mut self.seat_state
+    }
+    fn focus_changed(&mut self, _seat: &Seat<Self>, _focused: Option<&WlSurface>) {}
+    fn cursor_image(&mut self, _seat: &Seat<Self>, _image: smithay::input::pointer::CursorImageStatus) {}
+}
+
+impl SelectionHandler for GenesiState {
+    type SelectionUserData = ();
+}
+impl DataDeviceHandler for GenesiState {
+    fn data_device_state(&mut self) -> &mut DataDeviceState {
+        &mut self.data_device_state
+    }
+}
+impl WaylandDndGrabHandler for GenesiState {}
+
+// Macros
 delegate_compositor!(GenesiState);
 delegate_shm!(GenesiState);
 delegate_xdg_shell!(GenesiState);
+delegate_seat!(GenesiState);
+delegate_data_device!(GenesiState);
+
+pub fn send_frames_surface_tree(surface: &WlSurface, time: u32) {
+    with_surface_tree_downward(
+        surface,
+        (),
+        |_, _, &()| TraversalAction::DoChildren(()),
+        |_surf, states, &()| {
+            for callback in states.cached_state.get::<SurfaceAttributes>().current().frame_callbacks.drain(..) {
+                callback.done(time);
+            }
+        },
+        |_, _, &()| true,
+    );
+}
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let subscriber = FmtSubscriber::builder()
@@ -117,15 +170,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut event_loop: EventLoop<GenesiState> = EventLoop::try_new()?;
     let loop_handle = event_loop.handle();
 
-    // Cria as estruturas principais do Smithay
     let compositor_state = CompositorState::new::<GenesiState>(&display_handle);
     let shm_state = ShmState::new::<GenesiState>(&display_handle, vec![]);
     let xdg_shell_state = XdgShellState::new::<GenesiState>(&display_handle);
+    let mut seat_state = SeatState::new();
+    let seat = seat_state.new_wl_seat(&display_handle, "winit");
+    let data_device_state = DataDeviceState::new::<GenesiState>(&display_handle);
 
     let mut state = GenesiState {
         compositor_state,
         shm_state,
         xdg_shell_state,
+        seat_state,
+        seat: seat.clone(),
+        data_device_state,
     };
 
     use smithay::wayland::socket::ListeningSocketSource;
@@ -137,13 +195,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut display_handle_clone = display_handle.clone();
     loop_handle.insert_source(source, move |client_stream, _, _state| {
-        // Quando um app tentar conectar, aceitamos a conexão e registramos no servidor
         if let Err(err) = display_handle_clone.insert_client(client_stream, std::sync::Arc::new(ClientState::default())) {
             tracing::warn!("Erro ao adicionar cliente: {}", err);
         }
     }).map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?;
 
-    // O wayland-server moderno precisa do Generic e unsafe para gerenciar o display no calloop
     loop_handle.insert_source(
         Generic::new(display, Interest::READ, Mode::Level),
         |_, display, data| {
@@ -157,12 +213,73 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!("✅ Genesi OS ativo e aguardando aplicativos!");
     info!("Pressione Ctrl+C para encerrar.");
 
-    let mut display_handle_flush = display_handle.clone();
-    event_loop.run(None, &mut state, move |_| {
-        // ESSENCIAL: Envia as mensagens e respostas do Wayland de volta para os clientes!
-        // Sem isso, os aplicativos conectam mas ficam "congelados" esperando o servidor responder.
-        let _ = display_handle_flush.flush_clients();
-    })?;
+    let (mut backend, mut winit) = winit::init::<GlesRenderer>()?;
+    let start_time = std::time::Instant::now();
+    let keyboard = seat.add_keyboard(Default::default(), 200, 200).unwrap();
 
-    Ok(())
+    loop {
+        let status = winit.dispatch_new_events(|event| match event {
+            WinitEvent::Input(event) => match event {
+                InputEvent::Keyboard { event } => {
+                    keyboard.input::<(), _>(
+                        &mut state,
+                        event.key_code(),
+                        event.state(),
+                        0.into(),
+                        0,
+                        |_, _, _| FilterResult::Forward,
+                    );
+                }
+                InputEvent::PointerMotionAbsolute { .. } => {
+                    if let Some(surface) = state.xdg_shell_state.toplevel_surfaces().iter().next().cloned() {
+                        let surface = surface.wl_surface().clone();
+                        keyboard.set_focus(&mut state, Some(surface), 0.into());
+                    };
+                }
+                _ => {}
+            },
+            _ => (),
+        });
+
+        match status {
+            PumpStatus::Continue => (),
+            PumpStatus::Exit(_) => return Ok(()),
+        };
+
+        let size = backend.window_size();
+        let damage = Rectangle::from_size(size);
+        
+        {
+            let (renderer, mut framebuffer) = backend.bind().unwrap();
+            let elements = state
+                .xdg_shell_state
+                .toplevel_surfaces()
+                .iter()
+                .flat_map(|surface| {
+                    render_elements_from_surface_tree(
+                        renderer,
+                        surface.wl_surface(),
+                        (0, 0),
+                        1.0,
+                        1.0,
+                        Kind::Unspecified,
+                    )
+                })
+                .collect::<Vec<WaylandSurfaceRenderElement<GlesRenderer>>>();
+
+            let mut frame = renderer.render(&mut framebuffer, size, Transform::Flipped180).unwrap();
+            frame.clear(Color32F::new(0.05, 0.05, 0.1, 1.0), &[damage]).unwrap();
+            draw_render_elements(&mut frame, 1.0, &elements, &[damage]).unwrap();
+            let _ = frame.finish().unwrap();
+
+            for surface in state.xdg_shell_state.toplevel_surfaces() {
+                send_frames_surface_tree(surface.wl_surface(), start_time.elapsed().as_millis() as u32);
+            }
+
+            let _ = display_handle.flush_clients();
+        }
+
+        backend.submit(Some(&[damage])).unwrap();
+        event_loop.dispatch(Some(std::time::Duration::from_millis(16)), &mut state)?;
+    }
 }
