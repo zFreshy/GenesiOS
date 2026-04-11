@@ -21,6 +21,7 @@ import ImageViewer from './ImageViewer';
 import VideoPlayer from './VideoPlayer';
 import TextEditor from './TextEditor';
 import TerminalApp from './TerminalApp';
+import BrowserApp from './BrowserApp';
 
 // --- Relógio isolado para a Taskbar ---
 const TaskbarClock = () => {
@@ -558,18 +559,6 @@ function App() {
     }));
   };
   const openApp = async (baseId: string, forceNewInstance = false, additionalProps = {}) => {
-    if (baseId === 'browser') {
-      try {
-        const { openUrl } = await import('@tauri-apps/plugin-opener');
-        await openUrl('https://duckduckgo.com');
-      } catch (e) {
-        console.error('Failed to open system browser:', e);
-      }
-      setShowControlCenter(false);
-      setShowStartMenu(false);
-      setShowStartContextMenu(false);
-      return;
-    }
     if (baseId === 'chrome') {
       try {
         const { openUrl } = await import('@tauri-apps/plugin-opener');
@@ -665,6 +654,9 @@ function App() {
 
   // Injeta o conteúdo dinâmico que depende do state "apps" no Task Manager
   const appsWithDynamicContent = apps.map(a => {
+    if (a.baseId === 'browser') {
+      return { ...a, content: <BrowserApp /> };
+    }
     if (a.id === 'taskmgr') {
       return { ...a, content: <TaskManager apps={apps} onCloseApp={closeApp} /> };
     }
