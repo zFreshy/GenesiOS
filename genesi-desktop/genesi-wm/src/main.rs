@@ -102,7 +102,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Injeta o Wayland Display (Servidor) no event loop usando as abstrações do Calloop
     loop_handle.insert_source(
         calloop::generic::Generic::new(display_handle.clone().into(), calloop::Interest::READ, calloop::Mode::Level),
-        |_, _: &mut calloop::generic::NoIoDrop<wayland_server::backend::PollFd>, _state| {
+        |_, _: &mut calloop::generic::NoIoDrop<rustix::event::PollFd>, _state| {
             Ok(calloop::PostAction::Continue)
         },
     ).map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?;

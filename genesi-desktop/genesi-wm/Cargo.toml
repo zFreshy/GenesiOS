@@ -15,7 +15,7 @@ wayland-server = "0.31.1"
 # Para gerenciar o loop de eventos (cliques, movimentos, tela)
 calloop = "0.13.0"
 
-rustix = { version = "0.38.30", features = ["process", "fs"] }
+rustix = { version = "0.38.30", features = ["process", "fs", "event"] }
 
 # Para logs avançados
 tracing = "0.1.40"
