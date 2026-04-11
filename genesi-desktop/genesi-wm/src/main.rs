@@ -75,7 +75,8 @@ impl CompositorHandler for GenesiState {
         // O WebkitGTK entra em deadlock e a tela do Tauri nunca é desenhada (fica preta).
         if let Some(state) = self.xdg_shell_state.toplevel_surfaces().iter().find(|s| s.wl_surface() == surface) {
             // Verifica se precisamos disparar um configure forçado
-            if !state.current_state().states.contains(xdg_toplevel::State::Activated) {
+            let is_activated = state.with_pending_state(|s| s.states.contains(xdg_toplevel::State::Activated));
+            if !is_activated {
                 state.send_configure();
             }
         }
@@ -299,7 +300,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let size_logical = size.to_logical(1);
                 
                 // Só enviamos nova geometria se a janela mudar de tamanho
-                let current_size = surface.current_state().size;
+                let current_size = surface.with_pending_state(|s| s.size);
                 let target_size = Some((size_logical.w, size_logical.h).into());
                 
                 if current_size != target_size {
