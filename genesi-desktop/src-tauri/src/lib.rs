@@ -417,11 +417,26 @@ fn get_default_paths() -> Result<std::collections::HashMap<String, String>, Stri
             paths.insert("videos".to_string(), format!("{}\\Videos", user_profile));
         }
     }
+    #[cfg(not(windows))]
+    {
+        if let Ok(home) = std::env::var("HOME") {
+            paths.insert("desktop".to_string(), format!("{}/Desktop", home));
+            paths.insert("downloads".to_string(), format!("{}/Downloads", home));
+            paths.insert("documents".to_string(), format!("{}/Documents", home));
+            paths.insert("pictures".to_string(), format!("{}/Pictures", home));
+            paths.insert("music".to_string(), format!("{}/Music", home));
+            paths.insert("videos".to_string(), format!("{}/Videos", home));
+        }
+    }
     Ok(paths)
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Força o WebView2 (Linux/WebKitGTK) a usar renderização via software no VM
+    std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
+    std::env::set_var("WEBKIT_DISABLE_COMPOSITING_MODE", "1");
+    
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_store::Builder::new().build())
