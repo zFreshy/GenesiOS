@@ -18,7 +18,7 @@ use smithay::{
             gles::GlesRenderer,
             utils::{draw_render_elements, on_commit_buffer_handler},
         },
-        winit::{self, WinitEvent},
+        winit::{self as smithay_winit, WinitEvent},
     },
     wayland::{
         buffer::BufferHandler,
@@ -36,7 +36,7 @@ use smithay::{
 };
 
 use wayland_protocols::xdg::shell::server::xdg_toplevel;
-use winit::platform::pump_events::PumpStatus;
+use ::winit::platform::pump_events::PumpStatus;
 
 // O estado do cliente conectado
 #[derive(Default)]
@@ -213,7 +213,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!("✅ Genesi OS ativo e aguardando aplicativos!");
     info!("Pressione Ctrl+C para encerrar.");
 
-    let (mut backend, mut winit) = winit::init::<GlesRenderer>()?;
+    let (mut backend, mut winit) = smithay_winit::init::<GlesRenderer>()?;
     let start_time = std::time::Instant::now();
     let keyboard = seat.add_keyboard(Default::default(), 200, 200).unwrap();
 
