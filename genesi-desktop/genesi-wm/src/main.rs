@@ -99,7 +99,13 @@ impl XdgShellHandler for GenesiState {
         surface.send_configure();
     }
 
-    fn new_popup(&mut self, _surface: PopupSurface, _positioner: PositionerState) {}
+    fn new_popup(&mut self, surface: PopupSurface, positioner: PositionerState) {
+        info!("🔽 Novo menu/popup solicitado!");
+        surface.with_pending_state(|state| {
+            state.geometry = positioner.get_geometry();
+        });
+        surface.send_configure().unwrap_or_default();
+    }
     fn reposition_request(&mut self, surface: PopupSurface, _positioner: PositionerState, token: u32) {
         surface.send_repositioned(token);
     }
@@ -260,21 +266,31 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         
         {
             let (renderer, mut framebuffer) = backend.bind().unwrap();
-            let elements = state
-                .xdg_shell_state
-                .toplevel_surfaces()
-                .iter()
-                .flat_map(|surface| {
-                    render_elements_from_surface_tree(
-                        renderer,
-                        surface.wl_surface(),
-                        (0, 0),
-                        1.0,
-                        1.0,
-                        Kind::Unspecified,
-                    )
-                })
-                .collect::<Vec<WaylandSurfaceRenderElement<GlesRenderer>>>();
+            let mut elements = Vec::new();
+
+            // Desenha as janelas principais
+            for surface in state.xdg_shell_state.toplevel_surfaces() {
+                elements.extend(render_elements_from_surface_tree(
+                    renderer,
+                    surface.wl_surface(),
+                    (0, 0),
+                    1.0,
+                    1.0,
+                    Kind::Unspecified,
+                ));
+            }
+
+            // Desenha os popups (menus e tooltips do Firefox)
+            for surface in state.xdg_shell_state.popup_surfaces() {
+                elements.extend(render_elements_from_surface_tree(
+                    renderer,
+                    surface.wl_surface(),
+                    (0, 0),
+                    1.0,
+                    1.0,
+                    Kind::Unspecified,
+                ));
+            }
 
             let mut frame = renderer.render(&mut framebuffer, size, Transform::Flipped180).unwrap();
             frame.clear(Color32F::new(0.05, 0.05, 0.1, 1.0), &[damage]).unwrap();
