@@ -1,7 +1,7 @@
 use tracing::{info, warn, Level};
 use tracing_subscriber::FmtSubscriber;
 use wayland_server::{Display, Client};
-use calloop::{EventLoop, loop_utils::Signals};
+use calloop::{EventLoop, signals::Signals};
 
 use smithay::{
     delegate_compositor, delegate_shm,
@@ -99,14 +99,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     std::env::set_var("WAYLAND_DISPLAY", &socket_name);
     info!("🌐 Servidor Wayland escutando no socket: {}", socket_name);
 
-    let signals = Signals::new(&[calloop::loop_utils::Signal::SIGINT, calloop::loop_utils::Signal::SIGTERM])?;
+    let signals = Signals::new(&[calloop::signals::Signal::SIGINT, calloop::signals::Signal::SIGTERM])?;
     loop_handle.insert_source(signals, |_, _, _| {
         warn!("Sinal recebido, desligando o Genesi OS...");
     })?;
 
-    use std::os::unix::io::AsRawFd;
+    use std::os::fd::AsRawFd;
     loop_handle.insert_source(
-        calloop::Generic::new(display_handle.clone().into(), calloop::Interest::READ, calloop::Mode::Level),
+        calloop::generic::Generic::new(display_handle.clone().into(), calloop::Interest::READ, calloop::Mode::Level),
         |_, _, _state| {
             Ok(calloop::PostAction::Continue)
         },
