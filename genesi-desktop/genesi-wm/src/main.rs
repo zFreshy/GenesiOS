@@ -1,7 +1,8 @@
 use tracing::{info, warn, Level};
 use tracing_subscriber::FmtSubscriber;
 use wayland_server::{Display, Client};
-use calloop::{EventLoop, signals::Signals};
+use calloop::EventLoop;
+use calloop_wayland_source::WaylandSource;
 
 use smithay::{
     delegate_compositor, delegate_shm,
@@ -94,19 +95,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     let socket = wayland_server::ListeningSocket::bind_auto("wayland", 1..10)?;
-    let socket_name = socket.socket_name().to_string_lossy().into_owned();
+    let socket_name = socket.socket_name().unwrap_or_default().to_string_lossy().into_owned();
     
     std::env::set_var("WAYLAND_DISPLAY", &socket_name);
     info!("🌐 Servidor Wayland escutando no socket: {}", socket_name);
 
-    let signals = Signals::new(&[calloop::signals::Signal::SIGINT, calloop::signals::Signal::SIGTERM])?;
+    // Na versão moderna, usamos a biblioteca de sinais do rustix integrada no calloop
+    let signals = calloop::signals::Signals::new(&[
+        calloop::signals::Signal::SIGINT,
+        calloop::signals::Signal::SIGTERM,
+    ])?;
+    
     loop_handle.insert_source(signals, |_, _, _| {
         warn!("Sinal recebido, desligando o Genesi OS...");
     })?;
 
-    use std::os::fd::AsRawFd;
     loop_handle.insert_source(
-        calloop::generic::Generic::new(display_handle.clone().into(), calloop::Interest::READ, calloop::Mode::Level),
+        WaylandSource::new(display_handle.clone()).map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?,
         |_, _, _state| {
             Ok(calloop::PostAction::Continue)
         },
