@@ -4,7 +4,7 @@ use wayland_server::{Display, Client};
 use calloop::{EventLoop, Interest, Mode, PostAction, generic::Generic};
 
 use smithay::{
-    delegate_compositor, delegate_shm, delegate_xdg_shell, delegate_seat, delegate_data_device,
+    delegate_compositor, delegate_shm, delegate_xdg_shell, delegate_seat, delegate_data_device, delegate_output,
     backend::{
         input::{InputEvent, KeyboardKeyEvent},
         renderer::{
@@ -27,7 +27,9 @@ use smithay::{
             SelectionHandler,
             data_device::{DataDeviceHandler, DataDeviceState, WaylandDndGrabHandler},
         },
+        output::{OutputHandler, OutputManagerState},
     },
+    output::{Output, PhysicalProperties, Subpixel, Mode as OutputMode},
     input::{Seat, SeatHandler, SeatState, keyboard::FilterResult},
     reexports::wayland_server::protocol::{wl_surface::WlSurface, wl_buffer::WlBuffer, wl_seat::WlSeat},
     utils::{Rectangle, Serial, Transform, Point, Logical},
@@ -53,6 +55,7 @@ pub struct GenesiState {
     pub xdg_shell_state: XdgShellState,
     pub seat_state: SeatState<Self>,
     pub data_device_state: DataDeviceState,
+    pub output_manager_state: OutputManagerState,
     pub seat: Seat<Self>,
 }
 
@@ -149,12 +152,16 @@ impl DataDeviceHandler for GenesiState {
 }
 impl WaylandDndGrabHandler for GenesiState {}
 
+// 6. Output (Monitor)
+impl OutputHandler for GenesiState {}
+
 // Macros
 delegate_compositor!(GenesiState);
 delegate_shm!(GenesiState);
 delegate_xdg_shell!(GenesiState);
 delegate_seat!(GenesiState);
 delegate_data_device!(GenesiState);
+delegate_output!(GenesiState);
 
 pub fn send_frames_surface_tree(surface: &WlSurface, time: u32) {
     with_surface_tree_downward(
@@ -206,9 +213,36 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let compositor_state = CompositorState::new::<GenesiState>(&display_handle);
     let shm_state = ShmState::new::<GenesiState>(&display_handle, vec![]);
     let xdg_shell_state = XdgShellState::new::<GenesiState>(&display_handle);
+    let output_manager_state = OutputManagerState::new_with_xdg_output::<GenesiState>(&display_handle);
     let mut seat_state = SeatState::new();
     let mut seat = seat_state.new_wl_seat(&display_handle, "winit");
     let data_device_state = DataDeviceState::new::<GenesiState>(&display_handle);
+
+    // Cria o Monitor Virtual (Output)
+    let output = Output::new(
+        "Genesi-Monitor-1".into(),
+        PhysicalProperties {
+            size: (0, 0).into(),
+            subpixel: Subpixel::Unknown,
+            make: "Genesi".into(),
+            model: "Virtual Display".into(),
+            serial_number: "000001".into(),
+        },
+    );
+    let _global = output.create_global::<GenesiState>(&display_handle);
+    
+    // Configura o tamanho e taxa de atualização do monitor
+    let mode = OutputMode {
+        size: (1920, 1080).into(),
+        refresh: 60_000,
+    };
+    output.change_current_state(
+        Some(mode),
+        Some(smithay::utils::Transform::Normal),
+        Some(smithay::output::Scale::Integer(1)),
+        Some((0, 0).into())
+    );
+    output.set_preferred(mode);
 
     let mut state = GenesiState {
         compositor_state,
@@ -217,6 +251,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         seat_state,
         seat: seat.clone(),
         data_device_state,
+        output_manager_state,
     };
 
     use smithay::wayland::socket::ListeningSocketSource;
