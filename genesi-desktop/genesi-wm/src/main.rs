@@ -179,6 +179,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // vai tentar se conectar no próprio Genesi OS, e os dois vão ficar congelados esperando um pelo outro!
     info!("🖥️  Iniciando a Janela Hospedeira (Backend Winit)...");
     let (mut backend, mut winit) = smithay_winit::init::<GlesRenderer>()?;
+    backend.window().set_title("Genesi OS - Monitor Virtual");
+    
     let start_time = std::time::Instant::now();
 
     let display: Display<GenesiState> = Display::new()?;
