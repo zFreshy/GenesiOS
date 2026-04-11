@@ -4,13 +4,14 @@ use wayland_server::{Display, Client};
 use calloop::{EventLoop, Interest, Mode, PostAction, generic::Generic};
 
 use smithay::{
-    delegate_compositor, delegate_shm,
+    delegate_compositor, delegate_shm, delegate_xdg_shell,
     wayland::{
         buffer::BufferHandler,
         compositor::{CompositorHandler, CompositorState, CompositorClientState},
         shm::{ShmHandler, ShmState},
+        shell::xdg::{XdgShellHandler, XdgShellState, ToplevelSurface, PopupSurface},
     },
-    reexports::wayland_server::protocol::{wl_surface::WlSurface, wl_buffer::WlBuffer},
+    reexports::wayland_server::protocol::{wl_surface::WlSurface, wl_buffer::WlBuffer, wl_seat::WlSeat},
 };
 
 // O estado do cliente conectado (ex: um processo do Firefox)
@@ -27,6 +28,7 @@ impl wayland_server::backend::ClientData for ClientState {
 pub struct GenesiState {
     pub compositor_state: CompositorState,
     pub shm_state: ShmState,
+    pub xdg_shell_state: XdgShellState,
     // Aqui no futuro vamos guardar as janelas e ponteiro do mouse
 }
 
@@ -62,9 +64,36 @@ impl BufferHandler for GenesiState {
     }
 }
 
+// 4. XDG Shell: O protocolo que os apps Linux usam para pedir "Crie uma janela pra mim!"
+impl XdgShellHandler for GenesiState {
+    fn xdg_shell_state(&mut self) -> &mut XdgShellState {
+        &mut self.xdg_shell_state
+    }
+
+    fn new_toplevel(&mut self, surface: ToplevelSurface) {
+        info!("🪟 Nova janela (Toplevel) solicitada pelo app!");
+        // Em um compositor real, aqui a gente guardaria essa janela num Vector
+        // e enviaria o evento "configure" dizendo o tamanho que ela deve ter.
+        // Por enquanto vamos apenas confirmar a criação pro app não travar.
+        surface.with_pending_state(|state| {
+            state.states.set(smithay::wayland::shell::xdg::ToplevelState::Activated);
+        });
+        surface.send_configure();
+    }
+
+    fn new_popup(&mut self, _surface: PopupSurface, _positioner: smithay::wayland::shell::xdg::PositionerState) {
+        info!("🔽 Novo menu/popup solicitado!");
+    }
+
+    fn grab(&mut self, _surface: PopupSurface, _seat: WlSeat, _serial: smithay::utils::Serial) {
+        // Quando clica fora do popup pra ele sumir
+    }
+}
+
 // Macros do Smithay que geram todo o código pesado de conexão do Wayland nos bastidores!
 delegate_compositor!(GenesiState);
 delegate_shm!(GenesiState);
+delegate_xdg_shell!(GenesiState);
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let subscriber = FmtSubscriber::builder()
@@ -87,10 +116,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Cria as estruturas principais do Smithay
     let compositor_state = CompositorState::new::<GenesiState>(&display_handle);
     let shm_state = ShmState::new::<GenesiState>(&display_handle, vec![]);
+    let xdg_shell_state = XdgShellState::new::<GenesiState>(&display_handle);
 
     let mut state = GenesiState {
         compositor_state,
         shm_state,
+        xdg_shell_state,
     };
 
     use smithay::wayland::socket::ListeningSocketSource;
