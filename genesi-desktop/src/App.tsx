@@ -560,8 +560,8 @@ function App() {
   const openApp = async (baseId: string, forceNewInstance = false, additionalProps = {}) => {
     if (baseId === 'browser') {
       try {
-        const { openPath } = await import('@tauri-apps/plugin-opener');
-        await openPath('https://duckduckgo.com');
+        const { openUrl } = await import('@tauri-apps/plugin-opener');
+        await openUrl('https://duckduckgo.com');
       } catch (e) {
         console.error('Failed to open system browser:', e);
       }
@@ -572,8 +572,8 @@ function App() {
     }
     if (baseId === 'chrome') {
       try {
-        const { openPath } = await import('@tauri-apps/plugin-opener');
-        await openPath('https://google.com');
+        const { openUrl } = await import('@tauri-apps/plugin-opener');
+        await openUrl('https://google.com');
       } catch (e) {
         console.error('Failed to start Chrome/Browser:', e);
       }
