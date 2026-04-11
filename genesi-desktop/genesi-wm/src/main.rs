@@ -167,6 +167,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!("🛡️ Motor Wayland (Smithay): Carregando módulos Base");
     info!("===========================================");
 
+    // Ouroboros Deadlock Fix: 
+    // Precisamos inicializar a janela DO NOSSO SO antes de abrir as portas para os apps conectarem.
+    // Se a gente abrir a porta do Wayland primeiro, o Winit (Mesa EGL) vai achar a porta aberta, 
+    // vai tentar se conectar no próprio Genesi OS, e os dois vão ficar congelados esperando um pelo outro!
+    info!("🖥️  Iniciando a Janela Hospedeira (Backend Winit)...");
+    let (mut backend, mut winit) = smithay_winit::init::<GlesRenderer>()?;
+    let start_time = std::time::Instant::now();
+
     let display: Display<GenesiState> = Display::new()?;
     let mut display_handle = display.handle();
 
@@ -216,8 +224,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!("✅ Genesi OS ativo e aguardando aplicativos!");
     info!("Pressione Ctrl+C para encerrar.");
 
-    let (mut backend, mut winit) = smithay_winit::init::<GlesRenderer>()?;
-    let start_time = std::time::Instant::now();
     let keyboard = seat.add_keyboard(Default::default(), 200, 200).unwrap();
 
     loop {
