@@ -112,6 +112,7 @@ impl XdgShellHandler for GenesiState {
         info!("🪟 Nova janela (Toplevel) solicitada pelo app!");
         surface.with_pending_state(|state| {
             state.states.set(xdg_toplevel::State::Activated);
+            state.size = Some((1024, 768).into()); // Tamanho inicial garantido
         });
         surface.send_configure();
     }
@@ -419,15 +420,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         });
                         surface.send_configure();
                     }
-                } else {
-                    // Para janelas normais (como o Chrome), não forçamos um tamanho e deixamos elas usarem o seu próprio tamanho inicial.
-                    let current_size = surface.with_pending_state(|s| s.size);
-                    if current_size.is_none() {
-                        surface.with_pending_state(|state| {
-                            state.size = Some((800, 600).into()); // Tamanho padrão razoável se o app não definir
-                        });
-                        surface.send_configure();
-                    }
                 }
 
                 // Desenha a janela
@@ -435,10 +427,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let x = if is_fullscreen || is_maximized { 0 } else { 100 };
                 let y = if is_fullscreen || is_maximized { 0 } else { 100 };
                 
-                // Chrome workaround: The window needs a valid size before it draws
-                let current_size = surface.with_pending_state(|s| s.size);
-                if !is_fullscreen && !is_maximized && current_size.is_none() {
-                    continue; // Skip rendering this frame until surface configures its size
+                // Ensure surface is mapped (has a buffer attached) before rendering
+                if !surface.is_initial_configure_sent() {
+                    continue;
                 }
 
                 elements.extend(render_elements_from_surface_tree(
