@@ -116,6 +116,34 @@ impl XdgShellHandler for GenesiState {
         surface.send_configure();
     }
 
+    fn maximize_request(&mut self, surface: ToplevelSurface) {
+        surface.with_pending_state(|state| {
+            state.states.set(xdg_toplevel::State::Maximized);
+        });
+        surface.send_configure();
+    }
+
+    fn unmaximize_request(&mut self, surface: ToplevelSurface) {
+        surface.with_pending_state(|state| {
+            state.states.unset(xdg_toplevel::State::Maximized);
+        });
+        surface.send_configure();
+    }
+
+    fn fullscreen_request(&mut self, surface: ToplevelSurface, _output: Option<smithay::reexports::wayland_server::protocol::wl_output::WlOutput>) {
+        surface.with_pending_state(|state| {
+            state.states.set(xdg_toplevel::State::Fullscreen);
+        });
+        surface.send_configure();
+    }
+
+    fn unfullscreen_request(&mut self, surface: ToplevelSurface) {
+        surface.with_pending_state(|state| {
+            state.states.unset(xdg_toplevel::State::Fullscreen);
+        });
+        surface.send_configure();
+    }
+
     fn new_popup(&mut self, surface: PopupSurface, positioner: PositionerState) {
         info!("🔽 Novo menu/popup solicitado!");
         surface.with_pending_state(|state| {
