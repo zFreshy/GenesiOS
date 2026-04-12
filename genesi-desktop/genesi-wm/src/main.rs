@@ -331,6 +331,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             time: event.time_msec(),
                         },
                     );
+                    pointer.frame(&mut state);
                 }
                 InputEvent::PointerButton { event } => {
                     use smithay::backend::input::{Event, PointerButtonEvent};
@@ -343,6 +344,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             time: event.time_msec(),
                         },
                     );
+                    pointer.frame(&mut state);
                 }
                 _ => {}
             },
