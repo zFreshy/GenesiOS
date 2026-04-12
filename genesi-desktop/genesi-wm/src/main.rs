@@ -102,8 +102,6 @@ impl BufferHandler for GenesiState {
     fn buffer_destroyed(&mut self, _buffer: &WlBuffer) {}
 }
 
-smithay::delegate_subcompositor!(GenesiState);
-
 // 4. XDG Shell
 impl XdgShellHandler for GenesiState {
     fn xdg_shell_state(&mut self) -> &mut XdgShellState {
@@ -244,7 +242,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let compositor_state = CompositorState::new::<GenesiState>(&display_handle);
     let shm_state = ShmState::new::<GenesiState>(&display_handle, vec![]);
-    let _subcompositor_state = smithay::wayland::compositor::SubcompositorState::new::<GenesiState>(&display_handle);
     let xdg_shell_state = XdgShellState::new::<GenesiState>(&display_handle);
     let output_manager_state = OutputManagerState::new_with_xdg_output::<GenesiState>(&display_handle);
     let mut seat_state = SeatState::new();
