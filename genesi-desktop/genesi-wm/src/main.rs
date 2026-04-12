@@ -201,6 +201,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!("🖥️  Iniciando a Janela Hospedeira (Backend Winit)...");
     let (mut backend, mut winit) = smithay_winit::init::<GlesRenderer>()?;
     backend.window().set_title("Genesi OS - Monitor Virtual");
+    let _ = backend.window().request_inner_size(::winit::dpi::LogicalSize::new(1280.0, 720.0));
     
     let start_time = std::time::Instant::now();
 
@@ -233,7 +234,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     // Configura o tamanho e taxa de atualização do monitor
     let mode = OutputMode {
-        size: (1920, 1080).into(),
+        size: (1280, 720).into(),
         refresh: 60_000,
     };
     output.change_current_state(
@@ -314,7 +315,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     // mas o winit event nos dá position que podemos tentar usar.
                     // Para evitar erros do OutputManagerState e transformações complicadas agora,
                     // usaremos o valor base (em Physical) convertido para Logical.
-                    let position = event.position_transformed((1920, 1080).into());
+                    let position = event.position_transformed((1280, 720).into());
                     
                     let under = state.xdg_shell_state.toplevel_surfaces().iter().next().cloned().map(|s| s.wl_surface().clone());
                     if let Some(surface) = under.as_ref() {
