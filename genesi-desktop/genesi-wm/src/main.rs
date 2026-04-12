@@ -210,9 +210,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // É o equivalente ao WEBKIT_DISABLE_DMABUF_RENDERER que você usava no Tauri!
     std::env::set_var("LIBGL_ALWAYS_SOFTWARE", "1");
     // O Winit do Smithay precisa rodar no ambiente do host (seja ele Wayland nativo do WSLg ou X11)
-    // Remover o WINIT_UNIX_BACKEND=x11 força o WSLg a usar o X11 e causa NoCompositor se o XWayland não estiver pronto
-    std::env::remove_var("WINIT_UNIX_BACKEND");
-    std::env::remove_var("WAYLAND_DISPLAY");
+    // O WSLg usa o Wayland por padrão, e tentar usar X11 sem o xkbcommon-x11 vai causar panic.
+    // Forçamos o winit a usar Wayland, que é o ambiente principal do WSLg
+    std::env::set_var("WINIT_UNIX_BACKEND", "wayland");
+    
+    // Precisamos de acesso ao display do host para o winit, não apagar o WAYLAND_DISPLAY original
+    // antes de instanciar a janela.
+    let host_wayland_display = std::env::var("WAYLAND_DISPLAY").unwrap_or_else(|_| "wayland-0".to_string());
 
     let subscriber = FmtSubscriber::builder()
         .with_max_level(Level::INFO)
