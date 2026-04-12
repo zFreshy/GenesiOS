@@ -567,22 +567,31 @@ function App() {
           '--ozone-platform=wayland', 
           '--no-sandbox'
         ]);
-        const result = await cmd.execute();
-        if (result.code !== 0) {
+        
+        cmd.on('error', error => console.error(`[Chrome Error] "${error}"`));
+        cmd.on('close', data => console.log(`[Chrome Closed] code: ${data.code} signal: ${data.signal}`));
+        cmd.stdout.on('data', line => console.log(`[Chrome stdout] ${line}`));
+        cmd.stderr.on('data', line => console.error(`[Chrome stderr] ${line}`));
+
+        try {
+          const child = await cmd.spawn();
+          console.log(`Chrome spawned with PID: ${child.pid}`);
+        } catch (spawnError) {
+          console.error("Spawn falhou no Chrome Stable, tentando fallback", spawnError);
           // Fallback para google-chrome
           const cmdFallback = Command.create('open-chrome-linux', [
             '--enable-features=UseOzonePlatform', 
             '--ozone-platform=wayland', 
             '--no-sandbox'
           ]);
-          await cmdFallback.execute();
+          await cmdFallback.spawn();
         }
       } catch (e) {
         console.error('Failed to start Chrome in Genesi OS:', e);
         try {
           // Fallback para abrir no Windows (se não tiver Chrome no Linux)
           const cmdWin = Command.create('start-chrome');
-          await cmdWin.execute();
+          await cmdWin.spawn();
         } catch (errWin) {
            console.error('Failed fallback', errWin);
         }
