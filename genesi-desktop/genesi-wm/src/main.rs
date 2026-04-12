@@ -434,6 +434,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 // TODO: Adicionar lógica para centralizar ou posicionar a janela caso não seja fullscreen
                 let x = if is_fullscreen || is_maximized { 0 } else { 100 };
                 let y = if is_fullscreen || is_maximized { 0 } else { 100 };
+                
+                // Chrome workaround: The window needs a valid size before it draws
+                let current_size = surface.with_pending_state(|s| s.size);
+                if !is_fullscreen && !is_maximized && current_size.is_none() {
+                    continue; // Skip rendering this frame until surface configures its size
+                }
 
                 elements.extend(render_elements_from_surface_tree(
                     renderer,
