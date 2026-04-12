@@ -561,10 +561,31 @@ function App() {
   const openApp = async (baseId: string, forceNewInstance = false, additionalProps = {}) => {
     if (baseId === 'chrome') {
       try {
-        const { openUrl } = await import('@tauri-apps/plugin-opener');
-        await openUrl('https://google.com');
+        // Tenta rodar o Chrome de Linux forçando o Wayland para abrir no Genesi OS
+        const cmd = Command.create('open-chrome-stable-linux', [
+          '--enable-features=UseOzonePlatform', 
+          '--ozone-platform=wayland', 
+          '--no-sandbox'
+        ]);
+        const result = await cmd.execute();
+        if (result.code !== 0) {
+          // Fallback para google-chrome
+          const cmdFallback = Command.create('open-chrome-linux', [
+            '--enable-features=UseOzonePlatform', 
+            '--ozone-platform=wayland', 
+            '--no-sandbox'
+          ]);
+          await cmdFallback.execute();
+        }
       } catch (e) {
-        console.error('Failed to start Chrome/Browser:', e);
+        console.error('Failed to start Chrome in Genesi OS:', e);
+        try {
+          // Fallback para abrir no Windows (se não tiver Chrome no Linux)
+          const cmdWin = Command.create('start-chrome');
+          await cmdWin.execute();
+        } catch (errWin) {
+           console.error('Failed fallback', errWin);
+        }
       }
       setShowControlCenter(false);
       setShowStartMenu(false);

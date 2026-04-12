@@ -21,6 +21,16 @@
           "args": ["/c", "start", "chrome"]
         },
         {
+          "name": "open-chrome-linux",
+          "cmd": "google-chrome",
+          "args": true
+        },
+        {
+          "name": "open-chrome-stable-linux",
+          "cmd": "google-chrome-stable",
+          "args": true
+        },
+        {
           "name": "open-path",
           "cmd": "cmd",
           "args": true
