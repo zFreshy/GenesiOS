@@ -432,6 +432,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     continue;
                 }
 
+                // Chrome/Wayland bugfix: Some clients require `enter` to be called
+                // so they know which output they are on, otherwise they don't draw.
+                output.enter(surface.wl_surface());
+
                 elements.extend(render_elements_from_surface_tree(
                     renderer,
                     surface.wl_surface(),
@@ -444,6 +448,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             // Desenha os popups (menus e tooltips do Firefox)
             for surface in state.xdg_shell_state.popup_surfaces() {
+                output.enter(surface.wl_surface());
                 let location: Point<i32, Logical> = surface.with_pending_state(|state| state.geometry.loc);
                 elements.extend(render_elements_from_surface_tree(
                     renderer,
