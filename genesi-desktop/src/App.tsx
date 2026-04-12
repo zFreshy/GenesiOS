@@ -561,40 +561,10 @@ function App() {
   const openApp = async (baseId: string, forceNewInstance = false, additionalProps = {}) => {
     if (baseId === 'chrome') {
       try {
-        // Tenta rodar o Chrome de Linux forçando o Wayland para abrir no Genesi OS
-        const chromeArgs = [
-          '--enable-features=UseOzonePlatform', 
-          '--ozone-platform=wayland', 
-          '--no-sandbox',
-          '--disable-gpu',
-          `--user-data-dir=/tmp/genesi-chrome-${Date.now()}`
-        ];
-
-        const cmd = Command.create('open-chrome-stable-linux', chromeArgs);
-        
-        cmd.on('error', error => console.error(`[Chrome Error] "${error}"`));
-        cmd.on('close', data => console.log(`[Chrome Closed] code: ${data.code} signal: ${data.signal}`));
-        cmd.stdout.on('data', line => console.log(`[Chrome stdout] ${line}`));
-        cmd.stderr.on('data', line => console.error(`[Chrome stderr] ${line}`));
-
-        try {
-          const child = await cmd.spawn();
-          console.log(`Chrome spawned with PID: ${child.pid}`);
-        } catch (spawnError) {
-          console.error("Spawn falhou no Chrome Stable, tentando fallback", spawnError);
-          // Fallback para google-chrome
-          const cmdFallback = Command.create('open-chrome-linux', chromeArgs);
-          await cmdFallback.spawn();
-        }
+        const { invoke } = await import('@tauri-apps/api/core');
+        await invoke('launch_chrome_wayland');
       } catch (e) {
-        console.error('Failed to start Chrome in Genesi OS:', e);
-        try {
-          // Fallback para abrir no Windows (se não tiver Chrome no Linux)
-          const cmdWin = Command.create('start-chrome');
-          await cmdWin.spawn();
-        } catch (errWin) {
-           console.error('Failed fallback', errWin);
-        }
+        console.error('Failed to start Chrome natively in Wayland:', e);
       }
       setShowControlCenter(false);
       setShowStartMenu(false);

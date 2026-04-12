@@ -431,6 +431,56 @@ fn get_default_paths() -> Result<std::collections::HashMap<String, String>, Stri
     Ok(paths)
 }
 
+#[tauri::command]
+fn launch_chrome_wayland() -> Result<(), String> {
+    #[cfg(target_os = "linux")]
+    {
+        let timestamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis();
+            
+        let user_data_dir = format!("--user-data-dir=/tmp/genesi-chrome-{}", timestamp);
+        
+        let args = [
+            "--enable-features=UseOzonePlatform",
+            "--ozone-platform=wayland",
+            "--no-sandbox",
+            "--disable-gpu",
+            &user_data_dir,
+        ];
+
+        let display = std::env::var("WAYLAND_DISPLAY").unwrap_or_else(|_| "wayland-1".to_string());
+
+        // Tentamos o stable primeiro
+        let mut child = Command::new("google-chrome-stable")
+            .args(&args)
+            .env("WAYLAND_DISPLAY", &display)
+            .spawn()
+            .or_else(|_| {
+                // Fallback para google-chrome
+                Command::new("google-chrome")
+                    .args(&args)
+                    .env("WAYLAND_DISPLAY", &display)
+                    .spawn()
+            })
+            .map_err(|e| format!("Falha ao iniciar o Chrome: {}", e))?;
+
+        // Desanexa o processo filho
+        Ok(())
+    }
+    
+    #[cfg(not(target_os = "linux"))]
+    {
+        // Fallback para Windows (caso rode fora do WSL)
+        Command::new("cmd")
+            .args(&["/c", "start", "chrome"])
+            .spawn()
+            .map_err(|e| format!("Falha ao iniciar Chrome no Windows: {}", e))?;
+        Ok(())
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // Força o WebView2 (Linux/WebKitGTK) a usar renderização via software no VM
@@ -457,7 +507,8 @@ pub fn run() {
             connect_bluetooth,
             get_default_paths,
             rename_file,
-            get_system_processes
+            get_system_processes,
+            launch_chrome_wayland
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
