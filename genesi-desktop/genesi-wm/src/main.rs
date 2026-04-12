@@ -209,7 +209,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Força a renderização via processador (Software) para evitar travamentos em Máquinas Virtuais
     // É o equivalente ao WEBKIT_DISABLE_DMABUF_RENDERER que você usava no Tauri!
     std::env::set_var("LIBGL_ALWAYS_SOFTWARE", "1");
-    std::env::set_var("WINIT_UNIX_BACKEND", "x11");
+    // O Winit do Smithay precisa rodar no ambiente do host (seja ele Wayland nativo do WSLg ou X11)
+    // Remover o WINIT_UNIX_BACKEND=x11 força o WSLg a usar o X11 e causa NoCompositor se o XWayland não estiver pronto
+    std::env::remove_var("WINIT_UNIX_BACKEND");
+    std::env::remove_var("WAYLAND_DISPLAY");
 
     let subscriber = FmtSubscriber::builder()
         .with_max_level(Level::INFO)
@@ -447,6 +450,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             // Desenha os popups (menus e tooltips do Firefox)
             for surface in state.xdg_shell_state.popup_surfaces() {
+                // Ensure popup is mapped
+                if !surface.is_initial_configure_sent() {
+                    continue;
+                }
+                
                 let location: Point<i32, Logical> = surface.with_pending_state(|state| state.geometry.loc);
                 elements.extend(render_elements_from_surface_tree(
                     renderer,
