@@ -447,6 +447,9 @@ fn launch_chrome_wayland() -> Result<(), String> {
             "--ozone-platform=wayland",
             "--no-sandbox",
             "--disable-gpu",
+            "--disable-software-rasterizer",
+            "--in-process-gpu",
+            "--disable-dev-shm-usage",
             &user_data_dir,
         ];
 
