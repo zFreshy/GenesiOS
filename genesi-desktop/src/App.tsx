@@ -562,9 +562,9 @@ function App() {
     if (baseId === 'chrome') {
       try {
         const { invoke } = await import('@tauri-apps/api/core');
-        await invoke('launch_chrome_wayland');
+        await invoke('launch_browser_wayland');
       } catch (e) {
-        console.error('Failed to start Chrome natively in Wayland:', e);
+        console.error('Failed to start Browser natively in Wayland:', e);
       }
       setShowControlCenter(false);
       setShowStartMenu(false);

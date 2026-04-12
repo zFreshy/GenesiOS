@@ -430,44 +430,27 @@ fn get_default_paths() -> Result<std::collections::HashMap<String, String>, Stri
 }
 
 #[tauri::command]
-fn launch_chrome_wayland() -> Result<(), String> {
+fn launch_browser_wayland() -> Result<(), String> {
     #[cfg(target_os = "linux")]
     {
-        let timestamp = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_millis();
-            
-        let user_data_dir = format!("--user-data-dir=/tmp/genesi-chrome-{}", timestamp);
-        
-        let args = [
-            "--enable-features=UseOzonePlatform",
-            "--ozone-platform=wayland",
-            "--no-sandbox",
-            "--disable-gpu",
-            "--disable-dev-shm-usage",
-            &user_data_dir,
-        ];
-
         let display = std::env::var("WAYLAND_DISPLAY").unwrap_or_else(|_| "wayland-1".to_string());
 
-        // Tentamos o stable primeiro
-        let _child = Command::new("google-chrome-stable")
-            .args(&args)
+        // Vamos usar o Firefox com variáveis de ambiente puras do Wayland
+        let _child = Command::new("firefox")
             .env("WAYLAND_DISPLAY", &display)
+            .env("MOZ_ENABLE_WAYLAND", "1")
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::null())
             .spawn()
             .or_else(|_| {
-                // Fallback para google-chrome
-                Command::new("google-chrome")
-                    .args(&args)
+                // Tentar outro navegador compatível com linux caso não tenha firefox
+                Command::new("epiphany")
                     .env("WAYLAND_DISPLAY", &display)
                     .stdout(std::process::Stdio::null())
                     .stderr(std::process::Stdio::null())
                     .spawn()
             })
-            .map_err(|e| format!("Falha ao iniciar o Chrome: {}", e))?;
+            .map_err(|e| format!("Falha ao iniciar o Navegador: {}", e))?;
 
         // Desanexa o processo filho
         Ok(())
@@ -477,9 +460,9 @@ fn launch_chrome_wayland() -> Result<(), String> {
     {
         // Fallback para Windows (caso rode fora do WSL)
         Command::new("cmd")
-            .args(&["/c", "start", "chrome"])
+            .args(&["/c", "start", "msedge"])
             .spawn()
-            .map_err(|e| format!("Falha ao iniciar Chrome no Windows: {}", e))?;
+            .map_err(|e| format!("Falha ao iniciar Navegador no Windows: {}", e))?;
         Ok(())
     }
 }
@@ -511,7 +494,7 @@ pub fn run() {
             get_default_paths,
             rename_file,
             get_system_processes,
-            launch_chrome_wayland
+            launch_browser_wayland
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -16,18 +16,18 @@
       "identifier": "shell:allow-execute",
       "allow": [
         {
-          "name": "start-chrome",
+          "name": "start-browser-windows",
           "cmd": "cmd",
-          "args": ["/c", "start", "chrome"]
+          "args": ["/c", "start", "msedge"]
         },
         {
-          "name": "open-chrome-linux",
-          "cmd": "google-chrome",
+          "name": "open-firefox-linux",
+          "cmd": "firefox",
           "args": true
         },
         {
-          "name": "open-chrome-stable-linux",
-          "cmd": "google-chrome-stable",
+          "name": "open-epiphany-linux",
+          "cmd": "epiphany",
           "args": true
         },
         {
