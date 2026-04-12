@@ -404,23 +404,41 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             // Desenha as janelas principais
             for surface in state.xdg_shell_state.toplevel_surfaces() {
-                // O Desktop deve ocupar a tela inteira, sem margens
-                
-                // Só enviamos nova geometria se a janela mudar de tamanho
-                let current_size = surface.with_pending_state(|s| s.size);
-                let target_size = Some((size_logical.w, size_logical.h).into());
-                
-                if current_size != target_size {
-                    surface.with_pending_state(|state| {
-                        state.size = target_size;
-                    });
-                    surface.send_configure();
+                // Verifica se a janela pediu para ser tela cheia ou maximizada
+                let is_fullscreen = surface.with_pending_state(|s| s.states.contains(xdg_toplevel::State::Fullscreen));
+                let is_maximized = surface.with_pending_state(|s| s.states.contains(xdg_toplevel::State::Maximized));
+
+                // Só enviamos nova geometria (tamanho total da tela) se a janela pedir
+                if is_fullscreen || is_maximized {
+                    let current_size = surface.with_pending_state(|s| s.size);
+                    let target_size = Some((size_logical.w, size_logical.h).into());
+                    
+                    if current_size != target_size {
+                        surface.with_pending_state(|state| {
+                            state.size = target_size;
+                        });
+                        surface.send_configure();
+                    }
+                } else {
+                    // Para janelas normais (como o Chrome), não forçamos um tamanho e deixamos elas usarem o seu próprio tamanho inicial.
+                    let current_size = surface.with_pending_state(|s| s.size);
+                    if current_size.is_none() {
+                        surface.with_pending_state(|state| {
+                            state.size = Some((800, 600).into()); // Tamanho padrão razoável se o app não definir
+                        });
+                        surface.send_configure();
+                    }
                 }
+
+                // Desenha a janela
+                // TODO: Adicionar lógica para centralizar ou posicionar a janela caso não seja fullscreen
+                let x = if is_fullscreen || is_maximized { 0 } else { 100 };
+                let y = if is_fullscreen || is_maximized { 0 } else { 100 };
 
                 elements.extend(render_elements_from_surface_tree(
                     renderer,
                     surface.wl_surface(),
-                    (0, 0), // (x,y) cravado no canto superior esquerdo
+                    (x, y), // Posiciona a janela no desktop
                     1.0,
                     1.0,
                     Kind::Unspecified,
