@@ -13,8 +13,6 @@
     "windows": [
       {
         "title": "Genesi Desktop Environment",
-        "width": 1280,
-        "height": 720,
         "decorations": false,
         "transparent": true,
         "fullscreen": true,
