@@ -2,7 +2,7 @@ use std::fs;
 use std::path::Path;
 use std::time::UNIX_EPOCH;
 use std::sync::Mutex;
-use sysinfo::{Disks, System, Process};
+use sysinfo::{Disks, System};
 use btleplug::api::{Central, Manager as _, Peripheral, ScanFilter};
 use btleplug::platform::Manager;
 use tokio::time;
@@ -219,14 +219,12 @@ fn get_wifi_networks() -> Result<Vec<WifiNetwork>, String> {
 }
 
 #[tauri::command]
-fn connect_wifi(ssid: String, password: Option<String>) -> Result<bool, String> {
+fn connect_wifi(ssid: String, _password: Option<String>) -> Result<bool, String> {
     #[cfg(target_os = "windows")]
     {
         // On Windows, you typically need to create a profile XML first, 
         // but for simplicity we will just call netsh connect (which works if profile exists)
         // A full implementation would create the XML and add it using `netsh wlan add profile`
-        
-        let mut args = vec!["wlan", "connect", "name=", &ssid];
         
         let output = Command::new("netsh")
             .args(&["wlan", "connect", &format!("name={}", ssid)])
@@ -447,8 +445,6 @@ fn launch_chrome_wayland() -> Result<(), String> {
             "--ozone-platform=wayland",
             "--no-sandbox",
             "--disable-gpu",
-            "--disable-software-rasterizer",
-            "--in-process-gpu",
             "--disable-dev-shm-usage",
             &user_data_dir,
         ];
@@ -456,15 +452,19 @@ fn launch_chrome_wayland() -> Result<(), String> {
         let display = std::env::var("WAYLAND_DISPLAY").unwrap_or_else(|_| "wayland-1".to_string());
 
         // Tentamos o stable primeiro
-        let mut child = Command::new("google-chrome-stable")
+        let _child = Command::new("google-chrome-stable")
             .args(&args)
             .env("WAYLAND_DISPLAY", &display)
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
             .spawn()
             .or_else(|_| {
                 // Fallback para google-chrome
                 Command::new("google-chrome")
                     .args(&args)
                     .env("WAYLAND_DISPLAY", &display)
+                    .stdout(std::process::Stdio::null())
+                    .stderr(std::process::Stdio::null())
                     .spawn()
             })
             .map_err(|e| format!("Falha ao iniciar o Chrome: {}", e))?;
