@@ -567,7 +567,7 @@ function App() {
           '--ozone-platform=wayland', 
           '--no-sandbox',
           '--disable-gpu',
-          '--user-data-dir=/tmp/genesi-chrome-profile'
+          `--user-data-dir=/tmp/genesi-chrome-${Date.now()}`
         ];
 
         const cmd = Command.create('open-chrome-stable-linux', chromeArgs);
@@ -1256,7 +1256,17 @@ function App() {
                     <button 
                       onClick={(e) => { 
                         e.stopPropagation();
-                        openApp(baseId);
+                        if (isOpen && !isFocused) {
+                          // Se já está aberto mas não focado, foca ele
+                          const instances = apps.filter(a => a.baseId === baseId && a.isOpen);
+                          if (instances.length > 0) {
+                            focusApp(instances[0].id);
+                            if (instances[0].minimized) toggleMinimize(instances[0].id);
+                          }
+                        } else {
+                          // Se não está aberto ou está focado (quer abrir nova janela ou minimizar)
+                          openApp(baseId);
+                        }
                       }}
                       onContextMenu={(e) => { 
                         e.preventDefault(); 
