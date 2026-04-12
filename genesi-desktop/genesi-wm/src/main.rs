@@ -311,11 +311,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
                 InputEvent::PointerMotionAbsolute { event } => {
                     use smithay::backend::input::{Event, AbsolutePositionEvent};
-                    // No winit backend (e com nosso scale 1), physical e logical são quase 1:1,
-                    // mas o winit event nos dá position que podemos tentar usar.
-                    // Para evitar erros do OutputManagerState e transformações complicadas agora,
-                    // usaremos o valor base (em Physical) convertido para Logical.
-                    let position = event.position_transformed((1280, 720).into());
+                    let size = backend.window_size();
+                    let position = event.position_transformed(size.to_logical(1));
                     
                     let under = state.xdg_shell_state.toplevel_surfaces().iter().next().cloned().map(|s| s.wl_surface().clone());
                     if let Some(surface) = under.as_ref() {
@@ -357,6 +354,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         };
 
         let size = backend.window_size();
+        let size_logical = size.to_logical(1);
+
+        // Atualiza a resolução do monitor virtual se a janela Winit mudar de tamanho
+        let mode = OutputMode {
+            size: (size_logical.w, size_logical.h).into(),
+            refresh: 60_000,
+        };
+        output.change_current_state(
+            Some(mode),
+            Some(smithay::utils::Transform::Normal),
+            Some(smithay::output::Scale::Integer(1)),
+            Some((0, 0).into())
+        );
+
         let damage = Rectangle::from_size(size);
         
         {
@@ -366,7 +377,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             // Desenha as janelas principais
             for surface in state.xdg_shell_state.toplevel_surfaces() {
                 // O Desktop deve ocupar a tela inteira, sem margens
-                let size_logical = size.to_logical(1);
                 
                 // Só enviamos nova geometria se a janela mudar de tamanho
                 let current_size = surface.with_pending_state(|s| s.size);
