@@ -84,10 +84,6 @@ impl CompositorHandler for GenesiState {
                 state.send_configure();
             }
         }
-        
-        // Dispara frames para a árvore da surface atual para evitar que o cliente durma
-        let start_time = std::time::Instant::now();
-        send_frames_surface_tree(surface, start_time.elapsed().as_millis() as u32);
     }
 }
 
@@ -244,7 +240,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let loop_handle = event_loop.handle();
 
     let compositor_state = CompositorState::new::<GenesiState>(&display_handle);
-    let shm_state = ShmState::new::<GenesiState>(&display_handle, vec![]);
+    let shm_state = ShmState::new::<GenesiState>(&display_handle, vec![
+        smithay::reexports::wayland_server::protocol::wl_shm::Format::Xrgb8888,
+        smithay::reexports::wayland_server::protocol::wl_shm::Format::Argb8888,
+    ]);
     let xdg_shell_state = XdgShellState::new::<GenesiState>(&display_handle);
     let output_manager_state = OutputManagerState::new_with_xdg_output::<GenesiState>(&display_handle);
     let mut seat_state = SeatState::new();
