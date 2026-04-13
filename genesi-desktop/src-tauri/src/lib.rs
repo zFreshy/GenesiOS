@@ -435,7 +435,16 @@ fn launch_browser_wayland() -> Result<(), String> {
     {
         let display = std::env::var("WAYLAND_DISPLAY").unwrap_or_else(|_| "wayland-1".to_string());
 
+        let timestamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis();
+            
+        let user_data_dir = format!("--profile=/tmp/genesi-firefox-{}", timestamp);
+
         let _child = Command::new("firefox")
+            .arg(&user_data_dir)
+            .arg("--no-remote")
             .env("WAYLAND_DISPLAY", &display)
             .env("MOZ_ENABLE_WAYLAND", "1")
             .stdout(std::process::Stdio::null())

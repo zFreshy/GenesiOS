@@ -357,14 +357,45 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     let size = backend.window_size();
                     let position = event.position_transformed(size.to_logical(1));
                     
-                    let under = state.xdg_shell_state.toplevel_surfaces().iter().next().cloned().map(|s| s.wl_surface().clone());
-                    if let Some(surface) = under.as_ref() {
+                    let mut under = None;
+                    
+                    // Verifica popups (menus) primeiro, pois eles ficam no topo absoluto
+                    for surface in state.xdg_shell_state.popup_surfaces().into_iter().rev() {
+                        let loc = surface.with_pending_state(|s| s.geometry.loc);
+                        let size = surface.with_pending_state(|s| s.geometry.size);
+                        if position.x >= loc.x as f64 && position.y >= loc.y as f64 && position.x < (loc.x + size.w) as f64 && position.y < (loc.y + size.h) as f64 {
+                            under = Some((surface.wl_surface().clone(), Point::from((loc.x as f64, loc.y as f64))));
+                            break;
+                        }
+                    }
+                    
+                    if under.is_none() {
+                        // O Z-Index das janelas: O desktop fica atrás, as outras ficam na frente
+                        // Iteramos do topo (fim da lista) para o fundo (começo da lista) para focar
+                        // na janela que está visualmente na frente do mouse
+                        for surface in state.xdg_shell_state.toplevel_surfaces().into_iter().rev() {
+                            let is_fullscreen = surface.with_pending_state(|s| s.states.contains(xdg_toplevel::State::Fullscreen));
+                            let is_desktop = is_fullscreen;
+                            
+                            let x = if is_desktop { 0.0 } else { 100.0 };
+                            let y = if is_desktop { 0.0 } else { 100.0 };
+                            
+                            let surface_size = surface.with_pending_state(|s| s.size).unwrap_or((800, 600).into());
+                            
+                            if position.x >= x && position.y >= y && position.x < x + surface_size.w as f64 && position.y < y + surface_size.h as f64 {
+                                under = Some((surface.wl_surface().clone(), Point::from((x, y))));
+                                break;
+                            }
+                        }
+                    }
+                    
+                    if let Some((surface, _)) = under.as_ref() {
                         keyboard.set_focus(&mut state, Some(surface.clone()), 0.into());
                     }
 
                     pointer.motion(
                         &mut state,
-                        under.map(|s| (s, (0.0, 0.0).into())),
+                        under,
                         &smithay::input::pointer::MotionEvent {
                             location: position,
                             serial: 0.into(),
@@ -455,10 +486,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
 
                 // Usamos insert(0, ...) para desenhar de trás para frente se for desktop?
-                // Em smithay, a ordem em elements define o Z-index.
-                // O primeiro elemento na lista (índice 0) é desenhado NO TOPO.
-                // Portanto, o desktop (fundo) deve ir para o final da lista!
+                // No smithay (como na maioria dos renderers), desenha-se de TRÁS para a FRENTE (Back-to-Front).
+                // Então o Desktop (fundo) deve ser o PRIMEIRO elemento (índice 0)
+                // e as janelas (Firefox) devem ser colocadas DEPOIS do desktop.
                 if is_desktop {
+                    let desktop_elements = render_elements_from_surface_tree(
+                        renderer,
+                        surface.wl_surface(),
+                        (x, y), // Posiciona a janela no desktop
+                        1.0,
+                        1.0,
+                        Kind::Unspecified,
+                    );
+                    elements.splice(0..0, desktop_elements);
+                } else {
+                    // Janelas normais (Firefox) devem ser desenhadas por cima do desktop
                     elements.extend(render_elements_from_surface_tree(
                         renderer,
                         surface.wl_surface(),
@@ -467,21 +509,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         1.0,
                         Kind::Unspecified,
                     ));
-                } else {
-                    // Janelas normais (Firefox) devem ser desenhadas primeiro na lista para ficarem no topo
-                    let mut app_elements = render_elements_from_surface_tree(
-                        renderer,
-                        surface.wl_surface(),
-                        (x, y), // Posiciona a janela no desktop
-                        1.0,
-                        1.0,
-                        Kind::Unspecified,
-                    );
-                    // Inserimos no começo para que fique acima do desktop (se desktop já estiver na lista, ou depois)
-                    // Na verdade, no smithay 0.3, a ordem de desenho com draw_render_elements é:
-                    // Elemento 0 = TOPO (foreground). Elemento N = FUNDO (background).
-                    // Então janelas normais vão no começo (0), e desktop vai no final!
-                    elements.splice(0..0, app_elements);
                 }
             }
 
