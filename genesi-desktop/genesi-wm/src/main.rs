@@ -447,15 +447,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 let is_desktop = state.window_order.first() == Some(surface);
                                 
                                 let pos = state.window_positions.get(surface).cloned().unwrap_or((0, 0).into());
-                                let x = if is_desktop { 0.0 } else { pos.x as f64 };
-                                let y = if is_desktop { 0.0 } else { pos.y as f64 };
+                                let base_x = if is_desktop { 0.0 } else { pos.x as f64 };
+                                let base_y = if is_desktop { 0.0 } else { pos.y as f64 };
                                 
-                                let surface_size = toplevel.with_pending_state(|s| s.size).unwrap_or((800, 600).into());
+                                let geometry = toplevel.with_pending_state(|s| s.geometry);
+                                let visual_x = base_x + geometry.loc.x as f64;
+                                let visual_y = base_y + geometry.loc.y as f64;
+                                let visual_w = geometry.size.w as f64;
+                                let visual_h = geometry.size.h as f64;
+                                
                                 let titlebar_height = if is_desktop { 0.0 } else { 30.0 }; // Barra do topo
                                 
                                 // A bounding box deve incluir a barra de título (y - titlebar_height)
-                                if position.x >= x && position.y >= y - titlebar_height && position.x < x + surface_size.w as f64 && position.y < y + surface_size.h as f64 {
-                                    under = Some((surface.clone(), Point::from((x, y))));
+                                if position.x >= visual_x && position.y >= visual_y - titlebar_height && position.x < visual_x + visual_w && position.y < visual_y + visual_h {
+                                    under = Some((surface.clone(), Point::from((base_x, base_y))));
                                     break;
                                 }
                             }
@@ -493,14 +498,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             if let Some(toplevel) = state.xdg_shell_state.toplevel_surfaces().iter().find(|t| t.wl_surface() == surface) {
                                 let is_desktop = state.window_order.first() == Some(surface);
                                 let pos = state.window_positions.get(surface).cloned().unwrap_or((0, 0).into());
-                                let x = if is_desktop { 0.0 } else { pos.x as f64 };
-                                let y = if is_desktop { 0.0 } else { pos.y as f64 };
+                                let base_x = if is_desktop { 0.0 } else { pos.x as f64 };
+                                let base_y = if is_desktop { 0.0 } else { pos.y as f64 };
                                 
-                                let surface_size = toplevel.with_pending_state(|s| s.size).unwrap_or((800, 600).into());
+                                let geometry = toplevel.with_pending_state(|s| s.geometry);
+                                let visual_x = base_x + geometry.loc.x as f64;
+                                let visual_y = base_y + geometry.loc.y as f64;
+                                let visual_w = geometry.size.w as f64;
+                                let visual_h = geometry.size.h as f64;
+                                
                                 let titlebar_height = if is_desktop { 0.0 } else { 30.0 };
                                 
                                 // Verifica se o clique está na barra de título (y - titlebar_height até y)
-                                if !is_desktop && position.x >= x && position.y >= y - titlebar_height && position.x < x + surface_size.w as f64 && position.y < y {
+                                if !is_desktop && position.x >= visual_x && position.y >= visual_y - titlebar_height && position.x < visual_x + visual_w && position.y < visual_y {
                                     // Inicia o arrasto
                                     let offset_x = position.x as i32 - pos.x;
                                     let offset_y = position.y as i32 - pos.y;
@@ -510,7 +520,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 }
                                 
                                 // Verifica se clicou no corpo da janela
-                                if position.x >= x && position.y >= y && position.x < x + surface_size.w as f64 && position.y < y + surface_size.h as f64 {
+                                if position.x >= visual_x && position.y >= visual_y && position.x < visual_x + visual_w && position.y < visual_y + visual_h {
                                     clicked_surface = Some(surface.clone());
                                     break;
                                 }
@@ -628,12 +638,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     } else {
                         // DESENHAR BARRA DE TÍTULO (SSD)
                         let titlebar_height = 30;
+                        // Pegamos a geometria exata da janela (se o cliente tiver sombra/CSD, isso ignora as sombras invisíveis!)
+                        let geometry = toplevel.with_pending_state(|s| s.geometry);
                         let surface_size = toplevel.with_pending_state(|s| s.size).unwrap_or((800, 600).into());
+                        
+                        // O x_i32 e y_i32 do loop principal referem-se à posição base da surface.
+                        // Mas a geometria do cliente (geometry.loc) nos diz onde a janela 'real' começa!
+                        let visual_x = x_i32 + geometry.loc.x;
+                        let visual_y = y_i32 + geometry.loc.y;
+                        let visual_w = geometry.size.w;
                         
                         use smithay::backend::renderer::{element::Id, utils::CommitCounter};
                         let titlebar_geom = Rectangle::from_loc_and_size(
-                            (x_i32, y_i32 - titlebar_height), 
-                            (surface_size.w, titlebar_height)
+                            (visual_x, visual_y - titlebar_height), 
+                            (visual_w, titlebar_height)
                         ).to_physical(1); // Escala 1.0
                         
                         // Criamos o retângulo da barra de título
