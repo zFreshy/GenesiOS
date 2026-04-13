@@ -300,6 +300,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     std::env::set_var("WAYLAND_DISPLAY", &socket_name);
     info!("🌐 Servidor Wayland escutando no socket: {}", socket_name);
+    
+    // Salva o socket em um arquivo para que o Tauri no Windows possa encontrar
+    std::fs::write("/tmp/genesi-wayland-socket.txt", &socket_name)
+        .unwrap_or_else(|e| tracing::warn!("Falha ao salvar socket: {}", e));
 
     let mut display_handle_clone = display_handle.clone();
     loop_handle.insert_source(source, move |client_stream, _, _state| {

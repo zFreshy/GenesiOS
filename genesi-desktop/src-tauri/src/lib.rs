@@ -435,7 +435,6 @@ fn launch_browser_wayland() -> Result<(), String> {
     {
         let display = std::env::var("WAYLAND_DISPLAY").unwrap_or_else(|_| "wayland-1".to_string());
 
-        // Vamos usar o Firefox com variáveis de ambiente puras do Wayland
         let _child = Command::new("firefox")
             .env("WAYLAND_DISPLAY", &display)
             .env("MOZ_ENABLE_WAYLAND", "1")
@@ -443,7 +442,6 @@ fn launch_browser_wayland() -> Result<(), String> {
             .stderr(std::process::Stdio::null())
             .spawn()
             .or_else(|_| {
-                // Tentar outro navegador compatível com linux caso não tenha firefox
                 Command::new("epiphany")
                     .env("WAYLAND_DISPLAY", &display)
                     .stdout(std::process::Stdio::null())
@@ -452,13 +450,31 @@ fn launch_browser_wayland() -> Result<(), String> {
             })
             .map_err(|e| format!("Falha ao iniciar o Navegador: {}", e))?;
 
-        // Desanexa o processo filho
         Ok(())
     }
     
     #[cfg(not(target_os = "linux"))]
     {
-        // Fallback para Windows (caso rode fora do WSL)
+        // Tenta ler o socket do Genesi WM de um arquivo compartilhado
+        // O WM escreve o socket em /tmp/genesi-wayland-socket.txt via WSL
+        let socket_path = "\\\\wsl.localhost\\Ubuntu\\tmp\\genesi-wayland-socket.txt";
+        
+        // Tenta ler o arquivo do socket via path do WSL
+        let wayland_display = std::fs::read_to_string(socket_path)
+            .unwrap_or_default()
+            .trim()
+            .to_string();
+        
+        if !wayland_display.is_empty() {
+            // Executar firefox dentro do WSL com o display correto
+            let _child = Command::new("wsl")
+                .args(&["-e", "bash", "-lc", &format!("WAYLAND_DISPLAY={} MOZ_ENABLE_WAYLAND=1 firefox ", wayland_display)])
+                .spawn()
+                .map_err(|e| format!("Falha ao iniciar Firefox no WSL: {}", e))?;
+            return Ok(());
+        }
+        
+        // Fallback para Windows nativo
         Command::new("cmd")
             .args(&["/c", "start", "msedge"])
             .spawn()
