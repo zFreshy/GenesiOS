@@ -11,6 +11,7 @@ use smithay::{
             Color32F, Frame, Renderer,
             element::{
                 Kind,
+                solid::SolidColorRenderElement,
                 surface::{WaylandSurfaceRenderElement, render_elements_from_surface_tree},
             },
             gles::GlesRenderer,
@@ -23,6 +24,7 @@ use smithay::{
         compositor::{CompositorHandler, CompositorState, CompositorClientState, SurfaceAttributes, TraversalAction, with_surface_tree_downward},
         shm::{ShmHandler, ShmState},
         shell::xdg::{XdgShellHandler, XdgShellState, ToplevelSurface, PopupSurface, PositionerState},
+        shell::xdg::decoration::{XdgDecorationHandler, XdgDecorationState},
         selection::{
             SelectionHandler,
             data_device::{DataDeviceHandler, DataDeviceState, WaylandDndGrabHandler},
@@ -53,11 +55,13 @@ pub struct GenesiState {
     pub compositor_state: CompositorState,
     pub shm_state: ShmState,
     pub xdg_shell_state: XdgShellState,
+    pub xdg_decoration_state: XdgDecorationState,
     pub seat_state: SeatState<Self>,
     pub data_device_state: DataDeviceState,
     pub output_manager_state: OutputManagerState,
     pub seat: Seat<Self>,
     pub output: Output,
+    pub pointer_location: Point<f64, Logical>,
 }
 
 // =================================================================================
@@ -157,6 +161,37 @@ impl XdgShellHandler for GenesiState {
     fn grab(&mut self, _surface: PopupSurface, _seat: WlSeat, _serial: Serial) {}
 }
 
+// 4.1 XDG Decoration
+impl XdgDecorationHandler for GenesiState {
+    fn new_decoration(&mut self, toplevel: ToplevelSurface) {
+        use smithay::reexports::wayland_protocols::xdg::decoration::zv1::server::zxdg_toplevel_decoration_v1::Mode;
+        toplevel.with_pending_state(|state| {
+            state.decoration_mode = Some(Mode::ServerSide);
+        });
+        toplevel.send_configure();
+    }
+
+    fn request_mode(
+        &mut self,
+        toplevel: ToplevelSurface,
+        _mode: smithay::reexports::wayland_protocols::xdg::decoration::zv1::server::zxdg_toplevel_decoration_v1::Mode,
+    ) {
+        use smithay::reexports::wayland_protocols::xdg::decoration::zv1::server::zxdg_toplevel_decoration_v1::Mode;
+        toplevel.with_pending_state(|state| {
+            state.decoration_mode = Some(Mode::ServerSide);
+        });
+        toplevel.send_configure();
+    }
+
+    fn unset_mode(&mut self, toplevel: ToplevelSurface) {
+        use smithay::reexports::wayland_protocols::xdg::decoration::zv1::server::zxdg_toplevel_decoration_v1::Mode;
+        toplevel.with_pending_state(|state| {
+            state.decoration_mode = Some(Mode::ServerSide);
+        });
+        toplevel.send_configure();
+    }
+}
+
 // 5. Seat e Data Device (Teclado, Mouse e Copiar/Colar)
 impl SeatHandler for GenesiState {
     type KeyboardFocus = WlSurface;
@@ -187,6 +222,7 @@ impl OutputHandler for GenesiState {}
 delegate_compositor!(GenesiState);
 delegate_shm!(GenesiState);
 delegate_xdg_shell!(GenesiState);
+smithay::delegate_xdg_decoration!(GenesiState);
 delegate_seat!(GenesiState);
 delegate_data_device!(GenesiState);
 delegate_output!(GenesiState);
@@ -252,6 +288,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         smithay::reexports::wayland_server::protocol::wl_shm::Format::Argb8888,
     ]);
     let xdg_shell_state = XdgShellState::new::<GenesiState>(&display_handle);
+    let xdg_decoration_state = XdgDecorationState::new::<GenesiState>(&display_handle);
     let output_manager_state = OutputManagerState::new_with_xdg_output::<GenesiState>(&display_handle);
     let mut seat_state = SeatState::new();
     let mut seat = seat_state.new_wl_seat(&display_handle, "winit");
@@ -287,11 +324,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         compositor_state,
         shm_state,
         xdg_shell_state,
+        xdg_decoration_state,
         seat_state,
         seat: seat.clone(),
         data_device_state,
         output_manager_state,
         output: output.clone(),
+        pointer_location: (0.0, 0.0).into(),
     };
 
     use smithay::wayland::socket::ListeningSocketSource;
@@ -356,6 +395,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     use smithay::backend::input::{Event, AbsolutePositionEvent};
                     let size = backend.window_size();
                     let position = event.position_transformed(size.to_logical(1));
+                    state.pointer_location = position;
                     
                     let mut under = None;
                     
