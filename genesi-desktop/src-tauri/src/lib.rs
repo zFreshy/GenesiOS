@@ -449,14 +449,10 @@ fn launch_browser_wayland() -> Result<(), String> {
             .arg("--no-remote")
             .env("WAYLAND_DISPLAY", &display)
             .env("MOZ_ENABLE_WAYLAND", "1")
-            .stdout(std::process::Stdio::null())
-            .stderr(std::process::Stdio::null())
             .spawn()
             .or_else(|_| {
                 Command::new("epiphany")
                     .env("WAYLAND_DISPLAY", &display)
-                    .stdout(std::process::Stdio::null())
-                    .stderr(std::process::Stdio::null())
                     .spawn()
             })
             .map_err(|e| format!("Falha ao iniciar o Navegador: {}", e))?;
