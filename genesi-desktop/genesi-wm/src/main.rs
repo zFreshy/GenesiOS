@@ -428,8 +428,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let is_maximized = surface.with_pending_state(|s| s.states.contains(xdg_toplevel::State::Maximized));
 
                 // O Genesi Desktop Environment deve cobrir a tela inteira
-                // Identificamos o desktop verificando se ele pede fullscreen ou pelo app_id
-                let is_desktop = is_fullscreen || surface.with_pending_state(|s| s.app_id.as_deref() == Some("genesi-desktop"));
+                // Identificamos o desktop verificando se ele pede fullscreen ou pelo nome (title)
+                let title = surface.with_pending_state(|s| s.title.clone());
+                let is_desktop = is_fullscreen || title.as_deref() == Some("Genesi Desktop Environment");
 
                 if is_desktop {
                     let current_size = surface.with_pending_state(|s| s.size);
