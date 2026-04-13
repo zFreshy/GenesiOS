@@ -374,8 +374,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         // Iteramos do topo (fim da lista) para o fundo (começo da lista) para focar
                         // na janela que está visualmente na frente do mouse
                         for surface in state.xdg_shell_state.toplevel_surfaces().into_iter().rev() {
-                            let is_fullscreen = surface.with_pending_state(|s| s.states.contains(xdg_toplevel::State::Fullscreen));
-                            let is_desktop = is_fullscreen;
+                            let is_desktop = state.xdg_shell_state.toplevel_surfaces().iter().next().map(|s| s.wl_surface() == surface.wl_surface()).unwrap_or(false);
                             
                             let x = if is_desktop { 0.0 } else { 100.0 };
                             let y = if is_desktop { 0.0 } else { 100.0 };
@@ -459,18 +458,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let is_maximized = surface.with_pending_state(|s| s.states.contains(xdg_toplevel::State::Maximized));
 
                 // O Genesi Desktop Environment deve cobrir a tela inteira
-                // Identificamos o desktop verificando se ele pede fullscreen
-                // (O Tauri envia o pedido de fullscreen automaticamente por causa do tauri.conf.json)
-                let is_desktop = is_fullscreen;
+                // Identificamos o desktop como a PRIMEIRA janela criada no sistema
+                let is_desktop = state.xdg_shell_state.toplevel_surfaces().iter().next().map(|s| s.wl_surface() == surface.wl_surface()).unwrap_or(false);
 
                 if is_desktop {
                     let current_size = surface.with_pending_state(|s| s.size);
                     let target_size = Some((size_logical.w, size_logical.h).into());
                     
+                    // Força a janela do desktop a ficar do tamanho da tela e em estado de fullscreen
+                    surface.with_pending_state(|state| {
+                        state.size = target_size;
+                        state.states.set(xdg_toplevel::State::Fullscreen);
+                        state.states.set(xdg_toplevel::State::Maximized);
+                    });
+                    
                     if current_size != target_size {
-                        surface.with_pending_state(|state| {
-                            state.size = target_size;
-                        });
                         surface.send_configure();
                     }
                 }
@@ -485,10 +487,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     continue;
                 }
 
-                // Usamos insert(0, ...) para desenhar de trás para frente se for desktop?
-                // No smithay (como na maioria dos renderers), desenha-se de TRÁS para a FRENTE (Back-to-Front).
-                // Então o Desktop (fundo) deve ser o PRIMEIRO elemento (índice 0)
-                // e as janelas (Firefox) devem ser colocadas DEPOIS do desktop.
+                // O Smithay (dependendo da versão) pode desenhar de FRENTE para TRÁS (Front-to-Back) na lista de elements!
+                // Ou seja, o elemento no índice 0 fica no TOPO, e o elemento no índice N fica no FUNDO.
+                // Para garantir que o desktop fique no FUNDO, devemos adicioná-lo ao FINAL da lista (extend).
+                // E as janelas dos apps devem ser adicionadas ao COMEÇO da lista (splice 0..0) para ficarem no TOPO.
                 if is_desktop {
                     let desktop_elements = render_elements_from_surface_tree(
                         renderer,
@@ -498,17 +500,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         1.0,
                         Kind::Unspecified,
                     );
-                    elements.splice(0..0, desktop_elements);
+                    // Desktop no fundo -> final da lista
+                    elements.extend(desktop_elements);
                 } else {
-                    // Janelas normais (Firefox) devem ser desenhadas por cima do desktop
-                    elements.extend(render_elements_from_surface_tree(
+                    let app_elements = render_elements_from_surface_tree(
                         renderer,
                         surface.wl_surface(),
-                        (x, y), // Posiciona a janela no desktop
+                        (x, y), // Posiciona a janela
                         1.0,
                         1.0,
                         Kind::Unspecified,
-                    ));
+                    );
+                    // App no topo -> início da lista
+                    elements.splice(0..0, app_elements);
                 }
             }
 
@@ -520,14 +524,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
                 
                 let location: Point<i32, Logical> = surface.with_pending_state(|state| state.geometry.loc);
-                elements.extend(render_elements_from_surface_tree(
+                let popup_elements = render_elements_from_surface_tree(
                     renderer,
                     surface.wl_surface(),
                     (location.x, location.y), // Posiciona o menu no lugar exato que o cliente pediu (sem bordas da janela principal)
                     1.0,
                     1.0,
                     Kind::Unspecified,
-                ));
+                );
+                // Popups no topo absoluto -> início da lista
+                elements.splice(0..0, popup_elements);
             }
 
             let mut frame = renderer.render(&mut framebuffer, size, Transform::Flipped180).unwrap();
