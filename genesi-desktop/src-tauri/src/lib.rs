@@ -440,10 +440,12 @@ fn launch_browser_wayland() -> Result<(), String> {
             .unwrap()
             .as_millis();
             
-        let user_data_dir = format!("--profile=/tmp/genesi-firefox-{}", timestamp);
+        let profile_dir = format!("/tmp/genesi-firefox-{}", timestamp);
+        let _ = std::fs::create_dir_all(&profile_dir);
 
         let _child = Command::new("firefox")
-            .arg(&user_data_dir)
+            .arg("--profile")
+            .arg(&profile_dir)
             .arg("--no-remote")
             .env("WAYLAND_DISPLAY", &display)
             .env("MOZ_ENABLE_WAYLAND", "1")
