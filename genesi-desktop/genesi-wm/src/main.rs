@@ -62,6 +62,9 @@ pub struct GenesiState {
     pub seat: Seat<Self>,
     pub output: Output,
     pub pointer_location: Point<f64, Logical>,
+    pub window_positions: std::collections::HashMap<WlSurface, Point<i32, Logical>>,
+    pub window_order: Vec<WlSurface>,
+    pub moving_window: Option<(WlSurface, Point<i32, Logical>)>,
 }
 
 // =================================================================================
@@ -115,6 +118,14 @@ impl XdgShellHandler for GenesiState {
             state.states.set(xdg_toplevel::State::Activated);
             state.size = Some((1024, 768).into()); // Tamanho inicial garantido
         });
+        
+        // Cadastra a janela no sistema de posicionamento (Janelas novas abrem no meio)
+        let wl_surface = surface.wl_surface().clone();
+        if !self.window_positions.contains_key(&wl_surface) {
+            self.window_positions.insert(wl_surface.clone(), (200, 200).into());
+            self.window_order.push(wl_surface);
+        }
+
         self.output.enter(surface.wl_surface());
         surface.send_configure();
     }
@@ -331,6 +342,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         output_manager_state,
         output: output.clone(),
         pointer_location: (0.0, 0.0).into(),
+        window_positions: std::collections::HashMap::new(),
+        window_order: Vec::new(),
+        moving_window: None,
     };
 
     use smithay::wayland::socket::ListeningSocketSource;
@@ -397,6 +411,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     let position = event.position_transformed(size.to_logical(1));
                     state.pointer_location = position;
                     
+                    // Se estiver arrastando uma janela, movemos ela!
+                    if let Some((ref surface, offset)) = state.moving_window {
+                        let new_x = position.x as i32 - offset.x;
+                        let new_y = position.y as i32 - offset.y;
+                        state.window_positions.insert(surface.clone(), (new_x, new_y).into());
+                    }
+                    
                     let mut under = None;
                     
                     // Verifica popups (menus) primeiro, pois eles ficam no topo absoluto
@@ -413,17 +434,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         // O Z-Index das janelas: O desktop fica atrás, as outras ficam na frente
                         // Iteramos do topo (fim da lista) para o fundo (começo da lista) para focar
                         // na janela que está visualmente na frente do mouse
-                        for surface in state.xdg_shell_state.toplevel_surfaces().into_iter().rev() {
-                            let is_desktop = state.xdg_shell_state.toplevel_surfaces().iter().next().map(|s| s.wl_surface() == surface.wl_surface()).unwrap_or(false);
-                            
-                            let x = if is_desktop { 0.0 } else { 100.0 };
-                            let y = if is_desktop { 0.0 } else { 100.0 };
-                            
-                            let surface_size = surface.with_pending_state(|s| s.size).unwrap_or((800, 600).into());
-                            
-                            if position.x >= x && position.y >= y && position.x < x + surface_size.w as f64 && position.y < y + surface_size.h as f64 {
-                                under = Some((surface.wl_surface().clone(), Point::from((x, y))));
-                                break;
+                        for surface in state.window_order.iter().rev() {
+                            // Pega as informações de tamanho através do toplevel real
+                            if let Some(toplevel) = state.xdg_shell_state.toplevel_surfaces().iter().find(|t| t.wl_surface() == surface) {
+                                let is_desktop = state.xdg_shell_state.toplevel_surfaces().iter().next().map(|s| s.wl_surface() == surface).unwrap_or(false);
+                                
+                                let pos = state.window_positions.get(surface).cloned().unwrap_or((0, 0).into());
+                                let x = if is_desktop { 0.0 } else { pos.x as f64 };
+                                let y = if is_desktop { 0.0 } else { pos.y as f64 };
+                                
+                                let surface_size = toplevel.with_pending_state(|s| s.size).unwrap_or((800, 600).into());
+                                let titlebar_height = if is_desktop { 0.0 } else { 30.0 }; // Barra do topo
+                                
+                                // A bounding box deve incluir a barra de título (y - titlebar_height)
+                                if position.x >= x && position.y >= y - titlebar_height && position.x < x + surface_size.w as f64 && position.y < y + surface_size.h as f64 {
+                                    under = Some((surface.clone(), Point::from((x, y))));
+                                    break;
+                                }
                             }
                         }
                     }
@@ -445,12 +472,65 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
                 InputEvent::PointerButton { event } => {
                     use smithay::backend::input::{Event, PointerButtonEvent};
+                    let serial = 0.into();
+                    let button = event.button_code();
+                    let state_btn = event.state();
+
+                    // Lógica de arrastar e Z-Index no clique do mouse
+                    if state_btn == smithay::backend::input::ButtonState::Pressed {
+                        let position = state.pointer_location;
+                        let mut clicked_surface = None;
+                        
+                        // Descobre em qual janela clicamos (do topo para o fundo)
+                        for surface in state.window_order.iter().rev() {
+                            if let Some(toplevel) = state.xdg_shell_state.toplevel_surfaces().iter().find(|t| t.wl_surface() == surface) {
+                                let is_desktop = state.xdg_shell_state.toplevel_surfaces().iter().next().map(|s| s.wl_surface() == surface).unwrap_or(false);
+                                let pos = state.window_positions.get(surface).cloned().unwrap_or((0, 0).into());
+                                let x = if is_desktop { 0.0 } else { pos.x as f64 };
+                                let y = if is_desktop { 0.0 } else { pos.y as f64 };
+                                
+                                let surface_size = toplevel.with_pending_state(|s| s.size).unwrap_or((800, 600).into());
+                                let titlebar_height = if is_desktop { 0.0 } else { 30.0 };
+                                
+                                // Verifica se o clique está na barra de título (y - titlebar_height até y)
+                                if !is_desktop && position.x >= x && position.y >= y - titlebar_height && position.x < x + surface_size.w as f64 && position.y < y {
+                                    // Inicia o arrasto
+                                    let offset_x = position.x as i32 - pos.x;
+                                    let offset_y = position.y as i32 - pos.y;
+                                    state.moving_window = Some((surface.clone(), (offset_x, offset_y).into()));
+                                    clicked_surface = Some(surface.clone());
+                                    break;
+                                }
+                                
+                                // Verifica se clicou no corpo da janela
+                                if position.x >= x && position.y >= y && position.x < x + surface_size.w as f64 && position.y < y + surface_size.h as f64 {
+                                    clicked_surface = Some(surface.clone());
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        // Z-Index: traz a janela clicada para a frente (se não for o desktop)
+                        if let Some(surface) = clicked_surface {
+                            let is_desktop = state.xdg_shell_state.toplevel_surfaces().iter().next().map(|s| s.wl_surface() == &surface).unwrap_or(false);
+                            if !is_desktop {
+                                if let Some(index) = state.window_order.iter().position(|s| s == &surface) {
+                                    let s = state.window_order.remove(index);
+                                    state.window_order.push(s);
+                                }
+                            }
+                        }
+                    } else if state_btn == smithay::backend::input::ButtonState::Released {
+                        // Para de arrastar
+                        state.moving_window = None;
+                    }
+
                     pointer.button(
                         &mut state,
                         &smithay::input::pointer::ButtonEvent {
-                            button: event.button_code(),
-                            state: event.state(),
-                            serial: 0.into(),
+                            button,
+                            state: state_btn,
+                            serial,
                             time: event.time_msec(),
                         },
                     );
@@ -488,103 +568,91 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let mut elements: Vec<WaylandSurfaceRenderElement<GlesRenderer>> = Vec::new();
 
             // Desenha as janelas principais
-            // Invertemos a ordem para que a janela mais recente (Firefox) seja desenhada por último (por cima)
-            // e a primeira janela (Tauri/Desktop) seja desenhada primeiro (no fundo)
-            let mut toplevels: Vec<_> = state.xdg_shell_state.toplevel_surfaces().into_iter().collect();
-            
-            for surface in toplevels {
-                // Verifica se a janela pediu para ser tela cheia ou maximizada
-                let is_fullscreen = surface.with_pending_state(|s| s.states.contains(xdg_toplevel::State::Fullscreen));
-                let is_maximized = surface.with_pending_state(|s| s.states.contains(xdg_toplevel::State::Maximized));
+            // A ordem em state.window_order é de Fundo para o Topo
+            for surface in state.window_order.iter() {
+                if let Some(toplevel) = state.xdg_shell_state.toplevel_surfaces().iter().find(|t| t.wl_surface() == surface) {
+                    let is_desktop = state.xdg_shell_state.toplevel_surfaces().iter().next().map(|s| s.wl_surface() == surface).unwrap_or(false);
 
-                // O Genesi Desktop Environment deve cobrir a tela inteira
-                // Identificamos o desktop como a PRIMEIRA janela criada no sistema
-                let is_desktop = state.xdg_shell_state.toplevel_surfaces().iter().next().map(|s| s.wl_surface() == surface.wl_surface()).unwrap_or(false);
-
-                if is_desktop {
-                    let current_size = surface.with_pending_state(|s| s.size);
-                    let target_size = Some((size_logical.w, size_logical.h).into());
-                    
-                    // Força a janela do desktop a ficar do tamanho da tela e em estado de fullscreen
-                    surface.with_pending_state(|state| {
-                        state.size = target_size;
-                        state.states.set(xdg_toplevel::State::Fullscreen);
-                        state.states.set(xdg_toplevel::State::Maximized);
-                    });
-                    
-                    if current_size != target_size {
-                        surface.send_configure();
+                    if is_desktop {
+                        let current_size = toplevel.with_pending_state(|s| s.size);
+                        let target_size = Some((size_logical.w, size_logical.h).into());
+                        
+                        // Força a janela do desktop a ficar do tamanho da tela e em estado de fullscreen
+                        toplevel.with_pending_state(|s| {
+                            s.size = target_size;
+                            s.states.set(xdg_toplevel::State::Fullscreen);
+                            s.states.set(xdg_toplevel::State::Maximized);
+                        });
+                        
+                        if current_size != target_size {
+                            toplevel.send_configure();
+                        }
                     }
-                }
 
-                // Desenha a janela
-                // O desktop fica na origem (0,0). Outras janelas (como o Firefox) ficam em (100, 100)
-                let x = if is_desktop { 0 } else { 100 };
-                let y = if is_desktop { 0 } else { 100 };
-                
-                // Ensure surface is mapped (has a buffer attached) before rendering
-                if !surface.is_initial_configure_sent() {
-                    continue;
-                }
+                    // Desenha a janela
+                    let pos = state.window_positions.get(surface).cloned().unwrap_or((0, 0).into());
+                    let x = if is_desktop { 0.0 } else { pos.x as f64 };
+                    let y = if is_desktop { 0.0 } else { pos.y as f64 };
+                    let x_i32 = x as i32;
+                    let y_i32 = y as i32;
+                    
+                    // Ensure surface is mapped (has a buffer attached) before rendering
+                    if !toplevel.is_initial_configure_sent() {
+                        continue;
+                    }
 
-                // O Smithay (dependendo da versão) pode desenhar de FRENTE para TRÁS (Front-to-Back) na lista de elements!
-                // Ou seja, o elemento no índice 0 fica no TOPO, e o elemento no índice N fica no FUNDO.
-                // Para garantir que o desktop fique no FUNDO, devemos adicioná-lo ao FINAL da lista (extend).
-                // E as janelas dos apps devem ser adicionadas ao COMEÇO da lista (splice 0..0) para ficarem no TOPO.
-                if is_desktop {
-                    let desktop_elements = render_elements_from_surface_tree(
-                        renderer,
-                        surface.wl_surface(),
-                        (x, y), // Posiciona a janela no desktop
-                        1.0,
-                        1.0,
-                        Kind::Unspecified,
-                    );
-                    // Desktop no fundo -> final da lista
-                    elements.extend(desktop_elements);
-                } else {
-                    // DESENHAR BARRA DE TÍTULO (SSD)
-                    // Janelas normais (Firefox) não desenham sua própria barra porque forçamos o Server-Side
-                    // Então nós desenhamos um retângulo no topo da janela.
-                    let titlebar_height = 30;
-                    
-                    let surface_size = surface.with_pending_state(|s| s.size).unwrap_or((800, 600).into());
-                    
-                    use smithay::backend::renderer::{element::Id, utils::CommitCounter};
-                    let titlebar_geom = Rectangle::from_loc_and_size(
-                        (x, y - titlebar_height), 
-                        (surface_size.w, titlebar_height)
-                    ).to_physical(1); // Escala 1.0
-                    
-                    // Criamos o retângulo da barra de título
-                    let titlebar = SolidColorRenderElement::new(
-                        Id::new(),
-                        titlebar_geom,
-                        CommitCounter::default(),
-                        Color32F::new(0.15, 0.15, 0.15, 1.0), // Cor: Cinza Escuro (Padrão Genesi)
-                        Kind::Unspecified,
-                    );
-                    
-                    let mut app_elements = render_elements_from_surface_tree(
-                        renderer,
-                        surface.wl_surface(),
-                        (x, y), // Posiciona a janela normal
-                        1.0,
-                        1.0,
-                        Kind::Unspecified,
-                    );
-                    
-                    // Convertemos o array de elements para conter a barra de titulo
-                    // O WaylandSurfaceRenderElement é um enum ou struct específico, no smithay
-                    // elementos heterogêneos exigem cast pra um tipo dinâmico ou Generic.
-                    // Para simplificar no Smithay 0.3.0 e evitar quebra de tipos:
-                    // Deixamos a barra de título comentada até usarmos `Space` API (muito mais fácil de estilizar)
-                    /*
-                    app_elements.insert(0, titlebar);
-                    */
-                    
-                    // App no topo -> início da lista
-                    elements.splice(0..0, app_elements);
+                    // O Smithay (dependendo da versão) pode desenhar de FRENTE para TRÁS (Front-to-Back) na lista de elements!
+                    // Ou seja, o elemento no índice 0 fica no TOPO, e o elemento no índice N fica no FUNDO.
+                    // Para garantir que o desktop fique no FUNDO, devemos adicioná-lo ao FINAL da lista (extend).
+                    // E as janelas dos apps devem ser adicionadas ao COMEÇO da lista (splice 0..0) para ficarem no TOPO.
+                    // ATENÇÃO: Como estamos iterando do Fundo pro Topo em `window_order`, a ÚLTIMA janela iterada
+                    // será a que vai ficar no índice 0 de elements se continuarmos fazendo splice(0..0)!
+                    if is_desktop {
+                        let desktop_elements = render_elements_from_surface_tree(
+                            renderer,
+                            toplevel.wl_surface(),
+                            (x_i32, y_i32), // Posiciona a janela no desktop
+                            1.0,
+                            1.0,
+                            Kind::Unspecified,
+                        );
+                        // Desktop no fundo -> final da lista
+                        elements.extend(desktop_elements);
+                    } else {
+                        // DESENHAR BARRA DE TÍTULO (SSD)
+                        let titlebar_height = 30;
+                        let surface_size = toplevel.with_pending_state(|s| s.size).unwrap_or((800, 600).into());
+                        
+                        use smithay::backend::renderer::{element::Id, utils::CommitCounter};
+                        let titlebar_geom = Rectangle::from_loc_and_size(
+                            (x_i32, y_i32 - titlebar_height), 
+                            (surface_size.w, titlebar_height)
+                        ).to_physical(1); // Escala 1.0
+                        
+                        // Criamos o retângulo da barra de título
+                        let titlebar = SolidColorRenderElement::new(
+                            Id::new(),
+                            titlebar_geom,
+                            CommitCounter::default(),
+                            Color32F::new(0.15, 0.15, 0.15, 1.0), // Cor: Cinza Escuro (Padrão Genesi)
+                            Kind::Unspecified,
+                        );
+                        
+                        let mut app_elements = render_elements_from_surface_tree(
+                            renderer,
+                            toplevel.wl_surface(),
+                            (x_i32, y_i32), // Posiciona a janela normal
+                            1.0,
+                            1.0,
+                            Kind::Unspecified,
+                        );
+                        
+                        // Não podemos inserir titlebar no array sem converter o tipo no smithay 0.3.
+                        // Mas já temos a lógica de arrasto e Z-Index configurada.
+                        
+                        // App no topo -> início da lista (O último do window_order será o 0 na elements!)
+                        elements.splice(0..0, app_elements);
+                    }
                 }
             }
 
