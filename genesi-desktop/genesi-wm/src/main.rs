@@ -37,8 +37,9 @@ use smithay::{
     utils::{Rectangle, Serial, Transform, Point, Logical},
 };
 
+use smithay::backend::renderer::{ImportAll, ImportMem};
 smithay::backend::renderer::element::render_elements! {
-    pub CustomRenderElements<R> where R: smithay::backend::renderer::ImportAll + smithay::backend::renderer::ImportMem;
+    pub CustomRenderElements<R> where R: ImportAll + ImportMem;
     Surface=WaylandSurfaceRenderElement<R>,
     SolidColor=SolidColorRenderElement,
 }
