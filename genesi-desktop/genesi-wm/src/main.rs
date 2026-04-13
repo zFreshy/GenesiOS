@@ -418,13 +418,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let mut elements: Vec<WaylandSurfaceRenderElement<GlesRenderer>> = Vec::new();
 
             // Desenha as janelas principais
-            for surface in state.xdg_shell_state.toplevel_surfaces() {
+            // Invertemos a ordem para que a janela mais recente (Firefox) seja desenhada por último (por cima)
+            // e a primeira janela (Tauri/Desktop) seja desenhada primeiro (no fundo)
+            let mut toplevels: Vec<_> = state.xdg_shell_state.toplevel_surfaces().into_iter().collect();
+            
+            for surface in toplevels {
                 // Verifica se a janela pediu para ser tela cheia ou maximizada
                 let is_fullscreen = surface.with_pending_state(|s| s.states.contains(xdg_toplevel::State::Fullscreen));
                 let is_maximized = surface.with_pending_state(|s| s.states.contains(xdg_toplevel::State::Maximized));
 
-                // Só enviamos nova geometria (tamanho total da tela) se a janela pedir
-                if is_fullscreen || is_maximized {
+                // O Genesi Desktop Environment deve cobrir a tela inteira
+                // Identificamos o desktop verificando se ele pede fullscreen ou pelo app_id
+                let is_desktop = is_fullscreen || surface.with_pending_state(|s| s.app_id.as_deref() == Some("genesi-desktop"));
+
+                if is_desktop {
                     let current_size = surface.with_pending_state(|s| s.size);
                     let target_size = Some((size_logical.w, size_logical.h).into());
                     
@@ -437,23 +444,44 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
 
                 // Desenha a janela
-                // TODO: Adicionar lógica para centralizar ou posicionar a janela caso não seja fullscreen
-                let x = if is_fullscreen || is_maximized { 0 } else { 100 };
-                let y = if is_fullscreen || is_maximized { 0 } else { 100 };
+                // O desktop fica na origem (0,0). Outras janelas (como o Firefox) ficam em (100, 100)
+                let x = if is_desktop { 0 } else { 100 };
+                let y = if is_desktop { 0 } else { 100 };
                 
                 // Ensure surface is mapped (has a buffer attached) before rendering
                 if !surface.is_initial_configure_sent() {
                     continue;
                 }
 
-                elements.extend(render_elements_from_surface_tree(
-                    renderer,
-                    surface.wl_surface(),
-                    (x, y), // Posiciona a janela no desktop
-                    1.0,
-                    1.0,
-                    Kind::Unspecified,
-                ));
+                // Usamos insert(0, ...) para desenhar de trás para frente se for desktop?
+                // Em smithay, a ordem em elements define o Z-index.
+                // O primeiro elemento na lista (índice 0) é desenhado NO TOPO.
+                // Portanto, o desktop (fundo) deve ir para o final da lista!
+                if is_desktop {
+                    elements.extend(render_elements_from_surface_tree(
+                        renderer,
+                        surface.wl_surface(),
+                        (x, y), // Posiciona a janela no desktop
+                        1.0,
+                        1.0,
+                        Kind::Unspecified,
+                    ));
+                } else {
+                    // Janelas normais (Firefox) devem ser desenhadas primeiro na lista para ficarem no topo
+                    let mut app_elements = render_elements_from_surface_tree(
+                        renderer,
+                        surface.wl_surface(),
+                        (x, y), // Posiciona a janela no desktop
+                        1.0,
+                        1.0,
+                        Kind::Unspecified,
+                    );
+                    // Inserimos no começo para que fique acima do desktop (se desktop já estiver na lista, ou depois)
+                    // Na verdade, no smithay 0.3, a ordem de desenho com draw_render_elements é:
+                    // Elemento 0 = TOPO (foreground). Elemento N = FUNDO (background).
+                    // Então janelas normais vão no começo (0), e desktop vai no final!
+                    elements.splice(0..0, app_elements);
+                }
             }
 
             // Desenha os popups (menus e tooltips do Firefox)
