@@ -451,16 +451,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 let base_y = if is_desktop { 0.0 } else { pos.y as f64 };
                                 
                                 use smithay::wayland::compositor::with_states;
-                                use smithay::wayland::shell::xdg::XdgToplevelSurfaceData;
+                                use smithay::wayland::shell::xdg::SurfaceCachedState;
                                 
                                 let geometry = with_states(toplevel.wl_surface(), |states| {
-                                    states.data_map.get::<XdgToplevelSurfaceData>()
-                                        .unwrap()
-                                        .lock()
-                                        .unwrap()
-                                        .current
+                                    states.cached_state.get::<SurfaceCachedState>()
+                                        .current()
                                         .geometry
-                                        .unwrap_or(Rectangle::from_size((800, 600)).with_loc((0, 0).into()))
+                                        .unwrap_or(Rectangle::new((0, 0).into(), (800, 600).into()))
                                 });
                                 
                                 let visual_x = base_x + geometry.loc.x as f64;
@@ -514,16 +511,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 let base_y = if is_desktop { 0.0 } else { pos.y as f64 };
                                 
                                 use smithay::wayland::compositor::with_states;
-                                use smithay::wayland::shell::xdg::XdgToplevelSurfaceData;
+                                use smithay::wayland::shell::xdg::SurfaceCachedState;
                                 
                                 let geometry = with_states(toplevel.wl_surface(), |states| {
-                                    states.data_map.get::<XdgToplevelSurfaceData>()
-                                        .unwrap()
-                                        .lock()
-                                        .unwrap()
-                                        .current
+                                    states.cached_state.get::<SurfaceCachedState>()
+                                        .current()
                                         .geometry
-                                        .unwrap_or(Rectangle::from_size((800, 600)).with_loc((0, 0).into()))
+                                        .unwrap_or(Rectangle::new((0, 0).into(), (800, 600).into()))
                                 });
                                 
                                 let visual_x = base_x + geometry.loc.x as f64;
@@ -664,16 +658,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         let titlebar_height = 30;
                         // Pegamos a geometria exata da janela (se o cliente tiver sombra/CSD, isso ignora as sombras invisíveis!)
                         use smithay::wayland::compositor::with_states;
-                        use smithay::wayland::shell::xdg::XdgToplevelSurfaceData;
+                        use smithay::wayland::shell::xdg::SurfaceCachedState;
                         
                         let geometry = with_states(toplevel.wl_surface(), |states| {
-                            states.data_map.get::<XdgToplevelSurfaceData>()
-                                .unwrap()
-                                .lock()
-                                .unwrap()
-                                .current
+                            states.cached_state.get::<SurfaceCachedState>()
+                                .current()
                                 .geometry
-                                .unwrap_or(Rectangle::from_size((800, 600)).with_loc((0, 0).into()))
+                                .unwrap_or(Rectangle::new((0, 0).into(), (800, 600).into()))
                         });
                         
                         let surface_size = toplevel.with_pending_state(|s| s.size).unwrap_or((800, 600).into());
@@ -686,9 +677,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         
                         use smithay::backend::renderer::{element::Id, utils::CommitCounter};
                         
-                        let titlebar_geom = Rectangle::from_size(
-                            (visual_w, titlebar_height)
-                        ).to_physical(1).with_loc((visual_x, visual_y - titlebar_height).into());
+                        let titlebar_geom = Rectangle::new(
+                            (visual_x, visual_y - titlebar_height).into(), 
+                            (visual_w, titlebar_height).into()
+                        ).to_physical(1);
                         
                         // Criamos o retângulo da barra de título
                         let titlebar = SolidColorRenderElement::new(
