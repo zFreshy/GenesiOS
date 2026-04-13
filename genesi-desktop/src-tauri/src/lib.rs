@@ -443,6 +443,7 @@ fn launch_browser_wayland() -> Result<(), String> {
             .arg("--new-window")
             .env("WAYLAND_DISPLAY", &display)
             .env("MOZ_ENABLE_WAYLAND", "1")
+            .env("MOZ_GTK_TITLEBAR_DECORATION", "none") // Força o Firefox a não usar CSD do GTK
             .spawn()
             .or_else(|_| {
                 Command::new("epiphany")

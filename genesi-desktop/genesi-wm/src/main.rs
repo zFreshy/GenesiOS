@@ -543,14 +543,46 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     // Desktop no fundo -> final da lista
                     elements.extend(desktop_elements);
                 } else {
-                    let app_elements = render_elements_from_surface_tree(
+                    // DESENHAR BARRA DE TÍTULO (SSD)
+                    // Janelas normais (Firefox) não desenham sua própria barra porque forçamos o Server-Side
+                    // Então nós desenhamos um retângulo no topo da janela.
+                    let titlebar_height = 30;
+                    
+                    let surface_size = surface.with_pending_state(|s| s.size).unwrap_or((800, 600).into());
+                    
+                    use smithay::backend::renderer::{element::Id, utils::CommitCounter};
+                    let titlebar_geom = Rectangle::from_loc_and_size(
+                        (x, y - titlebar_height), 
+                        (surface_size.w, titlebar_height)
+                    ).to_physical(1); // Escala 1.0
+                    
+                    // Criamos o retângulo da barra de título
+                    let titlebar = SolidColorRenderElement::new(
+                        Id::new(),
+                        titlebar_geom,
+                        CommitCounter::default(),
+                        Color32F::new(0.15, 0.15, 0.15, 1.0), // Cor: Cinza Escuro (Padrão Genesi)
+                        Kind::Unspecified,
+                    );
+                    
+                    let mut app_elements = render_elements_from_surface_tree(
                         renderer,
                         surface.wl_surface(),
-                        (x, y), // Posiciona a janela
+                        (x, y), // Posiciona a janela normal
                         1.0,
                         1.0,
                         Kind::Unspecified,
                     );
+                    
+                    // Convertemos o array de elements para conter a barra de titulo
+                    // O WaylandSurfaceRenderElement é um enum ou struct específico, no smithay
+                    // elementos heterogêneos exigem cast pra um tipo dinâmico ou Generic.
+                    // Para simplificar no Smithay 0.3.0 e evitar quebra de tipos:
+                    // Deixamos a barra de título comentada até usarmos `Space` API (muito mais fácil de estilizar)
+                    /*
+                    app_elements.insert(0, titlebar);
+                    */
+                    
                     // App no topo -> início da lista
                     elements.splice(0..0, app_elements);
                 }
