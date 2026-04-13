@@ -434,22 +434,13 @@ fn launch_browser_wayland() -> Result<(), String> {
     #[cfg(target_os = "linux")]
     {
         let display = std::env::var("WAYLAND_DISPLAY").unwrap_or_else(|_| "wayland-1".to_string());
-
-        let timestamp = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_millis();
-            
-        // Usamos o diretório HOME do usuário porque o Firefox instalado via Snap (padrão do Ubuntu)
-        // não tem permissão para ler perfis gerados na raiz do /tmp devido ao sandbox AppArmor.
-        let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
-        let profile_dir = format!("{}/.config/genesi-firefox-{}", home, timestamp);
-        let _ = std::fs::create_dir_all(&profile_dir);
-
+        
+        // Em vez de lutar contra o AppArmor e os perfis do Firefox Snap, vamos apenas abrir uma
+        // janela limpa usando o perfil default (--new-window), ou o modo private se preferir.
+        // O `--new-instance` tenta forçar o Firefox a não grudar na janela do host Windows.
         let _child = Command::new("firefox")
-            .arg("--profile")
-            .arg(&profile_dir)
-            .arg("--no-remote")
+            .arg("--new-instance")
+            .arg("--new-window")
             .env("WAYLAND_DISPLAY", &display)
             .env("MOZ_ENABLE_WAYLAND", "1")
             .spawn()
