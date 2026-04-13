@@ -440,7 +440,10 @@ fn launch_browser_wayland() -> Result<(), String> {
             .unwrap()
             .as_millis();
             
-        let profile_dir = format!("/tmp/genesi-firefox-{}", timestamp);
+        // Usamos o diretório HOME do usuário porque o Firefox instalado via Snap (padrão do Ubuntu)
+        // não tem permissão para ler perfis gerados na raiz do /tmp devido ao sandbox AppArmor.
+        let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
+        let profile_dir = format!("{}/.config/genesi-firefox-{}", home, timestamp);
         let _ = std::fs::create_dir_all(&profile_dir);
 
         let _child = Command::new("firefox")
