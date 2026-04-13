@@ -615,7 +615,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     // ATENÇÃO: Como estamos iterando do Fundo pro Topo em `window_order`, a ÚLTIMA janela iterada
                     // será a que vai ficar no índice 0 de elements se continuarmos fazendo splice(0..0)!
                     if is_desktop {
-                        let desktop_elements = render_elements_from_surface_tree(
+                        let desktop_elements: Vec<WaylandSurfaceRenderElement<GlesRenderer>> = render_elements_from_surface_tree(
                             renderer,
                             toplevel.wl_surface(),
                             (x_i32, y_i32), // Posiciona a janela no desktop
@@ -645,14 +645,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             Kind::Unspecified,
                         );
                         
-                        let mut app_elements: Vec<CustomRenderElements<GlesRenderer>> = render_elements_from_surface_tree(
+                        let app_surfaces: Vec<WaylandSurfaceRenderElement<GlesRenderer>> = render_elements_from_surface_tree(
                             renderer,
                             toplevel.wl_surface(),
                             (x_i32, y_i32), // Posiciona a janela normal
                             1.0,
                             1.0,
                             Kind::Unspecified,
-                        ).into_iter().map(CustomRenderElements::from).collect();
+                        );
+                        let mut app_elements: Vec<CustomRenderElements<GlesRenderer>> = app_surfaces.into_iter().map(CustomRenderElements::from).collect();
                         
                         // Adiciona a titlebar na lista de elementos do app
                         app_elements.push(CustomRenderElements::from(titlebar));
@@ -671,14 +672,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
                 
                 let location: Point<i32, Logical> = surface.with_pending_state(|state| state.geometry.loc);
-                let popup_elements: Vec<CustomRenderElements<GlesRenderer>> = render_elements_from_surface_tree(
+                let popup_surfaces: Vec<WaylandSurfaceRenderElement<GlesRenderer>> = render_elements_from_surface_tree(
                     renderer,
                     surface.wl_surface(),
                     (location.x, location.y), // Posiciona o menu no lugar exato que o cliente pediu (sem bordas da janela principal)
                     1.0,
                     1.0,
                     Kind::Unspecified,
-                ).into_iter().map(CustomRenderElements::from).collect();
+                );
+                let popup_elements: Vec<CustomRenderElements<GlesRenderer>> = popup_surfaces.into_iter().map(CustomRenderElements::from).collect();
                 // Popups no topo absoluto -> início da lista
                 elements.splice(0..0, popup_elements);
             }
