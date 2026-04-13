@@ -37,6 +37,12 @@ use smithay::{
     utils::{Rectangle, Serial, Transform, Point, Logical},
 };
 
+smithay::backend::renderer::element::render_elements! {
+    pub CustomRenderElements<R> where R: smithay::backend::renderer::ImportAll + smithay::backend::renderer::ImportMem;
+    Surface=WaylandSurfaceRenderElement<R>,
+    SolidColor=SolidColorRenderElement,
+}
+
 use wayland_protocols::xdg::shell::server::xdg_toplevel;
 use ::winit::platform::pump_events::PumpStatus;
 
@@ -437,7 +443,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         for surface in state.window_order.iter().rev() {
                             // Pega as informações de tamanho através do toplevel real
                             if let Some(toplevel) = state.xdg_shell_state.toplevel_surfaces().iter().find(|t| t.wl_surface() == surface) {
-                                let is_desktop = state.xdg_shell_state.toplevel_surfaces().iter().next().map(|s| s.wl_surface() == surface).unwrap_or(false);
+                                let is_desktop = state.window_order.first() == Some(surface);
                                 
                                 let pos = state.window_positions.get(surface).cloned().unwrap_or((0, 0).into());
                                 let x = if is_desktop { 0.0 } else { pos.x as f64 };
@@ -484,7 +490,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         // Descobre em qual janela clicamos (do topo para o fundo)
                         for surface in state.window_order.iter().rev() {
                             if let Some(toplevel) = state.xdg_shell_state.toplevel_surfaces().iter().find(|t| t.wl_surface() == surface) {
-                                let is_desktop = state.xdg_shell_state.toplevel_surfaces().iter().next().map(|s| s.wl_surface() == surface).unwrap_or(false);
+                                let is_desktop = state.window_order.first() == Some(surface);
                                 let pos = state.window_positions.get(surface).cloned().unwrap_or((0, 0).into());
                                 let x = if is_desktop { 0.0 } else { pos.x as f64 };
                                 let y = if is_desktop { 0.0 } else { pos.y as f64 };
@@ -512,7 +518,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         
                         // Z-Index: traz a janela clicada para a frente (se não for o desktop)
                         if let Some(surface) = clicked_surface {
-                            let is_desktop = state.xdg_shell_state.toplevel_surfaces().iter().next().map(|s| s.wl_surface() == &surface).unwrap_or(false);
+                            let is_desktop = state.window_order.first() == Some(&surface);
                             if !is_desktop {
                                 if let Some(index) = state.window_order.iter().position(|s| s == &surface) {
                                     let s = state.window_order.remove(index);
@@ -565,13 +571,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         
         {
             let (renderer, mut framebuffer) = backend.bind().unwrap();
-            let mut elements: Vec<WaylandSurfaceRenderElement<GlesRenderer>> = Vec::new();
+            let mut elements: Vec<CustomRenderElements<GlesRenderer>> = Vec::new();
 
             // Desenha as janelas principais
             // A ordem em state.window_order é de Fundo para o Topo
             for surface in state.window_order.iter() {
                 if let Some(toplevel) = state.xdg_shell_state.toplevel_surfaces().iter().find(|t| t.wl_surface() == surface) {
-                    let is_desktop = state.xdg_shell_state.toplevel_surfaces().iter().next().map(|s| s.wl_surface() == surface).unwrap_or(false);
+                    let is_desktop = state.window_order.first() == Some(surface);
 
                     if is_desktop {
                         let current_size = toplevel.with_pending_state(|s| s.size);
@@ -617,7 +623,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             Kind::Unspecified,
                         );
                         // Desktop no fundo -> final da lista
-                        elements.extend(desktop_elements);
+                        elements.extend(desktop_elements.into_iter().map(CustomRenderElements::from));
                     } else {
                         // DESENHAR BARRA DE TÍTULO (SSD)
                         let titlebar_height = 30;
@@ -638,17 +644,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             Kind::Unspecified,
                         );
                         
-                        let mut app_elements = render_elements_from_surface_tree(
+                        let mut app_elements: Vec<CustomRenderElements<GlesRenderer>> = render_elements_from_surface_tree(
                             renderer,
                             toplevel.wl_surface(),
                             (x_i32, y_i32), // Posiciona a janela normal
                             1.0,
                             1.0,
                             Kind::Unspecified,
-                        );
+                        ).into_iter().map(CustomRenderElements::from).collect();
                         
-                        // Não podemos inserir titlebar no array sem converter o tipo no smithay 0.3.
-                        // Mas já temos a lógica de arrasto e Z-Index configurada.
+                        // Adiciona a titlebar na lista de elementos do app
+                        app_elements.push(CustomRenderElements::from(titlebar));
                         
                         // App no topo -> início da lista (O último do window_order será o 0 na elements!)
                         elements.splice(0..0, app_elements);
@@ -664,14 +670,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
                 
                 let location: Point<i32, Logical> = surface.with_pending_state(|state| state.geometry.loc);
-                let popup_elements = render_elements_from_surface_tree(
+                let popup_elements: Vec<CustomRenderElements<GlesRenderer>> = render_elements_from_surface_tree(
                     renderer,
                     surface.wl_surface(),
                     (location.x, location.y), // Posiciona o menu no lugar exato que o cliente pediu (sem bordas da janela principal)
                     1.0,
                     1.0,
                     Kind::Unspecified,
-                );
+                ).into_iter().map(CustomRenderElements::from).collect();
                 // Popups no topo absoluto -> início da lista
                 elements.splice(0..0, popup_elements);
             }
