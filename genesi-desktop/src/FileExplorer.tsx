@@ -1075,6 +1075,6 @@ export const FileExplorerBase = ({ isPicker = false, pickerMode = 'file', initia
   );
 };
 
-export default function FileExplorer({ onOpenInApp }: { onOpenInApp?: (baseId: string, props: any) => void }) {
-  return <FileExplorerBase onOpenInApp={onOpenInApp} />;
+export default function FileExplorer({ onOpenInApp, initialPath }: { onOpenInApp?: (baseId: string, props: any) => void, initialPath?: string }) {
+  return <FileExplorerBase onOpenInApp={onOpenInApp} initialPath={initialPath} />;
 }
