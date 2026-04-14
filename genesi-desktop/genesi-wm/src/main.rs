@@ -531,10 +531,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 let visual_w = geometry.size.w as f64;
                                 let visual_h = geometry.size.h as f64;
                                 
-                                let titlebar_height = if is_desktop { 0.0 } else { 30.0 };
+                                let app_id = toplevel.app_id().unwrap_or_default();
+                                let is_genesi_app = app_id.contains("genesi");
+                                let titlebar_height = if is_desktop || is_genesi_app { 0.0 } else { 30.0 };
                                 
-                                // Verifica se o clique está na barra de título (y - titlebar_height até y)
-                                if !is_desktop && position.x >= visual_x && position.y >= visual_y - titlebar_height && position.x < visual_x + visual_w && position.y < visual_y {
+                                // Verifica se o clique está na barra de título do SO (apenas para apps externos)
+                                if !is_desktop && !is_genesi_app && position.x >= visual_x && position.y >= visual_y - titlebar_height && position.x < visual_x + visual_w && position.y < visual_y {
                                     
                                     // Verifica se clicou no botão de fechar (30px no canto direito)
                                     let close_btn_x = visual_x + visual_w - 30.0;
@@ -669,8 +671,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         // Desktop no fundo -> final da lista
                         elements.extend(desktop_elements.into_iter().map(CustomRenderElements::from));
                     } else {
-                        // DESENHAR BARRA DE TÍTULO (SSD)
-                        let titlebar_height = 30;
+                        // DESENHAR BARRA DE TÍTULO (SSD) apenas para apps que NÃO são nativos do Genesi OS
+                        let app_id = toplevel.app_id().unwrap_or_default();
+                        let is_genesi_app = app_id.contains("genesi");
+                        let titlebar_height = if is_genesi_app { 0 } else { 30 };
+                        
                         // Pegamos a geometria exata da janela (se o cliente tiver sombra/CSD, isso ignora as sombras invisíveis!)
                         use smithay::wayland::compositor::with_states;
                         use smithay::wayland::shell::xdg::SurfaceCachedState;
@@ -707,30 +712,32 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             (visual_w, titlebar_height).into()
                         ).to_physical(1);
                         
-                        // Criamos o retângulo da barra de título
-                        let titlebar = SolidColorRenderElement::new(
-                            Id::new(),
-                            titlebar_geom,
-                            CommitCounter::default(),
-                            Color32F::new(0.15, 0.15, 0.15, 1.0), // Cor: Cinza Escuro (Padrão Genesi)
-                            Kind::Unspecified,
-                        );
-                        app_elements.push(CustomRenderElements::from(titlebar));
-                        
-                        // Criamos o botão de fechar (Vermelho) no canto direito
-                        let close_btn_geom = Rectangle::new(
-                            (visual_x + visual_w - 30, visual_y - titlebar_height).into(),
-                            (30, titlebar_height).into()
-                        ).to_physical(1);
+                        if !is_genesi_app {
+                            // Criamos o retângulo da barra de título
+                            let titlebar = SolidColorRenderElement::new(
+                                Id::new(),
+                                titlebar_geom,
+                                CommitCounter::default(),
+                                Color32F::new(0.15, 0.15, 0.15, 1.0), // Cor: Cinza Escuro (Padrão Genesi)
+                                Kind::Unspecified,
+                            );
+                            app_elements.push(CustomRenderElements::from(titlebar));
+                            
+                            // Criamos o botão de fechar (Vermelho) no canto direito
+                            let close_btn_geom = Rectangle::new(
+                                (visual_x + visual_w - 30, visual_y - titlebar_height).into(),
+                                (30, titlebar_height).into()
+                            ).to_physical(1);
 
-                        let close_btn = SolidColorRenderElement::new(
-                            Id::new(),
-                            close_btn_geom,
-                            CommitCounter::default(),
-                            Color32F::new(0.8, 0.2, 0.2, 1.0), // Cor: Vermelho
-                            Kind::Unspecified,
-                        );
-                        app_elements.push(CustomRenderElements::from(close_btn));
+                            let close_btn = SolidColorRenderElement::new(
+                                Id::new(),
+                                close_btn_geom,
+                                CommitCounter::default(),
+                                Color32F::new(0.8, 0.2, 0.2, 1.0), // Cor: Vermelho
+                                Kind::Unspecified,
+                            );
+                            app_elements.push(CustomRenderElements::from(close_btn));
+                        }
                         
                         // App no topo -> início da lista (O último do window_order será o 0 na elements!)
                         elements.splice(0..0, app_elements);
