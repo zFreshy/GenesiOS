@@ -531,7 +531,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 let visual_w = geometry.size.w as f64;
                                 let visual_h = geometry.size.h as f64;
                                 
-                                let app_id = toplevel.app_id().unwrap_or_default();
+                                let app_id = smithay::wayland::compositor::with_states(toplevel.wl_surface(), |states| {
+                                    states.data_map.get::<std::sync::Mutex<smithay::wayland::shell::xdg::XdgToplevelSurfaceRoleAttributes>>()
+                                        .map(|attrs| attrs.lock().unwrap().app_id.clone())
+                                        .flatten()
+                                }).unwrap_or_default();
                                 let is_genesi_app = app_id.contains("genesi");
                                 let titlebar_height = if is_desktop || is_genesi_app { 0.0 } else { 30.0 };
                                 
@@ -672,7 +676,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         elements.extend(desktop_elements.into_iter().map(CustomRenderElements::from));
                     } else {
                         // DESENHAR BARRA DE TÍTULO (SSD) apenas para apps que NÃO são nativos do Genesi OS
-                        let app_id = toplevel.app_id().unwrap_or_default();
+                        let app_id = smithay::wayland::compositor::with_states(toplevel.wl_surface(), |states| {
+                            states.data_map.get::<std::sync::Mutex<smithay::wayland::shell::xdg::XdgToplevelSurfaceRoleAttributes>>()
+                                .map(|attrs| attrs.lock().unwrap().app_id.clone())
+                                .flatten()
+                        }).unwrap_or_default();
                         let is_genesi_app = app_id.contains("genesi");
                         let titlebar_height = if is_genesi_app { 0 } else { 30 };
                         
