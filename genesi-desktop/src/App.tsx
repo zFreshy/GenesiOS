@@ -16,6 +16,7 @@ import { useTheme } from './ThemeContext';
 import { useDisplay } from './DisplayContext';
 
 import { Command } from '@tauri-apps/plugin-shell';
+import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
 
 import ImageViewer from './ImageViewer';
 import VideoPlayer from './VideoPlayer';
@@ -587,26 +588,48 @@ function App() {
       if (!defaultInstance) return currentApps; // fallback
 
       // If default is closed and we don't force new, just open the default one
-      if (!defaultInstance.isOpen && !forceNewInstance && Object.keys(additionalProps).length === 0) {
-         return currentApps.map(a => a.id === baseId ? { ...a, isOpen: true, minimized: false, zIndex: ++globalZIndex } : a);
+      const targetInstance = (!defaultInstance.isOpen && !forceNewInstance && Object.keys(additionalProps).length === 0)
+        ? defaultInstance
+        : {
+            ...defaultInstance,
+            id: `${baseId}_${Date.now()}`,
+            x: defaultInstance.defaultX + (existingInstances.length * 30),
+            y: defaultInstance.defaultY + (existingInstances.length * 30),
+            ...additionalProps
+          };
+
+      // Abre como janela nativa do Tauri se for um app interno do GenesiOS
+      if (!targetInstance.isExternal && baseId !== 'terminal') {
+        try {
+          const webview = new WebviewWindow(targetInstance.id, {
+            url: `/?app=${baseId}&path=${encodeURIComponent((additionalProps as any).filePath || (additionalProps as any).defaultPath || '')}&name=${encodeURIComponent((additionalProps as any).fileName || '')}`,
+            title: targetInstance.title,
+            width: targetInstance.width,
+            height: targetInstance.height,
+            decorations: false, // Nós vamos desenhar a barra de título no React (se for customizada) ou deixar o Wayland por a preta!
+            transparent: true,
+            center: true
+          });
+
+          webview.once('tauri://error', function (e) {
+            console.error('Failed to create webview window:', e);
+          });
+          
+          // Quando a janela nativa fechar, atualiza a barra de tarefas do Desktop
+          webview.onCloseRequested(() => {
+            setApps(apps => apps.map(a => a.id === targetInstance.id ? { ...a, isOpen: false } : a));
+          });
+        } catch (e) {
+          console.error('Failed to spawn WebviewWindow', e);
+        }
       }
 
-      // Force spawn new instance (e.g. Right Click -> New Window or Opening a File)
-      const newId = `${baseId}_${Date.now()}`;
-      const offset = existingInstances.length * 30;
-      const newInstance = {
-        ...defaultInstance,
-        id: newId,
-        isOpen: true,
-        minimized: false,
-        maximized: false,
-        zIndex: ++globalZIndex,
-        x: defaultInstance.defaultX + offset,
-        y: defaultInstance.defaultY + offset,
-        ...additionalProps // Inject custom title, content, etc if passed
-      };
+      const updatedInstance = { ...targetInstance, isOpen: true, minimized: false, zIndex: ++globalZIndex };
       
-      return [...currentApps, newInstance];
+      if (targetInstance.id === defaultInstance.id) {
+        return currentApps.map(a => a.id === baseId ? updatedInstance : a);
+      }
+      return [...currentApps, updatedInstance];
     });
 
     setShowControlCenter(false);
@@ -1151,7 +1174,7 @@ function App() {
 
       {/* ======= WINDOW MANAGER ======= */}
       <AnimatePresence>
-        {appsWithDynamicContent.filter(a => a.isOpen).map(app => (
+        {appsWithDynamicContent.filter(a => a.isOpen && (a.baseId === 'terminal')).map(app => (
           <DesktopWindow 
             key={app.id} 
             app={app} 
