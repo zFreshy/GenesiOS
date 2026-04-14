@@ -530,12 +530,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 
                                 // Verifica se o clique está na barra de título (y - titlebar_height até y)
                                 if !is_desktop && position.x >= visual_x && position.y >= visual_y - titlebar_height && position.x < visual_x + visual_w && position.y < visual_y {
-                                    // Inicia o arrasto
-                                    let offset_x = position.x as i32 - pos.x;
-                                    let offset_y = position.y as i32 - pos.y;
-                                    state.moving_window = Some((surface.clone(), (offset_x, offset_y).into()));
-                                    clicked_surface = Some(surface.clone());
-                                    break;
+                                    
+                                    // Verifica se clicou no botão de fechar (30px no canto direito)
+                                    let close_btn_x = visual_x + visual_w - 30.0;
+                                    if position.x >= close_btn_x {
+                                        toplevel.send_close();
+                                        clicked_surface = None;
+                                        break;
+                                    } else {
+                                        // Inicia o arrasto
+                                        let offset_x = position.x as i32 - pos.x;
+                                        let offset_y = position.y as i32 - pos.y;
+                                        state.moving_window = Some((surface.clone(), (offset_x, offset_y).into()));
+                                        clicked_surface = Some(surface.clone());
+                                        break;
+                                    }
                                 }
                                 
                                 // Verifica se clicou no corpo da janela
@@ -702,6 +711,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             Kind::Unspecified,
                         );
                         app_elements.push(CustomRenderElements::from(titlebar));
+                        
+                        // Criamos o botão de fechar (Vermelho) no canto direito
+                        let close_btn_geom = Rectangle::new(
+                            (visual_x + visual_w - 30, visual_y - titlebar_height).into(),
+                            (30, titlebar_height).into()
+                        ).to_physical(1);
+
+                        let close_btn = SolidColorRenderElement::new(
+                            Id::new(),
+                            close_btn_geom,
+                            CommitCounter::default(),
+                            Color32F::new(0.8, 0.2, 0.2, 1.0), // Cor: Vermelho
+                            Kind::Unspecified,
+                        );
+                        app_elements.push(CustomRenderElements::from(close_btn));
                         
                         // App no topo -> início da lista (O último do window_order será o 0 na elements!)
                         elements.splice(0..0, app_elements);
