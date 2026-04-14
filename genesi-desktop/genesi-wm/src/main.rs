@@ -480,6 +480,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     }
                     
                     if let Some((surface, _)) = under.as_ref() {
+                        // Focus on mouse move? Usually we focus on click.
+                        // Let's only set keyboard focus here if we want follow-mouse, otherwise just pointer.
+                        // For a real OS, we focus on click. But we can leave it or just set pointer focus.
                         keyboard.set_focus(&mut state, Some(surface.clone()), 0.into());
                     }
 
