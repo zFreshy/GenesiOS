@@ -233,6 +233,8 @@ const TaskManager: React.FC<TaskManagerProps> = ({ apps, onCloseApp }) => {
     }
   };
 
+  const [sidebarExpanded, setSidebarExpanded] = useState(true);
+
   // Build the list of active processes (Real Apps + System Mocks)
   const activeProcesses = [
     ...apps.filter(a => a.isOpen).map(a => a.id),
@@ -245,34 +247,27 @@ const TaskManager: React.FC<TaskManagerProps> = ({ apps, onCloseApp }) => {
       <div className={`h-14 flex items-center justify-between px-4 border-b ${theme === 'light' ? 'border-black/10' : 'border-white/10'}`}>
         <div className="flex items-center gap-4">
           <div className="flex gap-2">
-            <button 
-              onClick={() => setActiveTab('processes')}
-              className={`p-2 rounded-md flex flex-col items-center justify-center w-16 transition-colors ${activeTab === 'processes' ? (theme === 'light' ? 'bg-black/5' : 'bg-white/10') : 'hover:bg-white/5'}`}
-            >
-              <Activity size={20} strokeWidth={1.5} className={activeTab === 'processes' ? 'text-blue-500' : ''} />
-            </button>
-            <button 
-              onClick={() => setActiveTab('performance')}
-              className={`p-2 rounded-md flex flex-col items-center justify-center w-16 transition-colors ${activeTab === 'performance' ? (theme === 'light' ? 'bg-black/5' : 'bg-white/10') : 'hover:bg-white/5'}`}
-            >
-              <BarChart2 size={20} strokeWidth={1.5} className={activeTab === 'performance' ? 'text-blue-500' : ''} />
-            </button>
+            <span className="font-semibold text-sm">Task Manager</span>
           </div>
           <div className={`h-8 w-[1px] ${theme === 'light' ? 'bg-black/10' : 'bg-white/10'}`}></div>
           <div className="relative">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input 
               type="text" 
-              placeholder="Type to search" 
+              placeholder="Type a name, publisher, or PID to search" 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className={`pl-9 pr-4 py-1.5 text-sm rounded-md outline-none w-64 ${theme === 'light' ? 'bg-white border border-black/10 text-black' : 'bg-black/40 border border-white/10 text-white focus:border-blue-500/50'}`}
+              className={`pl-9 pr-4 py-1.5 text-sm rounded-md outline-none w-80 ${theme === 'light' ? 'bg-white border border-black/10 text-black' : 'bg-[#181818] border border-white/10 text-white focus:border-blue-500/50'}`}
             />
           </div>
         </div>
         <div className="flex gap-2">
+          <button className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm transition-colors ${theme === 'light' ? 'hover:bg-black/5 text-black' : 'hover:bg-white/10 text-white'}`}>
+            <PlaySquare size={16} />
+            Run new task
+          </button>
           <button 
-            className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-sm transition-colors ${
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm transition-colors ${
               selectedProcess 
                 ? (theme === 'light' ? 'bg-black/5 hover:bg-black/10 text-black' : 'bg-white/10 hover:bg-white/20 text-white') 
                 : 'opacity-50 cursor-not-allowed'
@@ -283,6 +278,9 @@ const TaskManager: React.FC<TaskManagerProps> = ({ apps, onCloseApp }) => {
             <StopCircle size={16} className={selectedProcess ? 'text-red-500' : ''} />
             End task
           </button>
+          <button className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm transition-colors opacity-50 cursor-not-allowed ${theme === 'light' ? 'hover:bg-black/5 text-black' : 'hover:bg-white/10 text-white'}`}>
+            Efficiency mode
+          </button>
           <button className={`p-1.5 rounded-md ${theme === 'light' ? 'hover:bg-black/5' : 'hover:bg-white/10'}`}>
             <MoreHorizontal size={20} />
           </button>
@@ -292,64 +290,80 @@ const TaskManager: React.FC<TaskManagerProps> = ({ apps, onCloseApp }) => {
       {/* CONTENT AREA */}
       <div className="flex-1 flex overflow-hidden">
         {/* SIDEBAR (Windows 11 Style) */}
-        <div className={`w-14 flex flex-col items-center py-2 gap-2 border-r ${theme === 'light' ? 'border-black/10 bg-[#f9f9f9]' : 'border-white/10 bg-[#181818]'}`}>
-           <div className="w-10 h-10 rounded-md flex items-center justify-center hover:bg-white/5 cursor-pointer relative group">
-             <Activity size={20} className={activeTab === 'processes' ? 'text-blue-500' : 'text-gray-400'} />
-             {activeTab === 'processes' && <div className="absolute left-0 w-1 h-4 bg-blue-500 rounded-r-full"></div>}
+        <div className={`${sidebarExpanded ? 'w-56' : 'w-14'} flex flex-col py-2 gap-1 border-r transition-all duration-200 ${theme === 'light' ? 'border-black/10 bg-[#f9f9f9]' : 'border-white/10 bg-[#202020]'}`}>
+           <div 
+             onClick={() => setSidebarExpanded(!sidebarExpanded)}
+             className="h-10 mx-2 rounded-md flex items-center hover:bg-white/5 cursor-pointer text-gray-400 px-2"
+           >
+             <div className="w-6 flex justify-center"><MoreHorizontal size={18} /></div>
            </div>
-           <div className="w-10 h-10 rounded-md flex items-center justify-center hover:bg-white/5 cursor-pointer relative group">
-             <BarChart2 size={20} className={activeTab === 'performance' ? 'text-blue-500' : 'text-gray-400'} />
-             {activeTab === 'performance' && <div className="absolute left-0 w-1 h-4 bg-blue-500 rounded-r-full"></div>}
+           
+           <div onClick={() => setActiveTab('processes')} className={`h-10 mx-2 rounded-md flex items-center hover:bg-white/5 cursor-pointer relative group px-2 ${activeTab === 'processes' ? 'bg-white/5' : ''}`}>
+             <div className="w-6 flex justify-center"><Activity size={18} className={activeTab === 'processes' ? 'text-blue-500' : 'text-gray-400'} /></div>
+             {sidebarExpanded && <span className="ml-3 text-sm">Processes</span>}
+             {activeTab === 'processes' && <div className="absolute left-0 top-2 bottom-2 w-1 bg-blue-500 rounded-full"></div>}
            </div>
-           <div className="w-10 h-10 rounded-md flex items-center justify-center hover:bg-white/5 cursor-pointer text-gray-400">
-             <PlaySquare size={20} />
+           
+           <div onClick={() => setActiveTab('performance')} className={`h-10 mx-2 rounded-md flex items-center hover:bg-white/5 cursor-pointer relative group px-2 ${activeTab === 'performance' ? 'bg-white/5' : ''}`}>
+             <div className="w-6 flex justify-center"><BarChart2 size={18} className={activeTab === 'performance' ? 'text-blue-500' : 'text-gray-400'} /></div>
+             {sidebarExpanded && <span className="ml-3 text-sm">Performance</span>}
+             {activeTab === 'performance' && <div className="absolute left-0 top-2 bottom-2 w-1 bg-blue-500 rounded-full"></div>}
            </div>
-           <div className="w-10 h-10 rounded-md flex items-center justify-center hover:bg-white/5 cursor-pointer text-gray-400">
-             <User size={20} />
+
+           <div className="h-10 mx-2 rounded-md flex items-center hover:bg-white/5 cursor-pointer text-gray-400 px-2">
+             <div className="w-6 flex justify-center"><FolderOpen size={18} /></div>
+             {sidebarExpanded && <span className="ml-3 text-sm">App history</span>}
            </div>
-           <div className="w-10 h-10 rounded-md flex items-center justify-center hover:bg-white/5 cursor-pointer text-gray-400">
-             <Server size={20} />
+           
+           <div className="h-10 mx-2 rounded-md flex items-center hover:bg-white/5 cursor-pointer text-gray-400 px-2">
+             <div className="w-6 flex justify-center"><PlaySquare size={18} /></div>
+             {sidebarExpanded && <span className="ml-3 text-sm">Startup apps</span>}
            </div>
-           <div className="mt-auto w-10 h-10 rounded-md flex items-center justify-center hover:bg-white/5 cursor-pointer text-gray-400">
-             <Settings size={20} />
+           
+           <div className="h-10 mx-2 rounded-md flex items-center hover:bg-white/5 cursor-pointer text-gray-400 px-2">
+             <div className="w-6 flex justify-center"><User size={18} /></div>
+             {sidebarExpanded && <span className="ml-3 text-sm">Users</span>}
+           </div>
+           
+           <div className="h-10 mx-2 rounded-md flex items-center hover:bg-white/5 cursor-pointer text-gray-400 px-2">
+             <div className="w-6 flex justify-center"><Server size={18} /></div>
+             {sidebarExpanded && <span className="ml-3 text-sm">Details</span>}
+           </div>
+
+           <div className="h-10 mx-2 rounded-md flex items-center hover:bg-white/5 cursor-pointer text-gray-400 px-2">
+             <div className="w-6 flex justify-center"><Box size={18} /></div>
+             {sidebarExpanded && <span className="ml-3 text-sm">Services</span>}
+           </div>
+
+           <div className="mt-auto h-10 mx-2 rounded-md flex items-center hover:bg-white/5 cursor-pointer text-gray-400 px-2">
+             <div className="w-6 flex justify-center"><Settings size={18} /></div>
+             {sidebarExpanded && <span className="ml-3 text-sm">Settings</span>}
            </div>
         </div>
 
         {/* MAIN PANEL */}
-        <div className="flex-1 overflow-y-auto">
+        <div className={`flex-1 overflow-y-auto ${theme === 'light' ? 'bg-white' : 'bg-[#181818]'}`}>
           {activeTab === 'processes' && (
-            <div className="w-full min-w-[600px]">
+            <div className="w-full min-w-[800px]">
               {/* TABLE HEADER */}
-              <div className={`grid grid-cols-[3fr_1fr_1fr_1fr_1fr] gap-4 px-6 py-2 text-xs border-b sticky top-0 z-10 ${theme === 'light' ? 'bg-[#f3f3f3] border-black/10' : 'bg-[#202020] border-white/10'}`}>
-                <div className="font-medium flex items-center hover:bg-white/5 cursor-pointer rounded px-2 -ml-2">Name</div>
-                <div className="font-medium flex items-center hover:bg-white/5 cursor-pointer rounded px-2 -ml-2">CPU</div>
-                <div className="font-medium flex items-center hover:bg-white/5 cursor-pointer rounded px-2 -ml-2">Memory</div>
-                <div className="font-medium flex items-center hover:bg-white/5 cursor-pointer rounded px-2 -ml-2">Disk</div>
-                <div className="font-medium flex items-center hover:bg-white/5 cursor-pointer rounded px-2 -ml-2">Network</div>
-              </div>
-              
-              {/* CPU/MEM BARS */}
-              <div className={`grid grid-cols-[3fr_1fr_1fr_1fr_1fr] gap-4 px-6 py-2 text-xs border-b mb-2 ${theme === 'light' ? 'border-black/5' : 'border-white/5'}`}>
-                <div></div>
-                <div className="pr-4">
-                  <div className="text-[10px] mb-1">{cpuUsage.toFixed(0)}%</div>
-                  <div className={`w-full h-1 ${theme === 'light' ? 'bg-gray-300' : 'bg-gray-700'} rounded-full overflow-hidden`}>
-                    <div className="h-full bg-blue-500" style={{ width: `${cpuUsage}%` }}></div>
-                  </div>
+              <div className={`grid grid-cols-[3fr_1fr_1fr_1fr_1fr_1fr] gap-2 px-6 py-2 text-xs border-b sticky top-0 z-10 ${theme === 'light' ? 'bg-white border-black/10' : 'bg-[#181818] border-white/10'}`}>
+                <div className="font-medium flex flex-col justify-end pb-1 hover:bg-white/5 cursor-pointer rounded px-2 -ml-2 border-r border-transparent hover:border-white/10">Name</div>
+                <div className="font-medium flex flex-col justify-end pb-1 hover:bg-white/5 cursor-pointer rounded px-2 border-r border-transparent hover:border-white/10">Status</div>
+                <div className="font-medium flex flex-col hover:bg-white/5 cursor-pointer rounded px-2 border-r border-transparent hover:border-white/10">
+                  <span className="text-[14px]">{cpuUsage.toFixed(0)}%</span>
+                  <span className="text-gray-400">CPU</span>
                 </div>
-                <div className="pr-4">
-                  <div className="text-[10px] mb-1">{memUsage.toFixed(0)}%</div>
-                  <div className={`w-full h-1 ${theme === 'light' ? 'bg-gray-300' : 'bg-gray-700'} rounded-full overflow-hidden`}>
-                    <div className="h-full bg-purple-500" style={{ width: `${memUsage}%` }}></div>
-                  </div>
+                <div className="font-medium flex flex-col hover:bg-white/5 cursor-pointer rounded px-2 border-r border-transparent hover:border-white/10">
+                  <span className="text-[14px]">{memUsage.toFixed(0)}%</span>
+                  <span className="text-gray-400">Memory</span>
                 </div>
-                <div className="pr-4">
-                  <div className="text-[10px] mb-1">0%</div>
-                  <div className={`w-full h-1 ${theme === 'light' ? 'bg-gray-300' : 'bg-gray-700'} rounded-full overflow-hidden`}></div>
+                <div className="font-medium flex flex-col hover:bg-white/5 cursor-pointer rounded px-2 border-r border-transparent hover:border-white/10">
+                  <span className="text-[14px]">26%</span>
+                  <span className="text-gray-400">Disk</span>
                 </div>
-                <div className="pr-4">
-                  <div className="text-[10px] mb-1">0%</div>
-                  <div className={`w-full h-1 ${theme === 'light' ? 'bg-gray-300' : 'bg-gray-700'} rounded-full overflow-hidden`}></div>
+                <div className="font-medium flex flex-col hover:bg-white/5 cursor-pointer rounded px-2">
+                  <span className="text-[14px]">1%</span>
+                  <span className="text-gray-400">Network</span>
                 </div>
               </div>
 
@@ -367,20 +381,24 @@ const TaskManager: React.FC<TaskManagerProps> = ({ apps, onCloseApp }) => {
                     <div 
                       key={app.id}
                       onClick={() => setSelectedProcess(app.id)}
-                      className={`grid grid-cols-[3fr_1fr_1fr_1fr_1fr] gap-4 px-4 py-2 text-sm items-center rounded-md cursor-default mb-0.5 ${
+                      className={`grid grid-cols-[3fr_1fr_1fr_1fr_1fr_1fr] gap-2 px-4 py-0 text-[13px] items-center cursor-default border-b border-transparent ${
                         isSelected 
-                          ? (theme === 'light' ? 'bg-blue-500/10' : 'bg-blue-500/20') 
-                          : (theme === 'light' ? 'hover:bg-black/5' : 'hover:bg-white/5')
+                          ? (theme === 'light' ? 'bg-[#e5f3ff] border-black/5' : 'bg-[#005a9e]/30 border-white/5') 
+                          : (theme === 'light' ? 'hover:bg-[#f9f9f9] border-black/5' : 'hover:bg-[#202020] border-white/5')
                       }`}
                     >
-                      <div className="flex items-center gap-3 pl-6">
+                      <div className="flex items-center gap-2 pl-2 overflow-hidden h-10 border-r border-transparent">
+                        <ChevronRight size={14} className="text-gray-400 shrink-0" />
                         {getIconForProcess(app.id)}
-                        <span>{app.title || app.name}</span>
+                        <span className="truncate">{app.title || app.name}</span>
                       </div>
-                      <div className={`px-2 py-1 rounded ${m.cpu > 5 ? 'bg-[#ffe0e0] text-red-900 dark:bg-[#4a1c1c] dark:text-red-200' : ''}`}>{m.cpu.toFixed(1)}%</div>
-                      <div className="px-2 py-1">{m.mem.toFixed(1)} MB</div>
-                      <div className="px-2 py-1">{m.disk.toFixed(1)} MB/s</div>
-                      <div className="px-2 py-1">{m.net.toFixed(1)} Mbps</div>
+                      <div className="px-2 h-full flex items-center border-r border-transparent text-green-500">
+                        {app.id === 'dwm' || app.id === 'explorer' ? '' : 'Running'}
+                      </div>
+                      <div className={`px-2 h-full flex items-center border-r border-transparent ${m.cpu > 5 ? 'bg-[#ffe0e0] text-red-900 dark:bg-[#4a1c1c] dark:text-red-200' : ''}`}>{m.cpu.toFixed(1)}%</div>
+                      <div className="px-2 h-full flex items-center border-r border-transparent">{m.mem.toFixed(1)} MB</div>
+                      <div className="px-2 h-full flex items-center border-r border-transparent">{m.disk.toFixed(1)} MB/s</div>
+                      <div className="px-2 h-full flex items-center">{m.net.toFixed(1)} Mbps</div>
                     </div>
                   );
                 })}
@@ -405,20 +423,24 @@ const TaskManager: React.FC<TaskManagerProps> = ({ apps, onCloseApp }) => {
                           <div 
                             key={p.name}
                             onClick={() => setSelectedProcess(p.name)}
-                            className={`grid grid-cols-[3fr_1fr_1fr_1fr_1fr] gap-4 px-4 py-1.5 text-sm items-center rounded-md cursor-default mb-0.5 ${
+                            className={`grid grid-cols-[3fr_1fr_1fr_1fr_1fr_1fr] gap-2 px-4 py-0 text-[13px] items-center cursor-default border-b border-transparent ${
                               isSelected 
-                                ? (theme === 'light' ? 'bg-blue-500/10' : 'bg-blue-500/20') 
-                                : (theme === 'light' ? 'hover:bg-black/5' : 'hover:bg-white/5')
+                                ? (theme === 'light' ? 'bg-[#e5f3ff] border-black/5' : 'bg-[#005a9e]/30 border-white/5') 
+                                : (theme === 'light' ? 'hover:bg-[#f9f9f9] border-black/5' : 'hover:bg-[#202020] border-white/5')
                             }`}
                           >
-                            <div className="flex items-center gap-3 pl-6 overflow-hidden">
-                              <Box size={16} className="text-gray-400 shrink-0" />
+                            <div className="flex items-center gap-2 pl-2 overflow-hidden h-10 border-r border-transparent">
+                              <ChevronRight size={14} className="text-gray-400 shrink-0" />
+                              <Box size={16} className="text-blue-500 shrink-0" />
                               <span className="truncate">{p.name} {p.pids.length > 1 ? `(${p.pids.length})` : ''}</span>
                             </div>
-                            <div className={`px-2 py-1 rounded ${p.cpu > 5 ? 'bg-[#ffe0e0] text-red-900 dark:bg-[#4a1c1c] dark:text-red-200' : ''}`}>{p.cpu.toFixed(1)}%</div>
-                            <div className="px-2 py-1">{memMB.toFixed(1)} MB</div>
-                            <div className="px-2 py-1">0.0 MB/s</div>
-                            <div className="px-2 py-1">0.0 Mbps</div>
+                            <div className="px-2 h-full flex items-center border-r border-transparent text-gray-500">
+                              
+                            </div>
+                            <div className={`px-2 h-full flex items-center border-r border-transparent ${p.cpu > 5 ? 'bg-[#ffe0e0] text-red-900 dark:bg-[#4a1c1c] dark:text-red-200' : ''}`}>{p.cpu.toFixed(1)}%</div>
+                            <div className="px-2 h-full flex items-center border-r border-transparent">{memMB.toFixed(1)} MB</div>
+                            <div className="px-2 h-full flex items-center border-r border-transparent">0.1 MB/s</div>
+                            <div className="px-2 h-full flex items-center">0 Mbps</div>
                           </div>
                         );
                     })}
@@ -438,20 +460,24 @@ const TaskManager: React.FC<TaskManagerProps> = ({ apps, onCloseApp }) => {
                     <div 
                       key={id}
                       onClick={() => setSelectedProcess(id)}
-                      className={`grid grid-cols-[3fr_1fr_1fr_1fr_1fr] gap-4 px-4 py-2 text-sm items-center rounded-md cursor-default mb-0.5 ${
+                      className={`grid grid-cols-[3fr_1fr_1fr_1fr_1fr_1fr] gap-2 px-4 py-0 text-[13px] items-center cursor-default border-b border-transparent ${
                         isSelected 
-                          ? (theme === 'light' ? 'bg-blue-500/10' : 'bg-blue-500/20') 
-                          : (theme === 'light' ? 'hover:bg-black/5' : 'hover:bg-white/5')
+                          ? (theme === 'light' ? 'bg-[#e5f3ff] border-black/5' : 'bg-[#005a9e]/30 border-white/5') 
+                          : (theme === 'light' ? 'hover:bg-[#f9f9f9] border-black/5' : 'hover:bg-[#202020] border-white/5')
                       }`}
                     >
-                      <div className="flex items-center gap-3 pl-6">
+                      <div className="flex items-center gap-2 pl-2 overflow-hidden h-10 border-r border-transparent">
+                        <ChevronRight size={14} className="text-gray-400 shrink-0" />
                         {getIconForProcess(id)}
-                        <span>{getProcessName(id)}</span>
+                        <span className="truncate">{getProcessName(id)}</span>
                       </div>
-                      <div className={`px-2 py-1 rounded ${m.cpu > 5 ? 'bg-[#ffe0e0] text-red-900 dark:bg-[#4a1c1c] dark:text-red-200' : ''}`}>{m.cpu.toFixed(1)}%</div>
-                      <div className="px-2 py-1">{m.mem.toFixed(1)} MB</div>
-                      <div className="px-2 py-1">{m.disk.toFixed(1)} MB/s</div>
-                      <div className="px-2 py-1">{m.net.toFixed(1)} Mbps</div>
+                      <div className="px-2 h-full flex items-center border-r border-transparent text-gray-500">
+                        
+                      </div>
+                      <div className={`px-2 h-full flex items-center border-r border-transparent ${m.cpu > 5 ? 'bg-[#ffe0e0] text-red-900 dark:bg-[#4a1c1c] dark:text-red-200' : ''}`}>{m.cpu.toFixed(1)}%</div>
+                      <div className="px-2 h-full flex items-center border-r border-transparent">{m.mem.toFixed(1)} MB</div>
+                      <div className="px-2 h-full flex items-center border-r border-transparent">{m.disk.toFixed(1)} MB/s</div>
+                      <div className="px-2 h-full flex items-center">{m.net.toFixed(1)} Mbps</div>
                     </div>
                   );
                 })}
