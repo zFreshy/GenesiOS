@@ -184,7 +184,7 @@ impl XdgDecorationHandler for GenesiState {
     fn new_decoration(&mut self, toplevel: ToplevelSurface) {
         use smithay::reexports::wayland_protocols::xdg::decoration::zv1::server::zxdg_toplevel_decoration_v1::Mode;
         toplevel.with_pending_state(|state| {
-            state.decoration_mode = Some(Mode::ServerSide);
+            state.decoration_mode = Some(Mode::ClientSide);
         });
         toplevel.send_configure();
     }
@@ -192,11 +192,12 @@ impl XdgDecorationHandler for GenesiState {
     fn request_mode(
         &mut self,
         toplevel: ToplevelSurface,
-        _mode: smithay::reexports::wayland_protocols::xdg::decoration::zv1::server::zxdg_toplevel_decoration_v1::Mode,
+        mode: smithay::reexports::wayland_protocols::xdg::decoration::zv1::server::zxdg_toplevel_decoration_v1::Mode,
     ) {
         use smithay::reexports::wayland_protocols::xdg::decoration::zv1::server::zxdg_toplevel_decoration_v1::Mode;
+        let final_mode = if mode != Mode::ServerSide { Mode::ClientSide } else { Mode::ServerSide };
         toplevel.with_pending_state(|state| {
-            state.decoration_mode = Some(Mode::ServerSide);
+            state.decoration_mode = Some(final_mode);
         });
         toplevel.send_configure();
     }
@@ -204,7 +205,7 @@ impl XdgDecorationHandler for GenesiState {
     fn unset_mode(&mut self, toplevel: ToplevelSurface) {
         use smithay::reexports::wayland_protocols::xdg::decoration::zv1::server::zxdg_toplevel_decoration_v1::Mode;
         toplevel.with_pending_state(|state| {
-            state.decoration_mode = Some(Mode::ServerSide);
+            state.decoration_mode = Some(Mode::ClientSide);
         });
         toplevel.send_configure();
     }
@@ -465,7 +466,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 let visual_w = geometry.size.w as f64;
                                 let visual_h = geometry.size.h as f64;
                                 
-                                let titlebar_height = if is_desktop { 0.0 } else { 30.0 }; // Barra do topo
+                                let titlebar_height = if is_desktop { 0.0 } else {
+                                    // Verifica se o cliente está usando CSD (Client-Side Decoration)
+                                    let is_csd = toplevel.with_pending_state(|s| {
+                                        use smithay::reexports::wayland_protocols::xdg::decoration::zv1::server::zxdg_toplevel_decoration_v1::Mode;
+                                        s.decoration_mode == Some(Mode::ClientSide)
+                                    });
+                                    if is_csd { 0.0 } else { 30.0 }
+                                }; // Barra do topo
                                 
                                 // A bounding box deve incluir a barra de título (y - titlebar_height)
                                 if position.x >= visual_x && position.y >= visual_y - titlebar_height && position.x < visual_x + visual_w && position.y < visual_y + visual_h {
@@ -525,7 +533,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 let visual_w = geometry.size.w as f64;
                                 let visual_h = geometry.size.h as f64;
                                 
-                                let titlebar_height = if is_desktop { 0.0 } else { 30.0 };
+                                let titlebar_height = if is_desktop { 0.0 } else {
+                                    // Verifica se o cliente está usando CSD (Client-Side Decoration)
+                                    let is_csd = toplevel.with_pending_state(|s| {
+                                        use smithay::reexports::wayland_protocols::xdg::decoration::zv1::server::zxdg_toplevel_decoration_v1::Mode;
+                                        s.decoration_mode == Some(Mode::ClientSide)
+                                    });
+                                    if is_csd { 0.0 } else { 30.0 }
+                                };
                                 
                                 // Verifica se o clique está na barra de título (y - titlebar_height até y)
                                 if !is_desktop && position.x >= visual_x && position.y >= visual_y - titlebar_height && position.x < visual_x + visual_w && position.y < visual_y {
@@ -655,7 +670,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         elements.extend(desktop_elements.into_iter().map(CustomRenderElements::from));
                     } else {
                         // DESENHAR BARRA DE TÍTULO (SSD)
-                        let titlebar_height = 30;
+                        // Verifica se o cliente está usando CSD (Client-Side Decoration)
+                        let is_csd = toplevel.with_pending_state(|s| {
+                            use smithay::reexports::wayland_protocols::xdg::decoration::zv1::server::zxdg_toplevel_decoration_v1::Mode;
+                            s.decoration_mode == Some(Mode::ClientSide)
+                        });
+                        let titlebar_height = if is_csd { 0 } else { 30 };
                         // Pegamos a geometria exata da janela (se o cliente tiver sombra/CSD, isso ignora as sombras invisíveis!)
                         use smithay::wayland::compositor::with_states;
                         use smithay::wayland::shell::xdg::SurfaceCachedState;
@@ -677,20 +697,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         
                         use smithay::backend::renderer::{element::Id, utils::CommitCounter};
                         
-                        let titlebar_geom = Rectangle::new(
-                            (visual_x, visual_y - titlebar_height).into(), 
-                            (visual_w, titlebar_height).into()
-                        ).to_physical(1);
-                        
-                        // Criamos o retângulo da barra de título
-                        let titlebar = SolidColorRenderElement::new(
-                            Id::new(),
-                            titlebar_geom,
-                            CommitCounter::default(),
-                            Color32F::new(0.15, 0.15, 0.15, 1.0), // Cor: Cinza Escuro (Padrão Genesi)
-                            Kind::Unspecified,
-                        );
-                        
                         let app_surfaces: Vec<WaylandSurfaceRenderElement<GlesRenderer>> = render_elements_from_surface_tree(
                             renderer,
                             toplevel.wl_surface(),
@@ -701,8 +707,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         );
                         let mut app_elements: Vec<CustomRenderElements<GlesRenderer>> = app_surfaces.into_iter().map(CustomRenderElements::from).collect();
                         
-                        // Adiciona a titlebar na lista de elementos do app
-                        app_elements.push(CustomRenderElements::from(titlebar));
+                        // Adiciona a titlebar na lista de elementos do app apenas se for SSD
+                        if !is_csd {
+                            let titlebar_geom = Rectangle::new(
+                                (visual_x, visual_y - titlebar_height).into(), 
+                                (visual_w, titlebar_height).into()
+                            ).to_physical(1);
+                            
+                            // Criamos o retângulo da barra de título
+                            let titlebar = SolidColorRenderElement::new(
+                                Id::new(),
+                                titlebar_geom,
+                                CommitCounter::default(),
+                                Color32F::new(0.15, 0.15, 0.15, 1.0), // Cor: Cinza Escuro (Padrão Genesi)
+                                Kind::Unspecified,
+                            );
+                            app_elements.push(CustomRenderElements::from(titlebar));
+                        }
                         
                         // App no topo -> início da lista (O último do window_order será o 0 na elements!)
                         elements.splice(0..0, app_elements);
