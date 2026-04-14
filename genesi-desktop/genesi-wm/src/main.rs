@@ -262,12 +262,14 @@ pub fn send_frames_surface_tree(surface: &WlSurface, time: u32) {
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Força a renderização via processador (Software) para evitar travamentos em Máquinas Virtuais
-    // É o equivalente ao WEBKIT_DISABLE_DMABUF_RENDERER que você usava no Tauri!
     std::env::set_var("LIBGL_ALWAYS_SOFTWARE", "1");
-    // O Winit do Smithay precisa rodar no ambiente do host (seja ele Wayland nativo do WSLg ou X11)
-    // O WSLg usa o Wayland por padrão, e tentar usar X11 sem o xkbcommon-x11 vai causar panic.
     // Forçamos o winit a usar Wayland, que é o ambiente principal do WSLg
     std::env::set_var("WINIT_UNIX_BACKEND", "wayland");
+    
+    // Variáveis Globais do Genesi OS para garantir que os apps se comportem como um OS Real
+    std::env::set_var("MOZ_ENABLE_WAYLAND", "1");
+    std::env::set_var("MOZ_GTK_TITLEBAR_DECORATION", "system"); // Força o Firefox a usar a barra preta do nosso OS
+    std::env::set_var("GTK_CSD", "0"); // Tenta forçar apps GTK a não usarem CSD
     
     // Precisamos de acesso ao display do host para o winit, não apagar o WAYLAND_DISPLAY original
     // antes de instanciar a janela.
