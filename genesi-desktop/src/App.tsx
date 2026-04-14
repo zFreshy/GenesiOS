@@ -602,7 +602,7 @@ function App() {
       if (!targetInstance.isExternal && baseId !== 'terminal') {
         try {
           const webview = new WebviewWindow(targetInstance.id, {
-            url: `/?app=${baseId}&path=${encodeURIComponent((additionalProps as any).filePath || (additionalProps as any).defaultPath || '')}&name=${encodeURIComponent((additionalProps as any).fileName || '')}`,
+            url: `index.html?app=${baseId}&path=${encodeURIComponent((additionalProps as any).filePath || (additionalProps as any).defaultPath || '')}&name=${encodeURIComponent((additionalProps as any).fileName || '')}`,
             title: targetInstance.title,
             width: targetInstance.width,
             height: targetInstance.height,
@@ -637,7 +637,7 @@ function App() {
     setShowStartContextMenu(false);
   };
 
-  const closeApp = (id: string) => {
+  const closeApp = async (id: string) => {
     setApps(apps => apps.map(a => {
       if (a.id === id) {
         setTimeout(() => saveAppBounds(id), 100);
@@ -646,17 +646,35 @@ function App() {
       return a;
     }));
 
+    // Fecha a janela nativa do Tauri (se existir)
+    try {
+      const w = WebviewWindow.getByLabel(id);
+      if (w) await w.close();
+    } catch (e) {
+      console.error('Failed to close webview', e);
+    }
+
     // Se for uma instância dinâmica clonada, remova ela do estado após a animação de fechar (300ms)
     setTimeout(() => {
       setApps(currentApps => currentApps.filter(a => !(a.id === id && a.id !== a.baseId && !a.isOpen)));
     }, 300);
   };
 
-  const toggleMinimize = (id: string) => {
+  const toggleMinimize = async (id: string) => {
     setApps(apps.map(a => {
       if (a.id === id) return { ...a, minimized: !a.minimized, zIndex: a.minimized ? ++globalZIndex : a.zIndex };
       return a;
     }));
+    try {
+      const w = WebviewWindow.getByLabel(id);
+      if (w) {
+        const isMin = await w.isMinimized();
+        if (isMin) await w.unminimize();
+        else await w.minimize();
+      }
+    } catch (e) {
+      console.error('Failed to toggle minimize webview', e);
+    }
   };
 
   const toggleMaximize = (id: string) => {
@@ -671,8 +689,14 @@ function App() {
     }));
   };
 
-  const focusApp = (id: string) => {
+  const focusApp = async (id: string) => {
     setApps(apps.map(a => a.id === id ? { ...a, zIndex: ++globalZIndex } : a));
+    try {
+      const w = WebviewWindow.getByLabel(id);
+      if (w) await w.setFocus();
+    } catch (e) {
+      console.error('Failed to focus webview', e);
+    }
   };
 
   // Injeta o conteúdo dinâmico que depende do state "apps" no Task Manager
