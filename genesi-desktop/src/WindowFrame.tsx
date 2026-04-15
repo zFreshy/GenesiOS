@@ -38,33 +38,36 @@ export default function WindowFrame({ children, title, icon: Icon }: { children:
       {/* Custom Resize Handles - Bordas invisíveis para o Tauri redimensionar */}
       {!isMaximized && (
         <>
-          <div className="absolute top-0 left-0 right-0 h-1 cursor-n-resize z-50" onPointerDown={() => appWindow.startResizing('top')} />
-          <div className="absolute bottom-0 left-0 right-0 h-1 cursor-s-resize z-50" onPointerDown={() => appWindow.startResizing('bottom')} />
-          <div className="absolute top-0 left-0 bottom-0 w-1 cursor-w-resize z-50" onPointerDown={() => appWindow.startResizing('left')} />
-          <div className="absolute top-0 right-0 bottom-0 w-1 cursor-e-resize z-50" onPointerDown={() => appWindow.startResizing('right')} />
-          <div className="absolute top-0 left-0 w-2 h-2 cursor-nw-resize z-50" onPointerDown={() => appWindow.startResizing('topLeft')} />
-          <div className="absolute top-0 right-0 w-2 h-2 cursor-ne-resize z-50" onPointerDown={() => appWindow.startResizing('topRight')} />
-          <div className="absolute bottom-0 left-0 w-2 h-2 cursor-sw-resize z-50" onPointerDown={() => appWindow.startResizing('bottomLeft')} />
-          <div className="absolute bottom-0 right-0 w-2 h-2 cursor-se-resize z-50" onPointerDown={() => appWindow.startResizing('bottomRight')} />
+          <div className="absolute top-0 left-0 right-0 h-1 cursor-n-resize z-50" onPointerDown={() => (appWindow as any).startResizing('top')} />
+          <div className="absolute bottom-0 left-0 right-0 h-1 cursor-s-resize z-50" onPointerDown={() => (appWindow as any).startResizing('bottom')} />
+          <div className="absolute top-0 left-0 bottom-0 w-1 cursor-w-resize z-50" onPointerDown={() => (appWindow as any).startResizing('left')} />
+          <div className="absolute top-0 right-0 bottom-0 w-1 cursor-e-resize z-50" onPointerDown={() => (appWindow as any).startResizing('right')} />
+          <div className="absolute top-0 left-0 w-2 h-2 cursor-nw-resize z-50" onPointerDown={() => (appWindow as any).startResizing('topLeft')} />
+          <div className="absolute top-0 right-0 w-2 h-2 cursor-ne-resize z-50" onPointerDown={() => (appWindow as any).startResizing('topRight')} />
+          <div className="absolute bottom-0 left-0 w-2 h-2 cursor-sw-resize z-50" onPointerDown={() => (appWindow as any).startResizing('bottomLeft')} />
+          <div className="absolute bottom-0 right-0 w-2 h-2 cursor-se-resize z-50" onPointerDown={() => (appWindow as any).startResizing('bottomRight')} />
         </>
       )}
 
       {/* Titlebar (Custom Client-Side Decoration) */}
       <div 
         className={`h-10 flex items-center justify-between px-3 shrink-0 text-white select-none ${theme === 'light' ? 'bg-[#e5e5e5] text-black border-b border-black/10' : 'bg-[#252525] border-b border-white/5'}`}
-        data-tauri-drag-region
         onPointerDown={(e) => {
           // Inicia o arrasto apenas se clicar no fundo da barra (não nos botões)
           if (e.buttons === 1 && e.target === e.currentTarget) {
             appWindow.startDragging();
           }
         }}
-        onDoubleClick={() => appWindow.toggleMaximize()}
+        onDoubleClick={(e) => {
+          if (e.target === e.currentTarget) {
+            appWindow.toggleMaximize();
+          }
+        }}
       >
         <div className="flex gap-2 pl-1 pointer-events-auto">
-          <div className="w-3.5 h-3.5 rounded-full bg-[#ff5f56] cursor-pointer hover:bg-red-400 transition-colors flex items-center justify-center group" onClick={(e) => { e.stopPropagation(); appWindow.close(); }}><X size={10} className="opacity-0 group-hover:opacity-100 text-black/70"/></div>
-          <div className="w-3.5 h-3.5 rounded-full bg-[#ffbd2e] cursor-pointer hover:bg-yellow-400 transition-colors flex items-center justify-center group" onClick={(e) => { e.stopPropagation(); appWindow.minimize(); }}><Minus size={10} className="opacity-0 group-hover:opacity-100 text-black/70"/></div>
-          <div className="w-3.5 h-3.5 rounded-full bg-[#27c93f] cursor-pointer hover:bg-green-400 transition-colors flex items-center justify-center group" onClick={(e) => { e.stopPropagation(); appWindow.toggleMaximize(); }}>
+          <div className="w-3.5 h-3.5 rounded-full bg-[#ff5f56] cursor-pointer hover:bg-red-400 transition-colors flex items-center justify-center group" onClick={(e) => { e.stopPropagation(); appWindow.close().catch(console.error); }}><X size={10} className="opacity-0 group-hover:opacity-100 text-black/70"/></div>
+          <div className="w-3.5 h-3.5 rounded-full bg-[#ffbd2e] cursor-pointer hover:bg-yellow-400 transition-colors flex items-center justify-center group" onClick={(e) => { e.stopPropagation(); appWindow.minimize().catch(console.error); }}><Minus size={10} className="opacity-0 group-hover:opacity-100 text-black/70"/></div>
+          <div className="w-3.5 h-3.5 rounded-full bg-[#27c93f] cursor-pointer hover:bg-green-400 transition-colors flex items-center justify-center group" onClick={(e) => { e.stopPropagation(); appWindow.toggleMaximize().catch(console.error); }}>
             {isMaximized ? <Minus size={10} className="opacity-0 group-hover:opacity-100 text-black/70"/> : <Square size={8} className="opacity-0 group-hover:opacity-100 text-black/70"/>}
           </div>
         </div>

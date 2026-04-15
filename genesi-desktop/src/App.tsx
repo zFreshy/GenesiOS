@@ -648,7 +648,7 @@ function App() {
 
     // Fecha a janela nativa do Tauri (se existir)
     try {
-      const w = WebviewWindow.getByLabel(id);
+      const w = await WebviewWindow.getByLabel(id);
       if (w) await w.close();
     } catch (e) {
       console.error('Failed to close webview', e);
@@ -666,7 +666,7 @@ function App() {
       return a;
     }));
     try {
-      const w = WebviewWindow.getByLabel(id);
+      const w = await WebviewWindow.getByLabel(id);
       if (w) {
         const isMin = await w.isMinimized();
         if (isMin) await w.unminimize();
@@ -692,7 +692,7 @@ function App() {
   const focusApp = async (id: string) => {
     setApps(apps.map(a => a.id === id ? { ...a, zIndex: ++globalZIndex } : a));
     try {
-      const w = WebviewWindow.getByLabel(id);
+      const w = await WebviewWindow.getByLabel(id);
       if (w) await w.setFocus();
     } catch (e) {
       console.error('Failed to focus webview', e);
