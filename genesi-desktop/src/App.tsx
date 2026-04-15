@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, useDragControls, useAnimation } from 'framer-motion';
 import { LazyStore } from '@tauri-apps/plugin-store';
 import {
-  Wifi, Battery, Globe, Terminal, Package, Folder, Activity, Settings, X, Play, List, Trash2, LayoutGrid, Monitor, MonitorUp
+  Wifi, Battery, Globe, Terminal, Package, Folder, Activity, Settings, X, Play, List, Trash2
 } from 'lucide-react';
 import { IconBrandChrome } from '@tabler/icons-react';
 import './index.css';
@@ -599,7 +599,7 @@ function App() {
           };
 
       // Abre como janela nativa do Tauri se for um app interno do GenesiOS
-      if (!targetInstance.isExternal && baseId !== 'terminal') {
+      if (!(targetInstance as any).isExternal && baseId !== 'terminal') {
         try {
           const webview = new WebviewWindow(targetInstance.id, {
             url: `index.html?app=${baseId}&path=${encodeURIComponent((additionalProps as any).filePath || (additionalProps as any).defaultPath || '')}&name=${encodeURIComponent((additionalProps as any).fileName || '')}`,
@@ -832,7 +832,7 @@ function App() {
 
       
       {/* Background/Wallpapers for each monitor based on logical position */}
-      {displays.map((d, i) => {
+      {displays.map((d) => {
         const bgUrl = wallpapers[d.id] || wallpapers['all'] || "https://images.unsplash.com/photo-1707343843437-caacff5cfa74?q=80&w=3375&auto=format&fit=crop";
         return (
           <div 

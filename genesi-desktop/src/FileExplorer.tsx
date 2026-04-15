@@ -3,7 +3,6 @@ import { createPortal } from 'react-dom';
 import { invoke } from '@tauri-apps/api/core';
 import { LazyStore } from '@tauri-apps/plugin-store';
 import { openPath } from '@tauri-apps/plugin-opener';
-import { open } from '@tauri-apps/plugin-dialog';
 import { useTheme } from './ThemeContext';
 import { 
   IconFolderFilled, IconFile, IconDeviceFloppy, IconChevronRight, IconChevronLeft, IconChevronUp, IconChevronDown,
@@ -57,7 +56,7 @@ export const FileExplorerBase = ({ isPicker = false, pickerMode = 'file', initia
   const [renamingText, setRenamingText] = useState<string>('');
   const [showExtensionWarning, setShowExtensionWarning] = useState<boolean>(false);
   const [pendingRename, setPendingRename] = useState<{ file: FileInfo, newName: string } | null>(null);
-  const clickTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+  const clickTimeoutRef = React.useRef<any | null>(null);
 
   // Lazy loading (Pagination) to prevent lag on huge folders
   const [visibleCount, setVisibleCount] = useState<number>(100);
@@ -112,7 +111,7 @@ export const FileExplorerBase = ({ isPicker = false, pickerMode = 'file', initia
         // Mesclar com o estado padrão
         const baseQuickAccess = defaultQuickAccess.map(qa => ({
           ...qa,
-          path: sysPaths[qa.id] || qa.path
+          path: (sysPaths as any)[qa.id] || qa.path
         }));
 
         const savedQuickAccess = await store.get<any[]>('explorer_quick_access');
