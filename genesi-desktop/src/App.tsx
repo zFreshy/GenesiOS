@@ -16,7 +16,7 @@ import { useTheme } from './ThemeContext';
 import { useDisplay } from './DisplayContext';
 
 import { Command } from '@tauri-apps/plugin-shell';
-// WebviewWindow is no longer used for internal apps — all windows render in the React compositor
+import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
 
 import ImageViewer from './ImageViewer';
 import VideoPlayer from './VideoPlayer';
@@ -590,8 +590,31 @@ function App() {
             ...additionalProps
           };
 
-      // All internal apps are now rendered in the React compositor (DesktopWindow)
-      // No more WebviewWindow — everything stays in the WM
+      // Apps internos abrem como WebviewWindow nativa para o compositor Wayland gerenciar z-order
+      // (Terminal fica no compositor React por ser mais leve e não precisar sobrepor apps nativos)
+      if (baseId !== 'terminal') {
+        try {
+          const webview = new WebviewWindow(targetInstance.id, {
+            url: `index.html?app=${baseId}&path=${encodeURIComponent((additionalProps as any).filePath || (additionalProps as any).defaultPath || '')}&name=${encodeURIComponent((additionalProps as any).fileName || '')}`,
+            title: targetInstance.title,
+            width: targetInstance.width,
+            height: targetInstance.height,
+            decorations: false,
+            transparent: true,
+            center: true
+          });
+
+          webview.once('tauri://error', function (e) {
+            console.error('Failed to create webview window:', e);
+          });
+          
+          webview.onCloseRequested(() => {
+            setApps(apps => apps.map(a => a.id === targetInstance.id ? { ...a, isOpen: false } : a));
+          });
+        } catch (e) {
+          console.error('Failed to spawn WebviewWindow', e);
+        }
+      }
 
       const updatedInstance = { ...targetInstance, isOpen: true, minimized: false, zIndex: ++globalZIndex };
       
@@ -615,17 +638,35 @@ function App() {
       return a;
     }));
 
+    // Fecha a janela nativa do Tauri (se existir)
+    try {
+      const w = await WebviewWindow.getByLabel(id);
+      if (w) await w.close();
+    } catch (e) {
+      console.error('Failed to close webview', e);
+    }
+
     // Se for uma instância dinâmica clonada, remova ela do estado após a animação de fechar (300ms)
     setTimeout(() => {
       setApps(currentApps => currentApps.filter(a => !(a.id === id && a.id !== a.baseId && !a.isOpen)));
     }, 300);
   };
 
-  const toggleMinimize = (id: string) => {
+  const toggleMinimize = async (id: string) => {
     setApps(apps.map(a => {
       if (a.id === id) return { ...a, minimized: !a.minimized, zIndex: a.minimized ? ++globalZIndex : a.zIndex };
       return a;
     }));
+    try {
+      const w = await WebviewWindow.getByLabel(id);
+      if (w) {
+        const isMin = await w.isMinimized();
+        if (isMin) await w.unminimize();
+        else await w.minimize();
+      }
+    } catch (e) {
+      console.error('Failed to toggle minimize webview', e);
+    }
   };
 
   const toggleMaximize = (id: string) => {
@@ -640,8 +681,14 @@ function App() {
     }));
   };
 
-  const focusApp = (id: string) => {
+  const focusApp = async (id: string) => {
     setApps(apps.map(a => a.id === id ? { ...a, zIndex: ++globalZIndex } : a));
+    try {
+      const w = await WebviewWindow.getByLabel(id);
+      if (w) await w.setFocus();
+    } catch (e) {
+      console.error('Failed to focus webview', e);
+    }
   };
 
   // Injeta o conteúdo dinâmico que depende do state "apps" no Task Manager
@@ -1141,9 +1188,9 @@ function App() {
         })()}
       </AnimatePresence>
 
-      {/* ======= WINDOW MANAGER ======= */}
+      {/* ======= WINDOW MANAGER (apenas Terminal fica no compositor React - outros apps são janelas nativas Tauri/Wayland) ======= */}
       <AnimatePresence>
-        {appsWithDynamicContent.filter(a => a.isOpen).map(app => (
+        {appsWithDynamicContent.filter(a => a.isOpen && a.baseId === 'terminal').map(app => (
           <DesktopWindow 
             key={app.id} 
             app={app} 

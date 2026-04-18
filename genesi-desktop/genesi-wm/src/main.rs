@@ -179,12 +179,12 @@ impl XdgShellHandler for GenesiState {
     fn grab(&mut self, _surface: PopupSurface, _seat: WlSeat, _serial: Serial) {}
 }
 
-// 4.1 XDG Decoration
+// 4.1 XDG Decoration — Preferimos ClientSide para que apps como Firefox desenhem sua própria barra
 impl XdgDecorationHandler for GenesiState {
     fn new_decoration(&mut self, toplevel: ToplevelSurface) {
         use smithay::reexports::wayland_protocols::xdg::decoration::zv1::server::zxdg_toplevel_decoration_v1::Mode;
         toplevel.with_pending_state(|state| {
-            state.decoration_mode = Some(Mode::ServerSide);
+            state.decoration_mode = Some(Mode::ClientSide);
         });
         toplevel.send_configure();
     }
@@ -192,12 +192,11 @@ impl XdgDecorationHandler for GenesiState {
     fn request_mode(
         &mut self,
         toplevel: ToplevelSurface,
-        _mode: smithay::reexports::wayland_protocols::xdg::decoration::zv1::server::zxdg_toplevel_decoration_v1::Mode,
+        mode: smithay::reexports::wayland_protocols::xdg::decoration::zv1::server::zxdg_toplevel_decoration_v1::Mode,
     ) {
-        use smithay::reexports::wayland_protocols::xdg::decoration::zv1::server::zxdg_toplevel_decoration_v1::Mode;
-        // Forçamos o ServerSide para que o app (ex: Firefox) não desenhe a própria barra
+        // Respeita a preferência do cliente (Firefox prefere CSD, Tauri sem decorações, etc.)
         toplevel.with_pending_state(|state| {
-            state.decoration_mode = Some(Mode::ServerSide);
+            state.decoration_mode = Some(mode);
         });
         toplevel.send_configure();
     }
@@ -205,7 +204,7 @@ impl XdgDecorationHandler for GenesiState {
     fn unset_mode(&mut self, toplevel: ToplevelSurface) {
         use smithay::reexports::wayland_protocols::xdg::decoration::zv1::server::zxdg_toplevel_decoration_v1::Mode;
         toplevel.with_pending_state(|state| {
-            state.decoration_mode = Some(Mode::ServerSide);
+            state.decoration_mode = Some(Mode::ClientSide);
         });
         toplevel.send_configure();
     }
@@ -267,9 +266,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     std::env::set_var("WINIT_UNIX_BACKEND", "wayland");
     
     // Variáveis Globais do Genesi OS para garantir que os apps se comportem como um OS Real
-    std::env::set_var("MOZ_ENABLE_WAYLAND", "1");
-    std::env::set_var("MOZ_GTK_TITLEBAR_DECORATION", "system"); // Força o Firefox a usar a barra preta do nosso OS
-    std::env::set_var("GTK_CSD", "0"); // Tenta forçar apps GTK a não usarem CSD
+    // NÃO setamos GTK_CSD=0 nem MOZ_GTK_TITLEBAR_DECORATION — deixamos os apps usarem CSD natural
+    // O compositor prefere ClientSide: cada app desenha sua própria decoração (Firefox integra tabs no titlebar)
     
     // Precisamos de acesso ao display do host para o winit, não apagar o WAYLAND_DISPLAY original
     // antes de instanciar a janela.
@@ -537,7 +535,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                         .flatten()
                                 }).unwrap_or_default();
                                 let is_genesi_app = app_id.contains("genesi");
-                                let titlebar_height = if is_desktop || is_genesi_app { 0.0 } else { 30.0 };
+                                // Check if client uses CSD
+                                use smithay::reexports::wayland_protocols::xdg::decoration::zv1::server::zxdg_toplevel_decoration_v1::Mode as DecoMode;
+                                let client_handles_decorations = toplevel.with_pending_state(|s| s.decoration_mode) == Some(DecoMode::ClientSide);
+                                let titlebar_height = if is_desktop || is_genesi_app || client_handles_decorations { 0.0 } else { 30.0 };
                                 
                                 // Verifica se o clique está na barra de título do SO (apenas para apps externos)
                                 if !is_desktop && !is_genesi_app && position.x >= visual_x && position.y >= visual_y - titlebar_height && position.x < visual_x + visual_w && position.y < visual_y {
@@ -675,14 +676,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         // Desktop no fundo -> final da lista
                         elements.extend(desktop_elements.into_iter().map(CustomRenderElements::from));
                     } else {
+                        // Verifica se o cliente usa CSD (Client-Side Decorations)
+                        // Se sim, não desenhamos a SSD do compositor (o app já tem sua própria barra)
+                        use smithay::reexports::wayland_protocols::xdg::decoration::zv1::server::zxdg_toplevel_decoration_v1::Mode as DecoMode;
+                        let decoration_mode = toplevel.with_pending_state(|s| s.decoration_mode);
+                        let client_handles_decorations = decoration_mode == Some(DecoMode::ClientSide);
+                        
                         // DESENHAR BARRA DE TÍTULO (SSD) apenas para apps que NÃO são nativos do Genesi OS
+                        // E que NÃO desenharam sua própria CSD
                         let app_id = smithay::wayland::compositor::with_states(toplevel.wl_surface(), |states| {
                             states.data_map.get::<std::sync::Mutex<smithay::wayland::shell::xdg::XdgToplevelSurfaceRoleAttributes>>()
                                 .map(|attrs| attrs.lock().unwrap().app_id.clone())
                                 .flatten()
                         }).unwrap_or_default();
                         let is_genesi_app = app_id.contains("genesi");
-                        let titlebar_height = if is_genesi_app { 0 } else { 30 };
+                        let needs_ssd = !is_genesi_app && !client_handles_decorations;
+                        let titlebar_height = if needs_ssd { 30 } else { 0 };
                         
                         // Pegamos a geometria exata da janela (se o cliente tiver sombra/CSD, isso ignora as sombras invisíveis!)
                         use smithay::wayland::compositor::with_states;
@@ -715,12 +724,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         );
                         let mut app_elements: Vec<CustomRenderElements<GlesRenderer>> = app_surfaces.into_iter().map(CustomRenderElements::from).collect();
                         
-                        let titlebar_geom = Rectangle::new(
-                            (visual_x, visual_y - titlebar_height).into(), 
-                            (visual_w, titlebar_height).into()
-                        ).to_physical(1);
-                        
-                        if !is_genesi_app {
+                        // Só desenha SSD se o app precisar
+                        if needs_ssd {
+                            let titlebar_geom = Rectangle::new(
+                                (visual_x, visual_y - titlebar_height).into(), 
+                                (visual_w, titlebar_height).into()
+                            ).to_physical(1);
+                            
                             // Criamos o retângulo da barra de título
                             let titlebar = SolidColorRenderElement::new(
                                 Id::new(),
