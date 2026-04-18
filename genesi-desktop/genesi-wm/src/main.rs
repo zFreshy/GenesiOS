@@ -517,19 +517,32 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         let mut new_w = rs.start_rect.size.w;
                         let mut new_h = rs.start_rect.size.h;
                         
-                        let edges = rs.edges;
-                        if edges.intersects(xdg_toplevel::ResizeEdge::RIGHT) {
+                        // ResizeEdge é um enum, não bitflags — tratar cada variante
+                        use xdg_toplevel::ResizeEdge as RE;
+                        let (resize_left, resize_right, resize_top, resize_bottom) = match rs.edges {
+                            RE::Top         => (false, false, true,  false),
+                            RE::Bottom      => (false, false, false, true),
+                            RE::Left        => (true,  false, false, false),
+                            RE::Right       => (false, true,  false, false),
+                            RE::TopLeft     => (true,  false, true,  false),
+                            RE::TopRight    => (false, true,  true,  false),
+                            RE::BottomLeft  => (true,  false, false, true),
+                            RE::BottomRight => (false, true,  false, true),
+                            _ => (false, false, false, false),
+                        };
+                        
+                        if resize_right {
                             new_w = (rs.start_rect.size.w as f64 + dx).max(200.0) as i32;
                         }
-                        if edges.intersects(xdg_toplevel::ResizeEdge::BOTTOM) {
+                        if resize_bottom {
                             new_h = (rs.start_rect.size.h as f64 + dy).max(150.0) as i32;
                         }
-                        if edges.intersects(xdg_toplevel::ResizeEdge::LEFT) {
+                        if resize_left {
                             let delta = dx as i32;
                             new_x = rs.start_rect.loc.x + delta;
                             new_w = (rs.start_rect.size.w - delta).max(200);
                         }
-                        if edges.intersects(xdg_toplevel::ResizeEdge::TOP) {
+                        if resize_top {
                             let delta = dy as i32;
                             new_y = rs.start_rect.loc.y + delta;
                             new_h = (rs.start_rect.size.h - delta).max(150);
