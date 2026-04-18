@@ -72,6 +72,18 @@ pub struct GenesiState {
     pub window_positions: std::collections::HashMap<WlSurface, Point<i32, Logical>>,
     pub window_order: Vec<WlSurface>,
     pub moving_window: Option<(WlSurface, Point<i32, Logical>)>,
+    // Estado para resize interativo via protocolo xdg_toplevel.resize()
+    pub resizing_window: Option<ResizingState>,
+    // Janelas minimizadas (não renderizadas, mas mantidas no estado)
+    pub minimized_windows: Vec<WlSurface>,
+}
+
+#[derive(Clone)]
+pub struct ResizingState {
+    pub surface: WlSurface,
+    pub edges: xdg_toplevel::ResizeEdge,
+    pub start_pointer: Point<f64, Logical>,
+    pub start_rect: Rectangle<i32, Logical>, // posição + tamanho iniciais
 }
 
 // =================================================================================
@@ -138,6 +150,9 @@ impl XdgShellHandler for GenesiState {
     }
 
     fn maximize_request(&mut self, surface: ToplevelSurface) {
+        // Ao maximizar, desminimiza a janela se estiver minimizada
+        let wl = surface.wl_surface().clone();
+        self.minimized_windows.retain(|s| s != &wl);
         surface.with_pending_state(|state| {
             state.states.set(xdg_toplevel::State::Maximized);
         });
@@ -177,6 +192,66 @@ impl XdgShellHandler for GenesiState {
         surface.send_repositioned(token);
     }
     fn grab(&mut self, _surface: PopupSurface, _seat: WlSeat, _serial: Serial) {}
+
+    // === Handler para appWindow.startDragging() do Tauri ===
+    fn move_request(&mut self, surface: ToplevelSurface, _seat: WlSeat, _serial: Serial) {
+        let wl_surface = surface.wl_surface().clone();
+        // Desminimiza ao arrastar
+        self.minimized_windows.retain(|s| s != &wl_surface);
+        let pos = self.window_positions.get(&wl_surface).cloned().unwrap_or((0, 0).into());
+        let offset_x = self.pointer_location.x as i32 - pos.x;
+        let offset_y = self.pointer_location.y as i32 - pos.y;
+        self.moving_window = Some((wl_surface, (offset_x, offset_y).into()));
+        info!("⭐ Move request recebido - iniciando arraste da janela");
+    }
+
+    // === Handler para appWindow.startResizeDragging() do Tauri ===
+    fn resize_request(&mut self, surface: ToplevelSurface, _seat: WlSeat, _serial: Serial, edges: xdg_toplevel::ResizeEdge) {
+        use smithay::wayland::compositor::with_states;
+        use smithay::wayland::shell::xdg::SurfaceCachedState;
+
+        let wl_surface = surface.wl_surface().clone();
+        let pos = self.window_positions.get(&wl_surface).cloned().unwrap_or((0, 0).into());
+        
+        let geometry = with_states(&wl_surface, |states| {
+            states.cached_state.get::<SurfaceCachedState>()
+                .current()
+                .geometry
+                .unwrap_or(Rectangle::new((0, 0).into(), (800, 600).into()))
+        });
+
+        self.resizing_window = Some(ResizingState {
+            surface: wl_surface,
+            edges,
+            start_pointer: self.pointer_location,
+            start_rect: Rectangle::new(pos, geometry.size),
+        });
+        info!("↔️ Resize request recebido - edges: {:?}", edges);
+    }
+
+    // === Handler para appWindow.minimize() do Tauri ===
+    fn minimize_request(&mut self, surface: ToplevelSurface) {
+        let wl_surface = surface.wl_surface().clone();
+        if !self.minimized_windows.contains(&wl_surface) {
+            self.minimized_windows.push(wl_surface);
+        }
+        info!("⬇️ Minimize request recebido");
+    }
+
+    // === Limpeza quando uma janela é destruída (appWindow.close()) ===
+    fn toplevel_destroyed(&mut self, surface: ToplevelSurface) {
+        let wl_surface = surface.wl_surface().clone();
+        self.window_positions.remove(&wl_surface);
+        self.window_order.retain(|s| s != &wl_surface);
+        self.minimized_windows.retain(|s| s != &wl_surface);
+        if let Some((ref s, _)) = self.moving_window {
+            if s == &wl_surface { self.moving_window = None; }
+        }
+        if let Some(ref rs) = self.resizing_window {
+            if rs.surface == wl_surface { self.resizing_window = None; }
+        }
+        info!("❌ Janela destruída e removida do window manager");
+    }
 }
 
 // 4.1 XDG Decoration — Preferimos ClientSide para que apps como Firefox desenhem sua própria barra
@@ -219,7 +294,12 @@ impl SeatHandler for GenesiState {
     fn seat_state(&mut self) -> &mut SeatState<Self> {
         &mut self.seat_state
     }
-    fn focus_changed(&mut self, _seat: &Seat<Self>, _focused: Option<&WlSurface>) {}
+    fn focus_changed(&mut self, _seat: &Seat<Self>, focused: Option<&WlSurface>) {
+        // Quando uma janela recebe foco (ex: unminimize via Tauri), desminimiza ela
+        if let Some(surface) = focused {
+            self.minimized_windows.retain(|s| s != surface);
+        }
+    }
     fn cursor_image(&mut self, _seat: &Seat<Self>, _image: smithay::input::pointer::CursorImageStatus) {}
 }
 
@@ -353,6 +433,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         window_positions: std::collections::HashMap::new(),
         window_order: Vec::new(),
         moving_window: None,
+        resizing_window: None,
+        minimized_windows: Vec::new(),
     };
 
     use smithay::wayland::socket::ListeningSocketSource;
@@ -424,6 +506,44 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         let new_x = position.x as i32 - offset.x;
                         let new_y = position.y as i32 - offset.y;
                         state.window_positions.insert(surface.clone(), (new_x, new_y).into());
+                    }
+                    
+                    // Se estiver redimensionando uma janela, calculamos o novo tamanho
+                    if let Some(ref rs) = state.resizing_window.clone() {
+                        let dx = position.x - rs.start_pointer.x;
+                        let dy = position.y - rs.start_pointer.y;
+                        let mut new_x = rs.start_rect.loc.x;
+                        let mut new_y = rs.start_rect.loc.y;
+                        let mut new_w = rs.start_rect.size.w;
+                        let mut new_h = rs.start_rect.size.h;
+                        
+                        let edges = rs.edges;
+                        if edges.intersects(xdg_toplevel::ResizeEdge::RIGHT) {
+                            new_w = (rs.start_rect.size.w as f64 + dx).max(200.0) as i32;
+                        }
+                        if edges.intersects(xdg_toplevel::ResizeEdge::BOTTOM) {
+                            new_h = (rs.start_rect.size.h as f64 + dy).max(150.0) as i32;
+                        }
+                        if edges.intersects(xdg_toplevel::ResizeEdge::LEFT) {
+                            let delta = dx as i32;
+                            new_x = rs.start_rect.loc.x + delta;
+                            new_w = (rs.start_rect.size.w - delta).max(200);
+                        }
+                        if edges.intersects(xdg_toplevel::ResizeEdge::TOP) {
+                            let delta = dy as i32;
+                            new_y = rs.start_rect.loc.y + delta;
+                            new_h = (rs.start_rect.size.h - delta).max(150);
+                        }
+                        
+                        state.window_positions.insert(rs.surface.clone(), (new_x, new_y).into());
+                        
+                        // Envia o novo tamanho para o cliente via configure
+                        if let Some(toplevel) = state.xdg_shell_state.toplevel_surfaces().iter().find(|t| t.wl_surface() == &rs.surface) {
+                            toplevel.with_pending_state(|s| {
+                                s.size = Some((new_w, new_h).into());
+                            });
+                            toplevel.send_configure();
+                        }
                     }
                     
                     let mut under = None;
@@ -578,8 +698,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             }
                         }
                     } else if state_btn == smithay::backend::input::ButtonState::Released {
-                        // Para de arrastar
+                        // Para de arrastar e redimensionar
                         state.moving_window = None;
+                        state.resizing_window = None;
                     }
 
                     pointer.button(
@@ -627,6 +748,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             // Desenha as janelas principais
             // A ordem em state.window_order é de Fundo para o Topo
             for surface in state.window_order.iter() {
+                // Não renderiza janelas minimizadas
+                if state.minimized_windows.contains(surface) {
+                    continue;
+                }
+                
                 if let Some(toplevel) = state.xdg_shell_state.toplevel_surfaces().iter().find(|t| t.wl_surface() == surface) {
                     let is_desktop = state.window_order.first() == Some(surface);
 
