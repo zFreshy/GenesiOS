@@ -16,7 +16,7 @@ import { useTheme } from './ThemeContext';
 import { useDisplay } from './DisplayContext';
 
 import { Command } from '@tauri-apps/plugin-shell';
-import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
+// WebviewWindow is no longer used for internal apps — all windows render in the React compositor
 
 import ImageViewer from './ImageViewer';
 import VideoPlayer from './VideoPlayer';
@@ -336,15 +336,7 @@ function App() {
       id: 'browser', baseId: 'browser', title: 'Genesi Browser', icon: Globe, color: 'bg-blue-500', 
       defaultX: 100, defaultY: 50, x: 100, y: 50, width: 800, height: 500,
       isOpen: false, minimized: false, maximized: false, zIndex: 10,
-      content: (
-        <div className="w-full h-full flex flex-col bg-gray-100">
-          <div className="bg-white flex items-center p-2 gap-2 text-black border-b border-gray-300">
-             <Globe size={16} className="text-gray-500"/>
-             <input type="text" value="https://react.dev" readOnly className="bg-gray-100 px-3 py-1.5 rounded-md w-full text-sm outline-none" />
-          </div>
-          <iframe src="https://react.dev" className="w-full h-full border-none bg-white"></iframe>
-        </div>
-      )
+      content: null // Dynamically injected as <BrowserApp /> by appsWithDynamicContent
     },
     {
       id: 'terminal', baseId: 'terminal', title: 'Terminal - root@genesi', icon: Terminal, color: 'bg-gray-800', 
@@ -598,31 +590,8 @@ function App() {
             ...additionalProps
           };
 
-      // Abre como janela nativa do Tauri se for um app interno do GenesiOS
-      if (!(targetInstance as any).isExternal && baseId !== 'terminal') {
-        try {
-          const webview = new WebviewWindow(targetInstance.id, {
-            url: `index.html?app=${baseId}&path=${encodeURIComponent((additionalProps as any).filePath || (additionalProps as any).defaultPath || '')}&name=${encodeURIComponent((additionalProps as any).fileName || '')}`,
-            title: targetInstance.title,
-            width: targetInstance.width,
-            height: targetInstance.height,
-            decorations: false, // Nós vamos desenhar a barra de título no React (se for customizada) ou deixar o Wayland por a preta!
-            transparent: true,
-            center: true
-          });
-
-          webview.once('tauri://error', function (e) {
-            console.error('Failed to create webview window:', e);
-          });
-          
-          // Quando a janela nativa fechar, atualiza a barra de tarefas do Desktop
-          webview.onCloseRequested(() => {
-            setApps(apps => apps.map(a => a.id === targetInstance.id ? { ...a, isOpen: false } : a));
-          });
-        } catch (e) {
-          console.error('Failed to spawn WebviewWindow', e);
-        }
-      }
+      // All internal apps are now rendered in the React compositor (DesktopWindow)
+      // No more WebviewWindow — everything stays in the WM
 
       const updatedInstance = { ...targetInstance, isOpen: true, minimized: false, zIndex: ++globalZIndex };
       
@@ -646,35 +615,17 @@ function App() {
       return a;
     }));
 
-    // Fecha a janela nativa do Tauri (se existir)
-    try {
-      const w = await WebviewWindow.getByLabel(id);
-      if (w) await w.close();
-    } catch (e) {
-      console.error('Failed to close webview', e);
-    }
-
     // Se for uma instância dinâmica clonada, remova ela do estado após a animação de fechar (300ms)
     setTimeout(() => {
       setApps(currentApps => currentApps.filter(a => !(a.id === id && a.id !== a.baseId && !a.isOpen)));
     }, 300);
   };
 
-  const toggleMinimize = async (id: string) => {
+  const toggleMinimize = (id: string) => {
     setApps(apps.map(a => {
       if (a.id === id) return { ...a, minimized: !a.minimized, zIndex: a.minimized ? ++globalZIndex : a.zIndex };
       return a;
     }));
-    try {
-      const w = await WebviewWindow.getByLabel(id);
-      if (w) {
-        const isMin = await w.isMinimized();
-        if (isMin) await w.unminimize();
-        else await w.minimize();
-      }
-    } catch (e) {
-      console.error('Failed to toggle minimize webview', e);
-    }
   };
 
   const toggleMaximize = (id: string) => {
@@ -689,14 +640,8 @@ function App() {
     }));
   };
 
-  const focusApp = async (id: string) => {
+  const focusApp = (id: string) => {
     setApps(apps.map(a => a.id === id ? { ...a, zIndex: ++globalZIndex } : a));
-    try {
-      const w = await WebviewWindow.getByLabel(id);
-      if (w) await w.setFocus();
-    } catch (e) {
-      console.error('Failed to focus webview', e);
-    }
   };
 
   // Injeta o conteúdo dinâmico que depende do state "apps" no Task Manager
@@ -1198,7 +1143,7 @@ function App() {
 
       {/* ======= WINDOW MANAGER ======= */}
       <AnimatePresence>
-        {appsWithDynamicContent.filter(a => a.isOpen && (a.baseId === 'terminal')).map(app => (
+        {appsWithDynamicContent.filter(a => a.isOpen).map(app => (
           <DesktopWindow 
             key={app.id} 
             app={app} 
