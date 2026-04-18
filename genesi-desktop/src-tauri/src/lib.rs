@@ -444,7 +444,6 @@ fn launch_browser_wayland() -> Result<(), String> {
             .env("WAYLAND_DISPLAY", &display)
             .env("MOZ_ENABLE_WAYLAND", "1")
             .env("MOZ_GTK_TITLEBAR_DECORATION", "system") // Força Firefox a esconder os botões da barra nativa
-            .env("GTK_CSD", "0") // Desativa GTK Client-Side Decorations
             .spawn()
             .or_else(|_| {
                 Command::new("epiphany")
@@ -471,7 +470,7 @@ fn launch_browser_wayland() -> Result<(), String> {
         if !wayland_display.is_empty() {
             // Executar firefox dentro do WSL com o display correto e sem decorações nativas
             Command::new("wsl")
-                .args(&["-e", "bash", "-lc", &format!("WAYLAND_DISPLAY={} MOZ_ENABLE_WAYLAND=1 GTK_CSD=0 MOZ_GTK_TITLEBAR_DECORATION=system firefox ", wayland_display)])
+                .args(&["-e", "bash", "-lc", &format!("WAYLAND_DISPLAY={} MOZ_ENABLE_WAYLAND=1 MOZ_GTK_TITLEBAR_DECORATION=system firefox ", wayland_display)])
                 .spawn()
                 .map_err(|e| format!("Falha ao iniciar Firefox no WSL: {}", e))?;
             return Ok(());
