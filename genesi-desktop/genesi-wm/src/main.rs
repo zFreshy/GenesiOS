@@ -340,6 +340,29 @@ pub fn send_frames_surface_tree(surface: &WlSurface, time: u32) {
     );
 }
 
+/// Compila nocsd.c como biblioteca LD_PRELOAD e salva o path em /tmp.
+/// O caminho é depois lido pelo Tauri para injetar o LD_PRELOAD ao lançar apps externos.
+fn compile_nocsd_lib() -> Option<String> {
+    const SO_PATH:  &str = "/tmp/genesi_nocsd.so";
+    const SRC_PATH: &str = "/tmp/genesi_nocsd.c";
+
+    // O código-fonte do nocsd.c é embutido no binário em tempo de compilação
+    let src = include_str!("../nocsd.c");
+
+    // Escreve o fonte e compila
+    std::fs::write(SRC_PATH, src).ok()?;
+    let status = std::process::Command::new("cc")
+        .args(&["-shared", "-fPIC", "-ldl", "-o", SO_PATH, SRC_PATH])
+        .status()
+        .ok()?;
+
+    if status.success() {
+        Some(SO_PATH.to_string())
+    } else {
+        None
+    }
+}
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Força a renderização via processador (Software) para evitar travamentos em Máquinas Virtuais
     std::env::set_var("LIBGL_ALWAYS_SOFTWARE", "1");
@@ -351,6 +374,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     std::env::set_var("MOZ_GTK_TITLEBAR_DECORATION", "system"); // Força o Firefox a não usar a própria barra
     std::env::set_var("GTK_CSD", "0"); // Desativa CSD em apps GTK3/GTK4
     std::env::set_var("QT_WAYLAND_DISABLE_WINDOWDECORATION", "1"); // Desativa CSD no Qt
+    std::env::set_var("LIBDECOR_PLUGIN_DIR", "/dev/null"); // Força libdecor a não carregar plugins CSD
     
     // Precisamos de acesso ao display do host para o winit, não apagar o WAYLAND_DISPLAY original
     // antes de instanciar a janela.
@@ -361,6 +385,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .finish();
     tracing::subscriber::set_global_default(subscriber)
         .expect("Falha ao inicializar o sistema de log do Genesi WM");
+
+    // Compila e instala o interceptor nocsd.so para suprimir CSD em apps teimosos
+    match compile_nocsd_lib() {
+        Some(ref path) => {
+            // Salva o path para que o Tauri possa usar ao lançar browsers/apps
+            std::fs::write("/tmp/genesi-nocsd-path.txt", path)
+                .unwrap_or_else(|e| tracing::warn!("Falha ao salvar nocsd path: {}", e));
+            info!("🛡️  nocsd.so compilado → LD_PRELOAD pronto em {}", path);
+        }
+        None => {
+            tracing::warn!("⚠️  Falha ao compilar nocsd.so — apps CSD teimosos não serão controlados");
+        }
+    }
 
     info!("===========================================");
     info!("🚀 Iniciando o Genesi OS Window Manager...");

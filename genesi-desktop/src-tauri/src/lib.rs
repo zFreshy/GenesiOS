@@ -429,56 +429,139 @@ fn get_default_paths() -> Result<std::collections::HashMap<String, String>, Stri
     Ok(paths)
 }
 
+/// Lê o path do nocsd.so que o WM compilou na inicialização.
+/// Retorna o path se o arquivo existir e for válido.
+#[allow(dead_code)]
+fn get_nocsd_path() -> Option<String> {
+    let path = std::fs::read_to_string("/tmp/genesi-nocsd-path.txt")
+        .unwrap_or_default();
+    let path = path.trim().to_string();
+    if !path.is_empty() && std::path::Path::new(&path).exists() {
+        Some(path)
+    } else {
+        None
+    }
+}
+
 #[tauri::command]
 fn launch_browser_wayland() -> Result<(), String> {
     #[cfg(target_os = "linux")]
     {
         let display = std::env::var("WAYLAND_DISPLAY").unwrap_or_else(|_| "wayland-1".to_string());
-        
-        // Em vez de lutar contra o AppArmor e os perfis do Firefox Snap, vamos apenas abrir uma
-        // janela limpa usando o perfil default (--new-window), ou o modo private se preferir.
-        // O `--new-instance` tenta forçar o Firefox a não grudar na janela do host Windows.
-        let _child = Command::new("firefox")
-            .arg("--new-instance")
-            .arg("--new-window")
-            .env("WAYLAND_DISPLAY", &display)
-            .env("MOZ_ENABLE_WAYLAND", "1")
-            .env("MOZ_GTK_TITLEBAR_DECORATION", "system") // Força o Firefox a não usar CSD
-            .env("GTK_CSD", "0") // Desativa CSD no GTK3/GTK4
-            .env("QT_WAYLAND_DISABLE_WINDOWDECORATION", "1") // Desativa CSD no Qt
-            .spawn()
-            .or_else(|_| {
-                Command::new("epiphany")
-                    .env("WAYLAND_DISPLAY", &display)
-                    .spawn()
-            })
-            .map_err(|e| format!("Falha ao iniciar o Navegador: {}", e))?;
 
+        // Lê o interceptor nocsd compilado pelo WM
+        let nocsd = get_nocsd_path();
+
+        // Flags padrão do Wayland para todos os browsers
+        let wayland_envs = [
+            ("WAYLAND_DISPLAY",               display.as_str()),
+            ("MOZ_ENABLE_WAYLAND",             "1"),
+            ("GTK_CSD",                        "0"),
+            ("QT_WAYLAND_DISABLE_WINDOWDECORATION", "1"),
+            ("LIBDECOR_PLUGIN_DIR",            "/dev/null"), // mata libdecor CSD
+        ];
+
+        // ── Ordem de tentativa: Chromium > Chrome > Firefox (+ nocsd) > Epiphany ──
+        //
+        // Chromium é o navegador PREFERIDO do Genesi OS porque:
+        //   1. Implementa xdg-decoration-unstable-v1 corretamente
+        //   2. Quando o compositor responde ServerSide, ele NÃO desenha própria barra
+        //   3. --ozone-platform=wayland força backend Wayland nativo (sem XWayland)
+        //
+        // O Firefox IGNORA a resposta ServerSide e desenha CSD mesmo assim
+        // (usa libdecor internamente). Só funciona com nocsd LD_PRELOAD.
+
+        let chromium_flags = ["--ozone-platform=wayland", "--enable-features=UseOzonePlatform"];
+
+        // 1) chromium-browser (Ubuntu/Debian/WSL)
+        let result = {
+            let mut cmd = Command::new("chromium-browser");
+            cmd.args(&chromium_flags);
+            for (k, v) in &wayland_envs { cmd.env(k, v); }
+            cmd.spawn()
+        }
+        // 2) chromium (Arch/Fedora/Alpine)
+        .or_else(|_| {
+            let mut cmd = Command::new("chromium");
+            cmd.args(&chromium_flags);
+            for (k, v) in &wayland_envs { cmd.env(k, v); }
+            cmd.spawn()
+        })
+        // 3) google-chrome / google-chrome-stable
+        .or_else(|_| {
+            let mut cmd = Command::new("google-chrome");
+            cmd.args(&chromium_flags);
+            for (k, v) in &wayland_envs { cmd.env(k, v); }
+            cmd.spawn()
+        })
+        .or_else(|_| {
+            let mut cmd = Command::new("google-chrome-stable");
+            cmd.args(&chromium_flags);
+            for (k, v) in &wayland_envs { cmd.env(k, v); }
+            cmd.spawn()
+        })
+        // 4) Firefox com nocsd LD_PRELOAD como último recurso
+        .or_else(|_| {
+            let mut cmd = Command::new("firefox");
+            cmd.arg("--new-instance")
+               .arg("--new-window");
+            for (k, v) in &wayland_envs { cmd.env(k, v); }
+            cmd.env("MOZ_GTK_TITLEBAR_DECORATION", "system");
+            // Injeta o amordaçador CSD se disponível
+            if let Some(ref nocsd_path) = nocsd {
+                cmd.env("LD_PRELOAD", nocsd_path);
+            }
+            cmd.spawn()
+        })
+        // 5) Epiphany (GNOME Web) — respeitoso com SSD por ser GTK nativo
+        .or_else(|_| {
+            let mut cmd = Command::new("epiphany");
+            for (k, v) in &wayland_envs { cmd.env(k, v); }
+            cmd.spawn()
+        })
+        .map_err(|e| format!("Falha ao iniciar navegador: {}. Instale chromium-browser ou google-chrome.", e))?;
+
+        let _ = result;
         Ok(())
     }
-    
+
     #[cfg(not(target_os = "linux"))]
     {
         // Tenta ler o socket do Genesi WM de um arquivo compartilhado
         // O WM escreve o socket em /tmp/genesi-wayland-socket.txt via WSL
         let socket_path = "\\\\wsl.localhost\\Ubuntu\\tmp\\genesi-wayland-socket.txt";
-        
-        // Tenta ler o arquivo do socket via path do WSL
+        let nocsd_path_wsl = "\\\\wsl.localhost\\Ubuntu\\tmp\\genesi-nocsd-path.txt";
+
         let wayland_display = std::fs::read_to_string(socket_path)
             .unwrap_or_default()
             .trim()
             .to_string();
-        
+
+        let nocsd = std::fs::read_to_string(nocsd_path_wsl)
+            .unwrap_or_default()
+            .trim()
+            .to_string();
+
         if !wayland_display.is_empty() {
-            // Executar firefox dentro do WSL com o display correto e sem decorações nativas
+            // Tenta Chromium no WSL primeiro (melhor suporte a SSD)
+            let chromium_cmd = format!(
+                "WAYLAND_DISPLAY={} MOZ_ENABLE_WAYLAND=1 GTK_CSD=0 LIBDECOR_PLUGIN_DIR=/dev/null \
+                 chromium-browser --ozone-platform=wayland 2>/dev/null || \
+                 chromium --ozone-platform=wayland 2>/dev/null || \
+                 google-chrome --ozone-platform=wayland 2>/dev/null || \
+                 (WAYLAND_DISPLAY={} MOZ_ENABLE_WAYLAND=1 GTK_CSD=0 MOZ_GTK_TITLEBAR_DECORATION=system LIBDECOR_PLUGIN_DIR=/dev/null {} firefox --new-instance --new-window)",
+                wayland_display, wayland_display,
+                if nocsd.is_empty() { String::new() } else { format!("LD_PRELOAD={}", nocsd) }
+            );
+
             Command::new("wsl")
-                .args(&["-e", "bash", "-lc", &format!("WAYLAND_DISPLAY={} MOZ_ENABLE_WAYLAND=1 MOZ_GTK_TITLEBAR_DECORATION=system GTK_CSD=0 QT_WAYLAND_DISABLE_WINDOWDECORATION=1 firefox ", wayland_display)])
+                .args(&["-e", "bash", "-lc", &chromium_cmd])
                 .spawn()
-                .map_err(|e| format!("Falha ao iniciar Firefox no WSL: {}", e))?;
+                .map_err(|e| format!("Falha ao iniciar navegador no WSL: {}", e))?;
             return Ok(());
         }
-        
-        // Fallback para Windows nativo
+
+        // Fallback para Windows nativo (Edge)
         Command::new("cmd")
             .args(&["/c", "start", "msedge"])
             .spawn()
