@@ -340,6 +340,20 @@ pub fn send_frames_surface_tree(surface: &WlSurface, time: u32) {
     );
 }
 
+/// Detecta se o app é um navegador que já tem controles de janela integrados na tab strip.
+/// Esses apps não precisam de SSD porque a tab strip já funciona como barra de título.
+fn is_self_decorating_browser(app_id: &str) -> bool {
+    let id = app_id.to_lowercase();
+    id.contains("chromium") ||
+    id.contains("chrome") ||
+    id.contains("google-chrome") ||
+    id.contains("brave") ||
+    id.contains("microsoft-edge") ||
+    id.contains("vivaldi") ||
+    id.contains("opera")
+    // Firefox NÃO está aqui: ele usa libdecor CSD e precisa de nocsd + nosso SSD
+}
+
 /// Compila nocsd.c como biblioteca LD_PRELOAD e salva o path em /tmp.
 /// O caminho é depois lido pelo Tauri para injetar o LD_PRELOAD ao lançar apps externos.
 fn compile_nocsd_lib() -> Option<String> {
@@ -650,7 +664,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                     use smithay::reexports::wayland_protocols::xdg::decoration::zv1::server::zxdg_toplevel_decoration_v1::Mode as DecoMode;
                                     let client_handles_decorations = toplevel.with_pending_state(|s| s.decoration_mode) == Some(DecoMode::ClientSide);
                                     
-                                    if app_id.contains("genesi") || client_handles_decorations { 0.0 } else { 30.0 }
+                                    if app_id.contains("genesi") || client_handles_decorations || is_self_decorating_browser(&app_id) { 0.0 } else { 30.0 }
                                 };
                                 
                                 // A bounding box deve incluir a barra de título (y - titlebar_height)
@@ -720,14 +734,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                         .flatten()
                                 }).unwrap_or_default();
                                 let is_genesi_app = app_id.contains("genesi");
+                                let is_browser = is_self_decorating_browser(&app_id);
                                 // Verifica se o cliente negociou CSD
                                 use smithay::reexports::wayland_protocols::xdg::decoration::zv1::server::zxdg_toplevel_decoration_v1::Mode as DecoMode;
                                 let client_handles_decorations = toplevel.with_pending_state(|s| s.decoration_mode) == Some(DecoMode::ClientSide);
                                 
-                                let titlebar_height = if is_desktop || is_genesi_app || client_handles_decorations { 0.0 } else { 30.0 };
+                                let titlebar_height = if is_desktop || is_genesi_app || is_browser || client_handles_decorations { 0.0 } else { 30.0 };
                                 
                                 // Verifica se o clique está na barra de título do SO (apenas para apps externos)
-                                if !is_desktop && !is_genesi_app && position.x >= visual_x && position.y >= visual_y - titlebar_height && position.x < visual_x + visual_w && position.y < visual_y {
+                                if !is_desktop && !is_genesi_app && !is_browser && position.x >= visual_x && position.y >= visual_y - titlebar_height && position.x < visual_x + visual_w && position.y < visual_y {
                                     
                                     // Verifica se clicou no botão de fechar (30px no canto direito)
                                     let close_btn_x = visual_x + visual_w - 30.0;
@@ -881,7 +896,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 .flatten()
                         }).unwrap_or_default();
                         let is_genesi_app = app_id.contains("genesi");
-                        let needs_ssd = !is_genesi_app && !client_handles_decorations;
+                        let is_browser = is_self_decorating_browser(&app_id);
+                        let needs_ssd = !is_genesi_app && !is_browser && !client_handles_decorations;
                         let titlebar_height = if needs_ssd { 30 } else { 0 };
                         
                         // Pegamos a geometria exata da janela (se o cliente tiver sombra/CSD, isso ignora as sombras invisíveis!)
