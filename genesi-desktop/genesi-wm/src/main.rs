@@ -267,13 +267,12 @@ impl XdgDecorationHandler for GenesiState {
     fn request_mode(
         &mut self,
         toplevel: ToplevelSurface,
-        mode: smithay::reexports::wayland_protocols::xdg::decoration::zv1::server::zxdg_toplevel_decoration_v1::Mode,
+        _mode: smithay::reexports::wayland_protocols::xdg::decoration::zv1::server::zxdg_toplevel_decoration_v1::Mode,
     ) {
         use smithay::reexports::wayland_protocols::xdg::decoration::zv1::server::zxdg_toplevel_decoration_v1::Mode;
-        // Permitimos o ClientSide para que os apps desenhem suas próprias decorações (CSD)
-        let final_mode = if mode != Mode::ServerSide { Mode::ClientSide } else { Mode::ServerSide };
+        // O Genesi OS agora exige CSD (Client-Side Decoration) sempre que o aplicativo suportar
         toplevel.with_pending_state(|state| {
-            state.decoration_mode = Some(final_mode);
+            state.decoration_mode = Some(Mode::ClientSide);
         });
         toplevel.send_configure();
     }
