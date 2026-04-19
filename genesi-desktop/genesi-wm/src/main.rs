@@ -254,7 +254,7 @@ impl XdgShellHandler for GenesiState {
     }
 }
 
-// 4.1 XDG Decoration — Preferimos ClientSide para que apps Wayland usem sua própria UI
+// 4.1 XDG Decoration
 impl XdgDecorationHandler for GenesiState {
     fn new_decoration(&mut self, toplevel: ToplevelSurface) {
         use smithay::reexports::wayland_protocols::xdg::decoration::zv1::server::zxdg_toplevel_decoration_v1::Mode;
@@ -269,9 +269,11 @@ impl XdgDecorationHandler for GenesiState {
         toplevel: ToplevelSurface,
         mode: smithay::reexports::wayland_protocols::xdg::decoration::zv1::server::zxdg_toplevel_decoration_v1::Mode,
     ) {
-        // Respeita a negociação do cliente. Firefox prefere CSD.
+        use smithay::reexports::wayland_protocols::xdg::decoration::zv1::server::zxdg_toplevel_decoration_v1::Mode;
+        // Permitimos o ClientSide para que os apps desenhem suas próprias decorações (CSD)
+        let final_mode = if mode != Mode::ServerSide { Mode::ClientSide } else { Mode::ServerSide };
         toplevel.with_pending_state(|state| {
-            state.decoration_mode = Some(mode);
+            state.decoration_mode = Some(final_mode);
         });
         toplevel.send_configure();
     }
@@ -345,9 +347,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Forçamos o winit a usar Wayland, que é o ambiente principal do WSLg
     std::env::set_var("WINIT_UNIX_BACKEND", "wayland");
     
-    // Variáveis Globais do Genesi OS para garantir que os apps se comportem como um OS Real
-    // NÃO setamos GTK_CSD=0 nem MOZ_GTK_TITLEBAR_DECORATION — deixamos os apps usarem CSD natural
-    // O compositor prefere ClientSide: cada app desenha sua própria decoração (Firefox integra tabs no titlebar)
+    // Variáveis Globais do Genesi OS
+    std::env::set_var("MOZ_ENABLE_WAYLAND", "1");
     
     // Precisamos de acesso ao display do host para o winit, não apagar o WAYLAND_DISPLAY original
     // antes de instanciar a janela.
@@ -599,7 +600,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 let visual_w = geometry.size.w as f64;
                                 let visual_h = geometry.size.h as f64;
                                 
-                                let titlebar_height = if is_desktop { 0.0 } else { 30.0 }; // Barra do topo
+                                let titlebar_height = if is_desktop { 0.0 } else {
+                                    // Verifica se o app usa CSD (ou se é o genesi)
+                                    let app_id = smithay::wayland::compositor::with_states(toplevel.wl_surface(), |states| {
+                                        states.data_map.get::<std::sync::Mutex<smithay::wayland::shell::xdg::XdgToplevelSurfaceRoleAttributes>>()
+                                            .map(|attrs| attrs.lock().unwrap().app_id.clone())
+                                            .flatten()
+                                    }).unwrap_or_default();
+                                    
+                                    use smithay::reexports::wayland_protocols::xdg::decoration::zv1::server::zxdg_toplevel_decoration_v1::Mode as DecoMode;
+                                    let client_handles_decorations = toplevel.with_pending_state(|s| s.decoration_mode) == Some(DecoMode::ClientSide);
+                                    
+                                    if app_id.contains("genesi") || client_handles_decorations { 0.0 } else { 30.0 }
+                                };
                                 
                                 // A bounding box deve incluir a barra de título (y - titlebar_height)
                                 if position.x >= visual_x && position.y >= visual_y - titlebar_height && position.x < visual_x + visual_w && position.y < visual_y + visual_h {
