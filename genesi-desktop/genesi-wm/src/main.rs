@@ -664,7 +664,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                     use smithay::reexports::wayland_protocols::xdg::decoration::zv1::server::zxdg_toplevel_decoration_v1::Mode as DecoMode;
                                     let client_handles_decorations = toplevel.with_pending_state(|s| s.decoration_mode) == Some(DecoMode::ClientSide);
                                     
-                                    if app_id.contains("genesi") || client_handles_decorations || is_self_decorating_browser(&app_id) { 0.0 } else { 30.0 }
+                                    if app_id.contains("genesi") || client_handles_decorations { 0.0 } else { 30.0 }
                                 };
                                 
                                 // A bounding box deve incluir a barra de título (y - titlebar_height)
@@ -734,24 +734,56 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                         .flatten()
                                 }).unwrap_or_default();
                                 let is_genesi_app = app_id.contains("genesi");
-                                let is_browser = is_self_decorating_browser(&app_id);
                                 // Verifica se o cliente negociou CSD
                                 use smithay::reexports::wayland_protocols::xdg::decoration::zv1::server::zxdg_toplevel_decoration_v1::Mode as DecoMode;
                                 let client_handles_decorations = toplevel.with_pending_state(|s| s.decoration_mode) == Some(DecoMode::ClientSide);
                                 
-                                let titlebar_height = if is_desktop || is_genesi_app || is_browser || client_handles_decorations { 0.0 } else { 30.0 };
+                                let titlebar_height = if is_desktop || is_genesi_app || client_handles_decorations { 0.0 } else { 30.0 };
                                 
                                 // Verifica se o clique está na barra de título do SO (apenas para apps externos)
-                                if !is_desktop && !is_genesi_app && !is_browser && position.x >= visual_x && position.y >= visual_y - titlebar_height && position.x < visual_x + visual_w && position.y < visual_y {
+                                if !is_desktop && !is_genesi_app && position.x >= visual_x && position.y >= visual_y - titlebar_height && position.x < visual_x + visual_w && position.y < visual_y {
                                     
-                                    // Verifica se clicou no botão de fechar (30px no canto direito)
-                                    let close_btn_x = visual_x + visual_w - 30.0;
-                                    if position.x >= close_btn_x {
+                                    // Layout macOS: botões coloridos no lado ESQUERDO
+                                    // [10px] [●close 12px] [6px] [●minimize 12px] [6px] [●maximize 12px]
+                                    let btn_y_top = visual_y - titlebar_height;
+                                    let btn_y_bot = btn_y_top + 30.0;
+                                    let close_x1 = visual_x + 10.0;
+                                    let close_x2 = close_x1 + 12.0;
+                                    let minim_x1 = close_x2 + 6.0;
+                                    let minim_x2 = minim_x1 + 12.0;
+                                    let maxim_x1 = minim_x2 + 6.0;
+                                    let maxim_x2 = maxim_x1 + 12.0;
+                                    
+                                    if position.x >= close_x1 && position.x < close_x2 {
+                                        // Botão vermelho = Fechar
                                         toplevel.send_close();
                                         clicked_surface = None;
                                         break;
+                                    } else if position.x >= minim_x1 && position.x < minim_x2 {
+                                        // Botão amarelo = Minimizar
+                                        let wl = surface.clone();
+                                        if !state.minimized_windows.contains(&wl) {
+                                            state.minimized_windows.push(wl);
+                                        }
+                                        clicked_surface = None;
+                                        break;
+                                    } else if position.x >= maxim_x1 && position.x < maxim_x2 {
+                                        // Botão verde = Maximizar/Restaurar
+                                        let is_maximized = toplevel.with_pending_state(|s| s.states.contains(xdg_toplevel::State::Maximized));
+                                        if is_maximized {
+                                            toplevel.with_pending_state(|s| {
+                                                s.states.unset(xdg_toplevel::State::Maximized);
+                                            });
+                                        } else {
+                                            toplevel.with_pending_state(|s| {
+                                                s.states.set(xdg_toplevel::State::Maximized);
+                                            });
+                                        }
+                                        toplevel.send_configure();
+                                        clicked_surface = Some(surface.clone());
+                                        break;
                                     } else {
-                                        // Inicia o arrasto
+                                        // Clicou na barra fora dos botões = Arraste
                                         let offset_x = position.x as i32 - pos.x;
                                         let offset_y = position.y as i32 - pos.y;
                                         state.moving_window = Some((surface.clone(), (offset_x, offset_y).into()));
@@ -896,8 +928,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 .flatten()
                         }).unwrap_or_default();
                         let is_genesi_app = app_id.contains("genesi");
-                        let is_browser = is_self_decorating_browser(&app_id);
-                        let needs_ssd = !is_genesi_app && !is_browser && !client_handles_decorations;
+                        let needs_ssd = !is_genesi_app && !client_handles_decorations;
                         let titlebar_height = if needs_ssd { 30 } else { 0 };
                         
                         // Pegamos a geometria exata da janela (se o cliente tiver sombra/CSD, isso ignora as sombras invisíveis!)
@@ -931,37 +962,69 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         );
                         let mut app_elements: Vec<CustomRenderElements<GlesRenderer>> = app_surfaces.into_iter().map(CustomRenderElements::from).collect();
                         
-                        // Só desenha SSD se o app precisar
+                        // ═══════════════════════════════════════════════════════════
+                        // DESENHO DA BARRA DE TÍTULO (SSD) — Estilo macOS/Genesi
+                        // Layout: [10px] [●close] [6px] [●min] [6px] [●max] [...]
+                        // ═══════════════════════════════════════════════════════════
                         if needs_ssd {
+                            // Barra de fundo escura (padrão Genesi)
                             let titlebar_geom = Rectangle::new(
                                 (visual_x, visual_y - titlebar_height).into(), 
                                 (visual_w, titlebar_height).into()
                             ).to_physical(1);
                             
-                            // Criamos o retângulo da barra de título
                             let titlebar = SolidColorRenderElement::new(
                                 Id::new(),
                                 titlebar_geom,
                                 CommitCounter::default(),
-                                Color32F::new(0.15, 0.15, 0.15, 1.0), // Cor: Cinza Escuro (Padrão Genesi)
+                                Color32F::new(0.12, 0.12, 0.13, 1.0), // #1E1E21 — Escuro premium
                                 Kind::Unspecified,
                             );
                             app_elements.push(CustomRenderElements::from(titlebar));
                             
-                            // Criamos o botão de fechar (Vermelho) no canto direito
-                            let close_btn_geom = Rectangle::new(
-                                (visual_x + visual_w - 30, visual_y - titlebar_height).into(),
-                                (30, titlebar_height).into()
+                            // Dimensões dos botõezinhos estilo macOS
+                            let btn_size = 12;
+                            let btn_y = visual_y - titlebar_height + (titlebar_height - btn_size) / 2; // Centralizado vertical
+                            let btn_gap = 6;
+                            let btn_start_x = visual_x + 10; // 10px de padding esquerdo
+                            
+                            // ● Botão FECHAR (Vermelho) — #ED544F
+                            let close_geom = Rectangle::new(
+                                (btn_start_x, btn_y).into(),
+                                (btn_size, btn_size).into()
                             ).to_physical(1);
-
                             let close_btn = SolidColorRenderElement::new(
-                                Id::new(),
-                                close_btn_geom,
-                                CommitCounter::default(),
-                                Color32F::new(0.8, 0.2, 0.2, 1.0), // Cor: Vermelho
+                                Id::new(), close_geom, CommitCounter::default(),
+                                Color32F::new(0.93, 0.33, 0.31, 1.0),
                                 Kind::Unspecified,
                             );
                             app_elements.push(CustomRenderElements::from(close_btn));
+                            
+                            // ● Botão MINIMIZAR (Amarelo/Âmbar) — #F7BD2E
+                            let min_x = btn_start_x + btn_size + btn_gap;
+                            let min_geom = Rectangle::new(
+                                (min_x, btn_y).into(),
+                                (btn_size, btn_size).into()
+                            ).to_physical(1);
+                            let min_btn = SolidColorRenderElement::new(
+                                Id::new(), min_geom, CommitCounter::default(),
+                                Color32F::new(0.97, 0.74, 0.18, 1.0),
+                                Kind::Unspecified,
+                            );
+                            app_elements.push(CustomRenderElements::from(min_btn));
+                            
+                            // ● Botão MAXIMIZAR (Verde) — #27C93F
+                            let max_x = min_x + btn_size + btn_gap;
+                            let max_geom = Rectangle::new(
+                                (max_x, btn_y).into(),
+                                (btn_size, btn_size).into()
+                            ).to_physical(1);
+                            let max_btn = SolidColorRenderElement::new(
+                                Id::new(), max_geom, CommitCounter::default(),
+                                Color32F::new(0.15, 0.79, 0.25, 1.0),
+                                Kind::Unspecified,
+                            );
+                            app_elements.push(CustomRenderElements::from(max_btn));
                         }
                         
                         // App no topo -> início da lista (O último do window_order será o 0 na elements!)

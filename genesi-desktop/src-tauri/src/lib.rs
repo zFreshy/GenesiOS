@@ -471,7 +471,11 @@ fn launch_browser_wayland() -> Result<(), String> {
         // O Firefox IGNORA a resposta ServerSide e desenha CSD mesmo assim
         // (usa libdecor internamente). Só funciona com nocsd LD_PRELOAD.
 
-        let chromium_flags = ["--ozone-platform=wayland", "--enable-features=UseOzonePlatform"];
+        let chromium_flags = [
+            "--ozone-platform=wayland",
+            "--enable-features=UseOzonePlatform",
+            "--gtk-version=4",              // GTK4 respeita melhor o xdg-decoration SSD
+        ];
 
         // 1) chromium-browser (Ubuntu/Debian/WSL)
         let result = {
