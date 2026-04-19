@@ -259,7 +259,7 @@ impl XdgDecorationHandler for GenesiState {
     fn new_decoration(&mut self, toplevel: ToplevelSurface) {
         use smithay::reexports::wayland_protocols::xdg::decoration::zv1::server::zxdg_toplevel_decoration_v1::Mode;
         toplevel.with_pending_state(|state| {
-            state.decoration_mode = Some(Mode::ClientSide);
+            state.decoration_mode = Some(Mode::ServerSide);
         });
         toplevel.send_configure();
     }
@@ -270,9 +270,9 @@ impl XdgDecorationHandler for GenesiState {
         _mode: smithay::reexports::wayland_protocols::xdg::decoration::zv1::server::zxdg_toplevel_decoration_v1::Mode,
     ) {
         use smithay::reexports::wayland_protocols::xdg::decoration::zv1::server::zxdg_toplevel_decoration_v1::Mode;
-        // O Genesi OS agora exige CSD (Client-Side Decoration) sempre que o aplicativo suportar
+        // O Genesi OS agora EXIGE Server-Side Decoration (SSD) para padronizar bordas
         toplevel.with_pending_state(|state| {
-            state.decoration_mode = Some(Mode::ClientSide);
+            state.decoration_mode = Some(Mode::ServerSide);
         });
         toplevel.send_configure();
     }
@@ -280,7 +280,7 @@ impl XdgDecorationHandler for GenesiState {
     fn unset_mode(&mut self, toplevel: ToplevelSurface) {
         use smithay::reexports::wayland_protocols::xdg::decoration::zv1::server::zxdg_toplevel_decoration_v1::Mode;
         toplevel.with_pending_state(|state| {
-            state.decoration_mode = Some(Mode::ClientSide);
+            state.decoration_mode = Some(Mode::ServerSide);
         });
         toplevel.send_configure();
     }
@@ -346,8 +346,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Forçamos o winit a usar Wayland, que é o ambiente principal do WSLg
     std::env::set_var("WINIT_UNIX_BACKEND", "wayland");
     
-    // Variáveis Globais do Genesi OS
+    // Variáveis Globais do Genesi OS (Forçando SSD / Amordaçando CSD)
     std::env::set_var("MOZ_ENABLE_WAYLAND", "1");
+    std::env::set_var("MOZ_GTK_TITLEBAR_DECORATION", "system"); // Força o Firefox a não usar a própria barra
+    std::env::set_var("GTK_CSD", "0"); // Desativa CSD em apps GTK3/GTK4
+    std::env::set_var("QT_WAYLAND_DISABLE_WINDOWDECORATION", "1"); // Desativa CSD no Qt
     
     // Precisamos de acesso ao display do host para o winit, não apagar o WAYLAND_DISPLAY original
     // antes de instanciar a janela.

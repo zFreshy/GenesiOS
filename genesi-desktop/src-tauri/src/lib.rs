@@ -443,6 +443,9 @@ fn launch_browser_wayland() -> Result<(), String> {
             .arg("--new-window")
             .env("WAYLAND_DISPLAY", &display)
             .env("MOZ_ENABLE_WAYLAND", "1")
+            .env("MOZ_GTK_TITLEBAR_DECORATION", "system") // Força o Firefox a não usar CSD
+            .env("GTK_CSD", "0") // Desativa CSD no GTK3/GTK4
+            .env("QT_WAYLAND_DISABLE_WINDOWDECORATION", "1") // Desativa CSD no Qt
             .spawn()
             .or_else(|_| {
                 Command::new("epiphany")
@@ -469,7 +472,7 @@ fn launch_browser_wayland() -> Result<(), String> {
         if !wayland_display.is_empty() {
             // Executar firefox dentro do WSL com o display correto e sem decorações nativas
             Command::new("wsl")
-                .args(&["-e", "bash", "-lc", &format!("WAYLAND_DISPLAY={} MOZ_ENABLE_WAYLAND=1 firefox ", wayland_display)])
+                .args(&["-e", "bash", "-lc", &format!("WAYLAND_DISPLAY={} MOZ_ENABLE_WAYLAND=1 MOZ_GTK_TITLEBAR_DECORATION=system GTK_CSD=0 QT_WAYLAND_DISABLE_WINDOWDECORATION=1 firefox ", wayland_display)])
                 .spawn()
                 .map_err(|e| format!("Falha ao iniciar Firefox no WSL: {}", e))?;
             return Ok(());
@@ -492,6 +495,10 @@ pub fn run() {
     std::env::set_var("WEBKIT_DISABLE_COMPOSITING_MODE", "1");
     std::env::set_var("LIBGL_ALWAYS_SOFTWARE", "1");
     std::env::set_var("GDK_BACKEND", "wayland");
+    std::env::set_var("MOZ_ENABLE_WAYLAND", "1");
+    std::env::set_var("MOZ_GTK_TITLEBAR_DECORATION", "system");
+    std::env::set_var("GTK_CSD", "0");
+    std::env::set_var("QT_WAYLAND_DISABLE_WINDOWDECORATION", "1");
     
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
