@@ -76,6 +76,12 @@ pub struct GenesiState {
     pub resizing_window: Option<ResizingState>,
     // Janelas minimizadas (não renderizadas, mas mantidas no estado)
     pub minimized_windows: Vec<WlSurface>,
+    // Posição e tamanho salvos antes de maximizar
+    pub unmaximized_state: std::collections::HashMap<WlSurface, (Point<i32, Logical>, smithay::utils::Size<i32, Logical>)>,
+    // Borda sendo "hovered" no momento
+    pub hovered_edge: Option<(WlSurface, xdg_toplevel::ResizeEdge)>,
+    // Cursor customizado fornecido por um cliente Wayland
+    pub cursor_status: smithay::input::pointer::CursorImageStatus,
 }
 
 #[derive(Clone)]
@@ -301,7 +307,9 @@ impl SeatHandler for GenesiState {
             self.minimized_windows.retain(|s| s != surface);
         }
     }
-    fn cursor_image(&mut self, _seat: &Seat<Self>, _image: smithay::input::pointer::CursorImageStatus) {}
+    fn cursor_image(&mut self, _seat: &Seat<Self>, image: smithay::input::pointer::CursorImageStatus) {
+        self.cursor_status = image;
+    }
 }
 
 impl SelectionHandler for GenesiState {
@@ -489,6 +497,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         moving_window: None,
         resizing_window: None,
         minimized_windows: Vec::new(),
+        unmaximized_state: std::collections::HashMap::new(),
+        hovered_edge: None,
+        cursor_status: smithay::input::pointer::CursorImageStatus::default_named(),
     };
 
     use smithay::wayland::socket::ListeningSocketSource;
@@ -592,14 +603,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             new_h = (rs.start_rect.size.h as f64 + dy).max(150.0) as i32;
                         }
                         if resize_left {
-                            let delta = dx as i32;
+                            let max_delta_x = rs.start_rect.size.w - 200;
+                            let delta = (dx as i32).min(max_delta_x);
                             new_x = rs.start_rect.loc.x + delta;
-                            new_w = (rs.start_rect.size.w - delta).max(200);
+                            new_w = rs.start_rect.size.w - delta;
                         }
                         if resize_top {
-                            let delta = dy as i32;
+                            let max_delta_y = rs.start_rect.size.h - 150;
+                            let delta = (dy as i32).min(max_delta_y);
                             new_y = rs.start_rect.loc.y + delta;
-                            new_h = (rs.start_rect.size.h - delta).max(150);
+                            new_h = rs.start_rect.size.h - delta;
                         }
                         
                         state.window_positions.insert(rs.surface.clone(), (new_x, new_y).into());
@@ -676,6 +689,92 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         }
                     }
                     
+                    let mut new_hovered_edge = None;
+                    if let Some((surface, _)) = under.as_ref() {
+                        if let Some(toplevel) = state.xdg_shell_state.toplevel_surfaces().iter().find(|t| t.wl_surface() == surface) {
+                            let is_desktop = state.window_order.first() == Some(surface);
+                            if !is_desktop && state.moving_window.is_none() && state.resizing_window.is_none() {
+                                let pos = state.window_positions.get(surface).cloned().unwrap_or((0, 0).into());
+                                use smithay::wayland::compositor::with_states;
+                                use smithay::wayland::shell::xdg::SurfaceCachedState;
+                                let geometry = with_states(surface, |states| {
+                                    states.cached_state.get::<SurfaceCachedState>()
+                                        .current()
+                                        .geometry
+                                        .unwrap_or(Rectangle::new((0, 0).into(), (800, 600).into()))
+                                });
+                                let visual_x = pos.x as f64 + geometry.loc.x as f64;
+                                let visual_y = pos.y as f64 + geometry.loc.y as f64;
+                                let visual_w = geometry.size.w as f64;
+                                let visual_h = geometry.size.h as f64;
+                                
+                                let titlebar_height = {
+                                    let app_id = with_states(surface, |states| {
+                                        states.data_map.get::<std::sync::Mutex<smithay::wayland::shell::xdg::XdgToplevelSurfaceRoleAttributes>>()
+                                            .map(|attrs| attrs.lock().unwrap().app_id.clone())
+                                            .flatten()
+                                    }).unwrap_or_default();
+                                    use smithay::reexports::wayland_protocols::xdg::decoration::zv1::server::zxdg_toplevel_decoration_v1::Mode as DecoMode;
+                                    let client_handles_decorations = toplevel.with_pending_state(|s| s.decoration_mode) == Some(DecoMode::ClientSide);
+                                    if app_id.contains("genesi") || client_handles_decorations { 0.0 } else { 30.0 }
+                                };
+                                
+                                let edge_thickness = 8.0;
+                                let mut edges = xdg_toplevel::ResizeEdge::None;
+                                
+                                if position.x >= visual_x && position.x < visual_x + edge_thickness {
+                                    edges = xdg_toplevel::ResizeEdge::Left;
+                                } else if position.x >= visual_x + visual_w - edge_thickness && position.x < visual_x + visual_w {
+                                    edges = xdg_toplevel::ResizeEdge::Right;
+                                }
+                                
+                                if position.y >= visual_y - titlebar_height && position.y < visual_y - titlebar_height + edge_thickness {
+                                    if edges == xdg_toplevel::ResizeEdge::Left {
+                                        edges = xdg_toplevel::ResizeEdge::TopLeft;
+                                    } else if edges == xdg_toplevel::ResizeEdge::Right {
+                                        edges = xdg_toplevel::ResizeEdge::TopRight;
+                                    } else {
+                                        edges = xdg_toplevel::ResizeEdge::Top;
+                                    }
+                                } else if position.y >= visual_y + visual_h - edge_thickness && position.y < visual_y + visual_h {
+                                    if edges == xdg_toplevel::ResizeEdge::Left {
+                                        edges = xdg_toplevel::ResizeEdge::BottomLeft;
+                                    } else if edges == xdg_toplevel::ResizeEdge::Right {
+                                        edges = xdg_toplevel::ResizeEdge::BottomRight;
+                                    } else {
+                                        edges = xdg_toplevel::ResizeEdge::Bottom;
+                                    }
+                                }
+                                
+                                if edges != xdg_toplevel::ResizeEdge::None {
+                                    new_hovered_edge = Some((surface.clone(), edges));
+                                }
+                            }
+                        }
+                    }
+                    
+                    if state.hovered_edge != new_hovered_edge {
+                        state.hovered_edge = new_hovered_edge.clone();
+                        let cursor_icon = match new_hovered_edge {
+                            Some((_, edges)) => {
+                                use xdg_toplevel::ResizeEdge as RE;
+                                match edges {
+                                    RE::Top => ::winit::window::CursorIcon::NResize,
+                                    RE::Bottom => ::winit::window::CursorIcon::SResize,
+                                    RE::Left => ::winit::window::CursorIcon::WResize,
+                                    RE::Right => ::winit::window::CursorIcon::EResize,
+                                    RE::TopLeft => ::winit::window::CursorIcon::NwResize,
+                                    RE::TopRight => ::winit::window::CursorIcon::NeResize,
+                                    RE::BottomLeft => ::winit::window::CursorIcon::SwResize,
+                                    RE::BottomRight => ::winit::window::CursorIcon::SeResize,
+                                    _ => ::winit::window::CursorIcon::Default,
+                                }
+                            },
+                            None => ::winit::window::CursorIcon::Default,
+                        };
+                        backend.window().set_cursor(cursor_icon);
+                    }
+                    
                     if let Some((surface, _)) = under.as_ref() {
                         // Focus on mouse move? Usually we focus on click.
                         // Let's only set keyboard focus here if we want follow-mouse, otherwise just pointer.
@@ -705,8 +804,26 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         let position = state.pointer_location;
                         let mut clicked_surface = None;
                         
-                        // Descobre em qual janela clicamos (do topo para o fundo)
-                        for surface in state.window_order.iter().rev() {
+                        if let Some((ref surface, edges)) = state.hovered_edge.clone() {
+                            let pos = state.window_positions.get(surface).cloned().unwrap_or((0, 0).into());
+                            use smithay::wayland::compositor::with_states;
+                            use smithay::wayland::shell::xdg::SurfaceCachedState;
+                            let geometry = with_states(surface, |states| {
+                                states.cached_state.get::<SurfaceCachedState>()
+                                    .current()
+                                    .geometry
+                                    .unwrap_or(Rectangle::new((0, 0).into(), (800, 600).into()))
+                            });
+                            state.resizing_window = Some(ResizingState {
+                                surface: surface.clone(),
+                                edges,
+                                start_pointer: position,
+                                start_rect: Rectangle::new(pos, geometry.size),
+                            });
+                            clicked_surface = Some(surface.clone());
+                        } else {
+                            // Descobre em qual janela clicamos (do topo para o fundo)
+                            for surface in state.window_order.iter().rev() {
                             if let Some(toplevel) = state.xdg_shell_state.toplevel_surfaces().iter().find(|t| t.wl_surface() == surface) {
                                 let is_desktop = state.window_order.first() == Some(surface);
                                 let pos = state.window_positions.get(surface).cloned().unwrap_or((0, 0).into());
@@ -770,13 +887,33 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                     } else if position.x >= maxim_x1 && position.x < maxim_x2 {
                                         // Botão verde = Maximizar/Restaurar
                                         let is_maximized = toplevel.with_pending_state(|s| s.states.contains(xdg_toplevel::State::Maximized));
+                                        let wl = surface.clone();
+                                        
                                         if is_maximized {
-                                            toplevel.with_pending_state(|s| {
-                                                s.states.unset(xdg_toplevel::State::Maximized);
-                                            });
+                                            // Restaurar
+                                            if let Some((old_pos, old_size)) = state.unmaximized_state.remove(&wl) {
+                                                state.window_positions.insert(wl, old_pos);
+                                                toplevel.with_pending_state(|s| {
+                                                    s.states.unset(xdg_toplevel::State::Maximized);
+                                                    s.size = Some(old_size);
+                                                });
+                                            } else {
+                                                toplevel.with_pending_state(|s| {
+                                                    s.states.unset(xdg_toplevel::State::Maximized);
+                                                    s.size = None;
+                                                });
+                                            }
                                         } else {
+                                            // Maximizar
+                                            let current_size = geometry.size;
+                                            state.unmaximized_state.insert(wl.clone(), (pos, current_size));
+                                            let screen_size = backend.window_size().to_logical(1);
+                                            let max_size = smithay::utils::Size::from((screen_size.w, screen_size.h - titlebar_height as i32));
+                                            
+                                            state.window_positions.insert(wl, (0, titlebar_height as i32).into());
                                             toplevel.with_pending_state(|s| {
                                                 s.states.set(xdg_toplevel::State::Maximized);
+                                                s.size = Some(max_size);
                                             });
                                         }
                                         toplevel.send_configure();
@@ -798,6 +935,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                     break;
                                 }
                             }
+                        }
                         }
                         
                         // Z-Index: traz a janela clicada para a frente (se não for o desktop)
@@ -853,6 +991,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         );
 
         let damage = Rectangle::from_size(size);
+        let mut set_cursor_visible = true;
         
         {
             let (renderer, mut framebuffer) = backend.bind().unwrap();
@@ -1054,7 +1193,61 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 elements.splice(0..0, popup_elements);
             }
 
-            let mut frame = renderer.render(&mut framebuffer, size, Transform::Flipped180).unwrap();
+            // Desenha o Cursor customizado (se fornecido pelo cliente Wayland)
+             let mut reset_cursor = false;
+             let mut custom_cursor_drawn = false;
+             let force_native_cursor = state.hovered_edge.is_some();
+             
+             if !force_native_cursor {
+                 if let smithay::input::pointer::CursorImageStatus::Surface(ref surface) = state.cursor_status {
+                     if !smithay::utils::IsAlive::alive(surface) {
+                         reset_cursor = true;
+                     } else {
+                         use std::sync::Mutex;
+                         use smithay::input::pointer::CursorImageAttributes;
+                         use smithay::wayland::compositor;
+                         
+                         let hotspot = compositor::with_states(surface, |states| {
+                             states.data_map
+                                 .get::<Mutex<CursorImageAttributes>>()
+                                 .map(|attrs| attrs.lock().unwrap().hotspot)
+                                 .unwrap_or_else(|| (0, 0).into())
+                         });
+                         
+                         let cursor_pos = state.pointer_location;
+                         let cursor_x = cursor_pos.x as i32 - hotspot.x;
+                         let cursor_y = cursor_pos.y as i32 - hotspot.y;
+                         
+                         let cursor_surfaces: Vec<WaylandSurfaceRenderElement<GlesRenderer>> = render_elements_from_surface_tree(
+                             renderer,
+                             surface,
+                             (cursor_x, cursor_y),
+                             1.0,
+                             1.0,
+                             Kind::Cursor,
+                         );
+                         let cursor_elements: Vec<CustomRenderElements<GlesRenderer>> = cursor_surfaces.into_iter().map(CustomRenderElements::from).collect();
+                         elements.splice(0..0, cursor_elements);
+                         
+                         custom_cursor_drawn = true;
+                     }
+                 }
+             }
+             
+             if reset_cursor {
+                 state.cursor_status = smithay::input::pointer::CursorImageStatus::default_named();
+             }
+             
+             // Oculta o cursor nativo se o app Wayland estiver desenhando o próprio cursor
+              if force_native_cursor {
+                  set_cursor_visible = true;
+              } else if custom_cursor_drawn || matches!(state.cursor_status, smithay::input::pointer::CursorImageStatus::Hidden) {
+                  set_cursor_visible = false;
+              } else {
+                  set_cursor_visible = true;
+              }
+  
+              let mut frame = renderer.render(&mut framebuffer, size, Transform::Flipped180).unwrap();
             frame.clear(Color32F::new(0.05, 0.05, 0.1, 1.0), &[damage]).unwrap();
             draw_render_elements(&mut frame, 1.0, &elements, &[damage]).unwrap();
             let _ = frame.finish().unwrap();
@@ -1066,6 +1259,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let _ = display_handle.flush_clients();
         }
 
+        backend.window().set_cursor_visible(set_cursor_visible);
         backend.submit(Some(&[damage])).unwrap();
         event_loop.dispatch(Some(std::time::Duration::from_millis(16)), &mut state)?;
     }
