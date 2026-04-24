@@ -22,7 +22,7 @@ import VideoPlayer from './VideoPlayer';
 import TextEditor from './TextEditor';
 import TerminalApp from './TerminalApp';
 import BrowserApp from './BrowserApp';
-import NativeBrowserApp from './NativeBrowserApp';
+import WaylandBrowserApp from './WaylandBrowserApp';
 
 // --- Relógio isolado para a Taskbar ---
 const TaskbarClock = () => {
@@ -645,7 +645,7 @@ function App() {
       return { 
         ...a, 
         hideTopbar: true, // Browser tem sua própria barra integrada
-        content: <NativeBrowserApp 
+        content: <WaylandBrowserApp 
           onClose={() => closeApp(a.id)}
           onMinimize={() => toggleMinimize(a.id)}
           onMaximize={() => toggleMaximize(a.id)}
