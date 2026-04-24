@@ -7,10 +7,12 @@
  * Intercepta:
  *   • gtk_window_set_decorated  → força FALSE  (sem frame GTK)
  *   • gtk_window_set_titlebar   → força NULL   (sem headerbar customizada)
+ *   • gtk_header_bar_new        → retorna NULL (mata headerbar do GTK4)
  *   • libdecor_new              → retorna NULL (mata o decorador do Firefox no Wayland)
  *   • libdecor_frame_set_title  → no-op silencioso
  *   • secure_getenv(GTK_CSD)    → retorna "0"
  *   • secure_getenv(MOZ_GTK_TITLEBAR_DECORATION) → "system"
+ *   • getenv                    → intercepta também (fallback)
  *
  * Compilar:
  *   cc -shared -fPIC -ldl -o /tmp/genesi_nocsd.so nocsd.c
@@ -24,6 +26,7 @@
 #include <dlfcn.h>
 #include <string.h>
 #include <stddef.h>
+#include <stdio.h>
 
 /* ============================================================ */
 /*  GTK 3 / GTK 4 — Decorações de janela                       */
@@ -55,6 +58,27 @@ void gtk_window_set_titlebar(void *window, void *titlebar)
     if (real) real(window, NULL);  /* NULL = sem titlebar customizada */
 }
 
+/*
+ * gtk_header_bar_new() retorna NULL.
+ * GTK4 usa HeaderBar como titlebar padrão. Ao retornar NULL,
+ * o app não consegue criar a barra customizada.
+ */
+void *gtk_header_bar_new(void)
+{
+    return NULL;  /* sem headerbar = sem CSD */
+}
+
+/*
+ * gtk_window_get_titlebar() retorna NULL.
+ * Alguns apps checam se já existe titlebar antes de criar.
+ * Mentimos dizendo que não existe.
+ */
+void *gtk_window_get_titlebar(void *window)
+{
+    (void)window;
+    return NULL;
+}
+
 /* ============================================================ */
 /*  libdecor — Biblioteca Wayland CSD usada pelo Firefox        */
 /* ============================================================ */
@@ -72,6 +96,7 @@ void *libdecor_new(void *display, const void *iface)
 {
     (void)display;
     (void)iface;
+    fprintf(stderr, "[nocsd] libdecor_new() bloqueado - forçando SSD\n");
     return NULL;  /* sem decorador = sem CSD */
 }
 
@@ -96,6 +121,16 @@ void libdecor_frame_commit(void *frame, void *state, void *configuration)
     (void)frame;
     (void)state;
     (void)configuration;
+}
+
+void libdecor_frame_unref(void *frame)
+{
+    (void)frame;
+}
+
+void libdecor_unref(void *context)
+{
+    (void)context;
 }
 
 /* ============================================================ */
@@ -123,6 +158,30 @@ char *secure_getenv(const char *name)
         /* MOZ_GTK_TITLEBAR_DECORATION=system → Firefox usa deco do sistema */
         if (__builtin_strcmp(name, "MOZ_GTK_TITLEBAR_DECORATION") == 0)
             return "system";
+        /* GDK_BACKEND=wayland → força Wayland */
+        if (__builtin_strcmp(name, "GDK_BACKEND") == 0)
+            return "wayland";
+    }
+
+    return real ? real(name) : NULL;
+}
+
+/*
+ * getenv — Fallback para apps que não usam secure_getenv
+ */
+char *getenv(const char *name)
+{
+    typedef char *(*fn_t)(const char *);
+    static fn_t real = NULL;
+    if (!real) real = (fn_t)dlsym(RTLD_NEXT, "getenv");
+
+    if (name) {
+        if (__builtin_strcmp(name, "GTK_CSD") == 0)
+            return "0";
+        if (__builtin_strcmp(name, "MOZ_GTK_TITLEBAR_DECORATION") == 0)
+            return "system";
+        if (__builtin_strcmp(name, "GDK_BACKEND") == 0)
+            return "wayland";
     }
 
     return real ? real(name) : NULL;

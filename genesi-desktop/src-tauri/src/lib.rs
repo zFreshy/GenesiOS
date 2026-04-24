@@ -429,17 +429,62 @@ fn get_default_paths() -> Result<std::collections::HashMap<String, String>, Stri
     Ok(paths)
 }
 
-/// Lê o path do nocsd.so que o WM compilou na inicialização.
-/// Retorna o path se o arquivo existir e for válido.
+/// Compila e retorna o path do nocsd.so para interceptar CSD do Firefox.
+/// Se já existir e for recente (< 1 dia), reutiliza.
 #[allow(dead_code)]
 fn get_nocsd_path() -> Option<String> {
-    let path = std::fs::read_to_string("/tmp/genesi-nocsd-path.txt")
-        .unwrap_or_default();
-    let path = path.trim().to_string();
-    if !path.is_empty() && std::path::Path::new(&path).exists() {
-        Some(path)
-    } else {
-        None
+    // Primeiro tenta ler do cache do WM
+    let cached_path = std::fs::read_to_string("/tmp/genesi-nocsd-path.txt")
+        .unwrap_or_default()
+        .trim()
+        .to_string();
+    
+    if !cached_path.is_empty() && std::path::Path::new(&cached_path).exists() {
+        return Some(cached_path);
+    }
+
+    // Se não existe, tenta compilar agora
+    let nocsd_c = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap()
+        .join("genesi-wm/nocsd.c");
+    
+    let output_so = "/tmp/genesi_nocsd.so";
+    
+    if !nocsd_c.exists() {
+        eprintln!("nocsd.c não encontrado em {:?}", nocsd_c);
+        return None;
+    }
+
+    // Compila o nocsd.so
+    eprintln!("Compilando nocsd.so para suprimir CSD do Firefox...");
+    let result = std::process::Command::new("cc")
+        .args(&[
+            "-shared",
+            "-fPIC",
+            "-ldl",
+            "-o",
+            output_so,
+            nocsd_c.to_str().unwrap(),
+        ])
+        .output();
+
+    match result {
+        Ok(output) if output.status.success() => {
+            eprintln!("✓ nocsd.so compilado com sucesso em {}", output_so);
+            // Salva no cache para o WM usar também
+            let _ = std::fs::write("/tmp/genesi-nocsd-path.txt", output_so);
+            Some(output_so.to_string())
+        }
+        Ok(output) => {
+            eprintln!("✗ Falha ao compilar nocsd.so:");
+            eprintln!("{}", String::from_utf8_lossy(&output.stderr));
+            None
+        }
+        Err(e) => {
+            eprintln!("✗ Erro ao executar cc: {}. Instale build-essential.", e);
+            None
+        }
     }
 }
 
@@ -457,8 +502,10 @@ fn launch_browser_wayland() -> Result<(), String> {
             ("WAYLAND_DISPLAY",               display.as_str()),
             ("MOZ_ENABLE_WAYLAND",             "1"),
             ("GTK_CSD",                        "0"),
+            ("LD_PRELOAD",                     ""),  // Será sobrescrito pelo nocsd se disponível
             ("QT_WAYLAND_DISABLE_WINDOWDECORATION", "1"),
             ("LIBDECOR_PLUGIN_DIR",            "/dev/null"), // mata libdecor CSD
+            ("GDK_BACKEND",                    "wayland"),   // força Wayland no GTK
         ];
 
         // ── Ordem de tentativa: Chromium > Chrome > Firefox (+ nocsd) > Epiphany ──
@@ -507,10 +554,21 @@ fn launch_browser_wayland() -> Result<(), String> {
         // 4) Firefox com nocsd LD_PRELOAD como último recurso
         .or_else(|_| {
             let mut cmd = Command::new("firefox");
+            // CRÍTICO: --new-instance força nova instância isolada
+            // Sem isso, Firefox reutiliza processo existente e ignora LD_PRELOAD
             cmd.arg("--new-instance")
-               .arg("--new-window");
+               .arg("--new-window")
+               // Força profile temporário para garantir isolamento total
+               .arg("--profile")
+               .arg("/tmp/genesi-firefox-profile");
+            
             for (k, v) in &wayland_envs { cmd.env(k, v); }
+            
+            // Variáveis extras para forçar SSD no Firefox
             cmd.env("MOZ_GTK_TITLEBAR_DECORATION", "system");
+            cmd.env("MOZ_DISABLE_CONTENT_SANDBOX", "1"); // Permite LD_PRELOAD funcionar
+            cmd.env("MOZ_X11_EGL", "0"); // Força Wayland puro
+            
             // Injeta o amordaçador CSD se disponível
             if let Some(ref nocsd_path) = nocsd {
                 cmd.env("LD_PRELOAD", nocsd_path);
