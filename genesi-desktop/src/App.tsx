@@ -399,13 +399,19 @@ function App() {
       defaultX: 500, defaultY: 200, x: 500, y: 200, width: 800, height: 600,
       isOpen: false, minimized: false, maximized: false, zIndex: 10,
       content: null
+    },
+    {
+      id: 'chrome', baseId: 'chrome', title: 'Google Chrome', icon: IconBrandChrome, color: 'bg-green-500', 
+      defaultX: 120, defaultY: 70, x: 120, y: 70, width: 800, height: 500,
+      isOpen: false, minimized: false, maximized: false, zIndex: 10,
+      content: null // Dynamically injected as <BrowserApp /> by appsWithDynamicContent
     }
   ]);
 
   const [pinnedApps] = useState(['browser', 'files', 'settings', 'taskmgr', 'chrome']);
   
   const APP_DEF: Record<string, any> = {
-    'browser': { title: 'Genesi Browser', icon: Globe, isExternal: true },
+    'browser': { title: 'Genesi Browser', icon: Globe, isExternal: false },
     'terminal': { title: 'Terminal', icon: Terminal },
     'package': { title: 'Package Manager', icon: Package },
     'settings': { title: 'Configurações', icon: Settings },
@@ -414,7 +420,7 @@ function App() {
     'image-viewer': { title: 'Image Viewer', icon: Folder, isHidden: true },
     'video-player': { title: 'Video Player', icon: Play, isHidden: true },
     'text-editor': { title: 'Text Editor', icon: List, isHidden: true },
-    'chrome': { title: 'Google Chrome', icon: IconBrandChrome, isExternal: true },
+    'chrome': { title: 'Google Chrome', icon: IconBrandChrome, isExternal: false }, // Agora abre BrowserApp interno
   };
 
   // Load saved bounds on mount
@@ -551,18 +557,8 @@ function App() {
     }));
   };
   const openApp = async (baseId: string, forceNewInstance = false, additionalProps = {}) => {
-    if (baseId === 'chrome') {
-      try {
-        const { invoke } = await import('@tauri-apps/api/core');
-        await invoke('launch_browser_wayland');
-      } catch (e) {
-        console.error('Failed to start Browser natively in Wayland:', e);
-      }
-      setShowControlCenter(false);
-      setShowStartMenu(false);
-      setShowStartContextMenu(false);
-      return;
-    }
+    // Removido: Chrome agora abre o BrowserApp interno ao invés de lançar navegador externo
+    // Se quiser lançar navegador nativo, use o ícone específico ou comando do sistema
 
     setApps(currentApps => {
       const existingInstances = currentApps.filter(a => a.baseId === baseId && a.isOpen);
@@ -644,7 +640,7 @@ function App() {
 
   // Injeta o conteúdo dinâmico que depende do state "apps" no Task Manager
   const appsWithDynamicContent = apps.map(a => {
-    if (a.baseId === 'browser') {
+    if (a.baseId === 'browser' || a.baseId === 'chrome') {
       return { 
         ...a, 
         hideTopbar: true, // Browser tem sua própria barra integrada
