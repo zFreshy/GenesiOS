@@ -518,6 +518,32 @@ fn open_url_in_browser(url: String) -> Result<(), String> {
     Ok(())
 }
 
+/// Cria uma janela de navegador WebView nativa
+#[tauri::command]
+async fn create_browser_window(app: tauri::AppHandle, url: String, title: String) -> Result<String, String> {
+    use tauri::Manager;
+    
+    let window_label = format!("browser-{}", std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis());
+    
+    let window = tauri::WebviewWindowBuilder::new(
+        &app,
+        &window_label,
+        tauri::WebviewUrl::External(url.parse().map_err(|e| format!("Invalid URL: {}", e))?)
+    )
+    .title(&title)
+    .inner_size(1000.0, 700.0)
+    .decorations(false)
+    .transparent(false)
+    .center()
+    .build()
+    .map_err(|e| format!("Failed to create browser window: {}", e))?;
+    
+    Ok(window_label)
+}
+
 #[tauri::command]
 fn launch_browser_wayland() -> Result<(), String> {
     #[cfg(target_os = "linux")]
@@ -694,7 +720,8 @@ pub fn run() {
             rename_file,
             get_system_processes,
             launch_browser_wayland,
-            open_url_in_browser
+            open_url_in_browser,
+            create_browser_window
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
