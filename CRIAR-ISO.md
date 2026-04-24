@@ -1,10 +1,29 @@
 # 🔥 Como Criar ISO do Genesi OS
 
+## ⚠️ IMPORTANTE: WSL NÃO FUNCIONA!
+
+O WSL tem limitações com `chroot` e `sudo` que impedem a criação da ISO:
+```
+❌ Erro: "unable to allocate pty: No such device"
+```
+
+**Soluções:**
+1. ✅ **Usar VM Linux** (VirtualBox/VMware) - **RECOMENDADO**
+2. ✅ Usar instância Linux na cloud (AWS EC2, Google Cloud)
+3. ⚠️ Tentar Docker (pode ter mesmas limitações)
+
+**Veja guias rápidos:**
+- `GUIA-CRIAR-ISO-VM.md` - Passo a passo completo com VirtualBox
+- `QUICK-ISO-GUIDE.md` - Guia visual rápido
+
+---
+
 ## 📋 Pré-requisitos
 
-- Linux (Ubuntu/Debian recomendado) ou WSL2
-- Pelo menos 10GB de espaço livre
-- Rust, Node.js e dependências instaladas
+- **Linux nativo** (Ubuntu/Debian 22.04 recomendado)
+- Pelo menos 30GB de espaço livre
+- 4GB RAM mínimo
+- Conexão com internet
 
 ## 🎯 Estratégia
 
