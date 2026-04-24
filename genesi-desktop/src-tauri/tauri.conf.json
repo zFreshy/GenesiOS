@@ -14,10 +14,11 @@
       {
         "title": "Genesi Desktop Environment",
         "decorations": false,
-        "transparent": true,
+        "transparent": false,
         "fullscreen": true,
         "resizable": true,
-        "alwaysOnTop": false
+        "alwaysOnTop": false,
+        "devtools": true
       }
     ],
     "security": {
