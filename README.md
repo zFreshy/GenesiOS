@@ -4,19 +4,25 @@ Sistema operacional baseado em Linux com interface desktop moderna usando Waylan
 
 ## 🚀 Como Rodar
 
-### Windows
+### Windows (Recomendado)
 
-**Opção 1: PowerShell (Recomendado)**
+**Opção 1: PowerShell Híbrido (Recomendado)**
+```powershell
+.\run-genesi-hybrid.ps1
+```
+Este script roda o WM no WSL e o Desktop no Windows (evita problemas de GTK).
+
+**Opção 2: PowerShell Puro**
 ```powershell
 .\run-genesi.ps1
 ```
 
-**Opção 2: Batch/CMD**
+**Opção 3: Batch/CMD**
 ```cmd
 run-genesi.bat
 ```
 
-**Opção 3: Manual**
+**Opção 4: Apenas Desktop (sem WM)**
 ```powershell
 cd genesi-desktop
 npm install  # primeira vez apenas
@@ -100,12 +106,47 @@ wsl --shutdown
 
 ## 📋 Requisitos
 
+### Windows
+- Node.js e npm
+- Rust (cargo) - Opcional, só se quiser rodar o WM
+- WSL2 com Ubuntu - Opcional, só para o Window Manager
+- WSLg habilitado - Se for rodar tudo no WSL
+
+### Linux
 - Rust (cargo)
 - Node.js e npm
 - GCC (build-essential)
 - Dependências do Tauri: `sudo apt install libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf`
 
 ## 🐛 Problemas Conhecidos
+
+### Erro "Failed to initialize GTK" no WSL
+
+**Problema:** Ao rodar `bash run-genesi.sh` no WSL, aparece erro de GTK.
+
+**Causa:** O Tauri precisa de interface gráfica, e o WSL sem WSLg não tem.
+
+**Soluções:**
+1. **Use o script híbrido** (Recomendado):
+   ```powershell
+   .\run-genesi-hybrid.ps1
+   ```
+
+2. **Rode direto no Windows**:
+   ```powershell
+   cd genesi-desktop
+   npm run tauri dev
+   ```
+
+3. **Habilite WSLg no WSL**:
+   ```powershell
+   # No PowerShell como Admin
+   wsl --update
+   wsl --shutdown
+   
+   # No WSL, verifique:
+   echo $DISPLAY  # Deve mostrar :0 ou :1
+   ```
 
 ### Firefox com Duas Topbars
 
