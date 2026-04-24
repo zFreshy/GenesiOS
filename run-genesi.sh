@@ -7,6 +7,17 @@ set -e
 echo "🚀 Iniciando Genesi OS..."
 echo ""
 
+# Limpa processos antigos que podem estar travados
+echo "🧹 Limpando processos antigos..."
+pkill -9 genesi-wm 2>/dev/null || true
+pkill -9 genesi-desktop 2>/dev/null || true
+pkill -9 cargo 2>/dev/null || true
+pkill -9 node 2>/dev/null || true
+lsof -ti:1420 2>/dev/null | xargs kill -9 2>/dev/null || true
+sleep 1
+echo "✓ Processos limpos"
+echo ""
+
 # Carrega ambiente Rust se existir
 if [ -f "$HOME/.cargo/env" ]; then
     source "$HOME/.cargo/env"

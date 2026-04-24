@@ -2,7 +2,8 @@
 # Comando rápido para parar Genesi OS
 # Uso: ./cleanup
 
-pkill -9 genesi-wm genesi-desktop cargo 2>/dev/null
+pkill -9 genesi-wm genesi-desktop cargo node 2>/dev/null
 pkill -9 -f "tauri dev" 2>/dev/null
 pkill -9 -f "vite" 2>/dev/null
-echo "✓ Genesi OS parado"
+lsof -ti:1420 2>/dev/null | xargs kill -9 2>/dev/null
+echo "✓ Genesi OS parado e porta 1420 liberada"
