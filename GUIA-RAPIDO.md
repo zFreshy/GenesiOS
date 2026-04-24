@@ -13,15 +13,42 @@ exit
 wsl
 
 # 3. Roda o sistema
-bash run-genesi.sh
+bash start.sh
 ```
 
 ### Próximas Vezes
 
+#### Opção 1: Script Automático (Recomendado)
 ```bash
-# Simplesmente rode
-bash run-genesi.sh
+bash start.sh  # Limpa e inicia automaticamente
 ```
+
+#### Opção 2: Manual (2 passos)
+```bash
+bash stop-genesi.sh  # Limpa primeiro
+bash run-genesi.sh   # Depois inicia
+```
+
+#### Opção 3: Manual Completo (2 terminais)
+
+**Terminal 1 - Window Manager:**
+```bash
+cd genesi-desktop/genesi-wm
+cargo build --release
+cargo run --release
+```
+
+**Terminal 2 - Desktop Environment:**
+```bash
+cd genesi-desktop
+npm run tauri dev
+```
+
+**Por que usar 2 terminais?**
+- ✅ Mais controle
+- ✅ Logs separados (fácil debugar)
+- ✅ Pode reiniciar um sem afetar o outro
+- ✅ Melhor para desenvolvimento
 
 ---
 
@@ -85,7 +112,10 @@ Veja o guia completo: `SOLUCAO-PROBLEMAS.md`
 ## 📊 Comandos Úteis
 
 ```bash
-# Rodar
+# Rodar (automático)
+bash start.sh
+
+# Rodar (manual)
 bash run-genesi.sh
 
 # Parar
@@ -99,6 +129,18 @@ bash diagnostico.sh
 
 # Setup inicial
 bash setup-wsl.sh
+```
+
+### Modo Manual (2 terminais)
+
+```bash
+# Terminal 1
+cd genesi-desktop/genesi-wm
+cargo run --release
+
+# Terminal 2
+cd genesi-desktop
+npm run tauri dev
 ```
 
 ---

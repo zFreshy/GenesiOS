@@ -14,15 +14,43 @@ cd /mnt/d/Desenvolvimento/Genesi  # Ajuste o caminho conforme necessário
 bash setup-wsl.sh
 ```
 
-Depois de instalar as dependências, rode o sistema:
+Depois de instalar as dependências, você tem 3 opções para rodar:
 
+#### Opção 1: Script Automático (Recomendado)
 ```bash
-bash run-genesi.sh
+bash start.sh  # Limpa e inicia automaticamente
 ```
+
+#### Opção 2: Script Manual (2 passos)
+```bash
+bash stop-genesi.sh  # Limpa processos antigos
+bash run-genesi.sh   # Inicia o sistema
+```
+
+#### Opção 3: Manual Completo (2 terminais - Mais controle)
+
+**Terminal 1 - Window Manager:**
+```bash
+cd genesi-desktop/genesi-wm
+cargo build --release
+cargo run --release
+```
+
+**Terminal 2 - Desktop Environment:**
+```bash
+cd genesi-desktop
+npm run tauri dev
+```
+
+**Vantagens da Opção 3:**
+- ✅ Mais controle sobre cada componente
+- ✅ Logs separados (fácil de debugar)
+- ✅ Pode reiniciar um componente sem afetar o outro
+- ✅ Melhor para desenvolvimento
 
 **Para parar:**
 ```bash
-# Pressione Ctrl+C no terminal onde está rodando
+# Pressione Ctrl+C em cada terminal
 
 # Ou em outro terminal:
 bash stop-genesi.sh
