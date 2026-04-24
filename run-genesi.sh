@@ -7,29 +7,6 @@ set -e
 echo "🚀 Iniciando Genesi OS..."
 echo ""
 
-# Limpa processos antigos que podem estar travados
-echo "🧹 Limpando processos antigos..."
-pkill -9 genesi-wm 2>/dev/null || true
-pkill -9 genesi-desktop 2>/dev/null || true
-pkill -9 cargo 2>/dev/null || true
-pkill -9 node 2>/dev/null || true
-pkill -9 -f "vite" 2>/dev/null || true
-pkill -9 -f "tauri" 2>/dev/null || true
-
-# Mata processos na porta 1420 especificamente
-if command -v lsof &> /dev/null; then
-    PORT_PIDS=$(lsof -ti:1420 2>/dev/null)
-    if [ ! -z "$PORT_PIDS" ]; then
-        echo "   Liberando porta 1420..."
-        echo "$PORT_PIDS" | xargs kill -9 2>/dev/null || true
-    fi
-fi
-
-# Aguarda um pouco para garantir que os processos foram mortos
-sleep 2
-echo "✓ Processos limpos"
-echo ""
-
 # Carrega ambiente Rust se existir
 if [ -f "$HOME/.cargo/env" ]; then
     source "$HOME/.cargo/env"
@@ -58,8 +35,8 @@ fi
 # Compila o nocsd.so primeiro
 echo "📦 Compilando nocsd.so..."
 if [ -f "genesi-desktop/genesi-wm/nocsd.c" ]; then
-    cc -shared -fPIC -ldl -o /tmp/genesi_nocsd.so genesi-desktop/genesi-wm/nocsd.c
-    echo "/tmp/genesi_nocsd.so" > /tmp/genesi-nocsd-path.txt
+    cc -shared -fPIC -ldl -o /tmp/genesi_nocsd.so genesi-desktop/genesi-wm/nocsd.c 2>/dev/null || true
+    echo "/tmp/genesi_nocsd.so" > /tmp/genesi-nocsd-path.txt 2>/dev/null || true
     echo "✓ nocsd.so compilado"
 else
     echo "⚠ nocsd.c não encontrado, continuando sem ele..."
@@ -124,24 +101,6 @@ cd genesi-desktop
 if [ ! -d "node_modules" ]; then
     echo "📦 Instalando dependências npm..."
     npm install
-fi
-
-# Verifica se a porta 1420 está livre antes de iniciar
-if command -v lsof &> /dev/null; then
-    if lsof -ti:1420 &> /dev/null; then
-        echo "❌ Erro: Porta 1420 ainda está em uso!"
-        echo "   Executando limpeza forçada..."
-        lsof -ti:1420 | xargs kill -9 2>/dev/null || true
-        sleep 2
-        
-        # Verifica novamente
-        if lsof -ti:1420 &> /dev/null; then
-            echo "❌ Não foi possível liberar a porta 1420"
-            echo "   Execute: wsl --shutdown (no PowerShell)"
-            cleanup
-            exit 1
-        fi
-    fi
 fi
 
 # Configura variáveis de ambiente para Tauri no WSL
