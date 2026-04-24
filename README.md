@@ -4,18 +4,33 @@ Sistema operacional baseado em Linux com interface desktop moderna usando Waylan
 
 ## 🚀 Como Rodar
 
-### Opção 1: Script Automático (Recomendado)
+### Windows
 
+**Opção 1: PowerShell (Recomendado)**
+```powershell
+.\run-genesi.ps1
+```
+
+**Opção 2: Batch/CMD**
+```cmd
+run-genesi.bat
+```
+
+**Opção 3: Manual**
+```powershell
+cd genesi-desktop
+npm install  # primeira vez apenas
+npm run tauri dev
+```
+
+### Linux/macOS
+
+**Opção 1: Script Automático**
 ```bash
 bash run-genesi.sh
 ```
 
-Este script vai:
-1. Compilar o `nocsd.so` (correção de CSD do Firefox)
-2. Compilar e rodar o Window Manager (genesi-wm)
-3. Rodar o Desktop Environment (genesi-desktop)
-
-### Opção 2: Manual (Dois Terminais)
+**Opção 2: Manual (Dois Terminais)**
 
 **Terminal 1 - Window Manager:**
 ```bash
@@ -30,6 +45,18 @@ cd genesi-desktop
 npm install  # primeira vez apenas
 npm run tauri dev
 ```
+
+## 🛑 Como Parar
+
+### Windows
+- **Fechar a janela**: Clique no X da janela do Genesi OS
+- **Ctrl+C no terminal**: Pressione Ctrl+C (pode precisar pressionar 2x)
+- **Task Manager**: Ctrl+Shift+Esc → Procure "genesi-desktop" → End Task
+- **PowerShell**: `Get-Process | Where-Object {$_.ProcessName -like "*genesi*"} | Stop-Process -Force`
+
+### Linux/macOS
+- **Ctrl+C no terminal**: Pressione Ctrl+C
+- **Matar processo**: `pkill -9 genesi-desktop`
 
 ## 📋 Requisitos
 
