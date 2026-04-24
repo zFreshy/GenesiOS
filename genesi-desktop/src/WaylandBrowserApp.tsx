@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Globe, X, Minus, Maximize2, ExternalLink, Chrome } from 'lucide-react';
+import { Globe, X, Minus, Maximize2, ExternalLink } from 'lucide-react';
+import { IconBrandChrome } from '@tabler/icons-react';
 import { useTheme } from './ThemeContext';
 import { invoke } from '@tauri-apps/api/core';
 
@@ -81,7 +82,7 @@ const WaylandBrowserApp = ({
         </div>
 
         <div className="flex-1 flex items-center justify-center gap-2">
-          <Chrome size={16} className="text-blue-500" />
+          <IconBrandChrome size={16} className="text-blue-500" />
           <span className="text-sm font-medium">Genesi Browser</span>
         </div>
 
