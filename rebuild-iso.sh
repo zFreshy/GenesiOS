@@ -50,12 +50,14 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 echo ""
 
 # Desmonta se já estiver montado
+umount chroot/dev/pts 2>/dev/null || true
 umount chroot/dev 2>/dev/null || true
 umount chroot/proc 2>/dev/null || true
 umount chroot/sys 2>/dev/null || true
 
 # Monta novamente
 mount --bind /dev chroot/dev
+mount --bind /dev/pts chroot/dev/pts
 mount --bind /proc chroot/proc
 mount --bind /sys chroot/sys
 
@@ -102,6 +104,7 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 echo ""
 
 # Desmonta
+umount chroot/dev/pts
 umount chroot/dev
 umount chroot/proc
 umount chroot/sys

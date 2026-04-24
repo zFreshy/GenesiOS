@@ -58,6 +58,7 @@ echo ""
 # Limpa diretório anterior se existir
 if [ -d "$WORK_DIR" ]; then
     echo "⚠️  Removendo build anterior..."
+    umount "$WORK_DIR/chroot/dev/pts" 2>/dev/null || true
     umount "$WORK_DIR/chroot/dev" 2>/dev/null || true
     umount "$WORK_DIR/chroot/proc" 2>/dev/null || true
     umount "$WORK_DIR/chroot/sys" 2>/dev/null || true
@@ -72,6 +73,7 @@ debootstrap --arch=amd64 jammy chroot http://archive.ubuntu.com/ubuntu/
 
 # Monta sistemas
 mount --bind /dev chroot/dev
+mount --bind /dev/pts chroot/dev/pts
 mount --bind /proc chroot/proc
 mount --bind /sys chroot/sys
 
@@ -259,6 +261,7 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 echo ""
 
 # Desmonta
+umount chroot/dev/pts
 umount chroot/dev
 umount chroot/proc
 umount chroot/sys
