@@ -488,6 +488,36 @@ fn get_nocsd_path() -> Option<String> {
     }
 }
 
+/// Abre uma URL no navegador padrão do sistema
+#[tauri::command]
+fn open_url_in_browser(url: String) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        Command::new("cmd")
+            .args(&["/C", "start", &url])
+            .spawn()
+            .map_err(|e| format!("Failed to open browser: {}", e))?;
+    }
+    
+    #[cfg(target_os = "linux")]
+    {
+        Command::new("xdg-open")
+            .arg(&url)
+            .spawn()
+            .map_err(|e| format!("Failed to open browser: {}", e))?;
+    }
+    
+    #[cfg(target_os = "macos")]
+    {
+        Command::new("open")
+            .arg(&url)
+            .spawn()
+            .map_err(|e| format!("Failed to open browser: {}", e))?;
+    }
+    
+    Ok(())
+}
+
 #[tauri::command]
 fn launch_browser_wayland() -> Result<(), String> {
     #[cfg(target_os = "linux")]
@@ -663,7 +693,8 @@ pub fn run() {
             get_default_paths,
             rename_file,
             get_system_processes,
-            launch_browser_wayland
+            launch_browser_wayland,
+            open_url_in_browser
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
