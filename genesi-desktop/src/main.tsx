@@ -17,10 +17,18 @@ import { Activity, Folder, Settings, Terminal, Globe, Image, Play, List } from '
 const searchParams = new URLSearchParams(window.location.search);
 const appName = searchParams.get("app");
 
+console.log("🚀 Genesi OS - Initializing...");
+console.log("App name:", appName);
+console.log("Window location:", window.location.href);
+
 const renderApp = () => {
   // Se "app" não estiver na URL, renderiza o Desktop inteiro (App.tsx)
-  if (!appName) return <App />;
+  if (!appName) {
+    console.log("✅ Rendering full desktop (App.tsx)");
+    return <App />;
+  }
 
+  console.log("✅ Rendering isolated window:", appName);
   // Caso contrário, renderiza a janela isolada com as decorações do cliente (WindowFrame)
   return (
     <div className="w-screen h-screen bg-transparent overflow-hidden p-2">

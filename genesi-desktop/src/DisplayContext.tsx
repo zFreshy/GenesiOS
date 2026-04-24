@@ -57,7 +57,26 @@ export const DisplayProvider = ({ children }: { children: React.ReactNode }) => 
       const windowObj = getCurrentWindow();
       const monitors = await availableMonitors();
       
-      if (monitors.length === 0) return;
+      console.log("📺 Monitors detected:", monitors.length);
+      
+      if (monitors.length === 0) {
+        console.warn("⚠️ No monitors detected. Using fallback display.");
+        setDisplays([{
+          id: 'display-0',
+          name: 'Primary Display',
+          physicalX: 0,
+          physicalY: 0,
+          physicalWidth: window.innerWidth,
+          physicalHeight: window.innerHeight,
+          logicalX: 0,
+          logicalY: 0,
+          logicalWidth: window.innerWidth,
+          logicalHeight: window.innerHeight,
+          isPrimary: true,
+          scaleFactor: 1
+        }]);
+        return;
+      }
 
       // Find bounding box of all physical monitors
       let minX = monitors[0].position.x;
