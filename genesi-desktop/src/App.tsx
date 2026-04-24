@@ -645,7 +645,7 @@ function App() {
       return { 
         ...a, 
         hideTopbar: true, // Browser tem sua própria barra integrada
-        content: <WaylandBrowserApp 
+        content: <BrowserApp 
           onClose={() => closeApp(a.id)}
           onMinimize={() => toggleMinimize(a.id)}
           onMaximize={() => toggleMaximize(a.id)}

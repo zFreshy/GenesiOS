@@ -30,6 +30,11 @@ const WaylandBrowserApp = ({
   useEffect(() => {
     // Lança o navegador automaticamente quando o componente monta
     launchBrowser();
+    
+    // Fecha este placeholder imediatamente
+    setTimeout(() => {
+      onClose?.();
+    }, 500); // Fecha após 0.5s
   }, []);
 
   const launchBrowser = async () => {
@@ -42,12 +47,6 @@ const WaylandBrowserApp = ({
       await invoke('launch_browser_wayland');
       
       setBrowserLaunched(true);
-      
-      // Fecha este placeholder após 2 segundos
-      // A janela real do navegador já está sendo gerenciada pelo WM
-      setTimeout(() => {
-        onClose?.();
-      }, 2000);
       
     } catch (e) {
       console.error('Failed to launch browser:', e);
