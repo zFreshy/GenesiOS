@@ -13,8 +13,20 @@ pkill -9 genesi-wm 2>/dev/null || true
 pkill -9 genesi-desktop 2>/dev/null || true
 pkill -9 cargo 2>/dev/null || true
 pkill -9 node 2>/dev/null || true
-lsof -ti:1420 2>/dev/null | xargs kill -9 2>/dev/null || true
-sleep 1
+pkill -9 -f "vite" 2>/dev/null || true
+pkill -9 -f "tauri" 2>/dev/null || true
+
+# Mata processos na porta 1420 especificamente
+if command -v lsof &> /dev/null; then
+    PORT_PIDS=$(lsof -ti:1420 2>/dev/null)
+    if [ ! -z "$PORT_PIDS" ]; then
+        echo "   Liberando porta 1420..."
+        echo "$PORT_PIDS" | xargs kill -9 2>/dev/null || true
+    fi
+fi
+
+# Aguarda um pouco para garantir que os processos foram mortos
+sleep 2
 echo "✓ Processos limpos"
 echo ""
 
@@ -112,6 +124,24 @@ cd genesi-desktop
 if [ ! -d "node_modules" ]; then
     echo "📦 Instalando dependências npm..."
     npm install
+fi
+
+# Verifica se a porta 1420 está livre antes de iniciar
+if command -v lsof &> /dev/null; then
+    if lsof -ti:1420 &> /dev/null; then
+        echo "❌ Erro: Porta 1420 ainda está em uso!"
+        echo "   Executando limpeza forçada..."
+        lsof -ti:1420 | xargs kill -9 2>/dev/null || true
+        sleep 2
+        
+        # Verifica novamente
+        if lsof -ti:1420 &> /dev/null; then
+            echo "❌ Não foi possível liberar a porta 1420"
+            echo "   Execute: wsl --shutdown (no PowerShell)"
+            cleanup
+            exit 1
+        fi
+    fi
 fi
 
 # Configura variáveis de ambiente para Tauri no WSL
