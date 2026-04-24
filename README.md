@@ -30,6 +30,17 @@ npm run tauri dev
 bash run-genesi.sh
 ```
 
+**Para parar:**
+```bash
+# Pressione Ctrl+C no terminal onde está rodando
+
+# Ou em outro terminal:
+bash stop-genesi.sh
+
+# Ou comando rápido:
+./cleanup
+```
+
 **Opção 2: Manual (Dois Terminais)**
 
 **Terminal 1 - Window Manager:**
@@ -82,8 +93,10 @@ wsl --shutdown
 ```
 
 ### Linux/macOS
-- **Ctrl+C no terminal**: Pressione Ctrl+C
-- **Matar processo**: `pkill -9 genesi-desktop`
+- **Ctrl+C no terminal**: Pressione Ctrl+C (agora funciona corretamente!)
+- **Script dedicado**: `bash stop-genesi.sh`
+- **Comando rápido**: `./cleanup`
+- **Manual**: `pkill -9 genesi-wm genesi-desktop`
 
 ## 📋 Requisitos
 

@@ -1,0 +1,8 @@
+#!/bin/bash
+# Comando rápido para parar Genesi OS
+# Uso: ./cleanup
+
+pkill -9 genesi-wm genesi-desktop cargo 2>/dev/null
+pkill -9 -f "tauri dev" 2>/dev/null
+pkill -9 -f "vite" 2>/dev/null
+echo "✓ Genesi OS parado"

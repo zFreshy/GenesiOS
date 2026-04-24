@@ -23,11 +23,23 @@ echo ""
 cleanup() {
     echo ""
     echo "🛑 Parando Genesi OS..."
-    pkill -P $$ || true
+    
+    # Mata o WM se estiver rodando
+    if [ ! -z "$WM_PID" ]; then
+        kill -9 $WM_PID 2>/dev/null || true
+    fi
+    
+    # Mata processos relacionados
+    pkill -9 genesi-wm 2>/dev/null || true
+    pkill -9 genesi-desktop 2>/dev/null || true
+    pkill -9 cargo 2>/dev/null || true
+    
+    echo "✓ Processos finalizados"
     exit 0
 }
 
-trap cleanup SIGINT SIGTERM
+# Registra handler para Ctrl+C e outros sinais
+trap cleanup SIGINT SIGTERM EXIT
 
 # 1. Inicia o Window Manager em background
 echo "🪟 Iniciando Window Manager (genesi-wm)..."
@@ -59,8 +71,17 @@ if [ ! -d "node_modules" ]; then
     npm install
 fi
 
-# Roda o Tauri em modo dev
+echo ""
+echo "✓ Genesi OS iniciado!"
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "  Para parar: Pressione Ctrl+C"
+echo "  Ou execute: bash stop-genesi.sh"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+
+# Roda o Tauri (bloqueia até fechar)
 npm run tauri dev
 
-# Quando o Tauri fechar, mata o WM também
+# Quando o Tauri fechar, chama cleanup
 cleanup
