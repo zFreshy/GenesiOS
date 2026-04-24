@@ -1,11 +1,36 @@
 #!/bin/bash
-# Script para rodar o Genesi OS completo
+# Script para rodar o Genesi OS completo no WSL/Linux
 # Uso: bash run-genesi.sh
 
 set -e
 
 echo "🚀 Iniciando Genesi OS..."
 echo ""
+
+# Carrega ambiente Rust se existir
+if [ -f "$HOME/.cargo/env" ]; then
+    source "$HOME/.cargo/env"
+fi
+
+# Configura display para WSLg
+if [ -z "$DISPLAY" ]; then
+    export DISPLAY=:0
+    echo "✓ DISPLAY configurado para :0"
+fi
+
+# Verifica se tem WSLg/X11
+if ! command -v xdpyinfo &> /dev/null; then
+    echo "⚠ WSLg não detectado. Instalando dependências..."
+    sudo apt update
+    sudo apt install -y x11-apps libgtk-3-dev libwebkit2gtk-4.1-dev
+fi
+
+# Verifica se tem Rust/Cargo
+if ! command -v cargo &> /dev/null; then
+    echo "❌ Rust não encontrado!"
+    echo "   Execute: bash setup-wsl.sh"
+    exit 1
+fi
 
 # Compila o nocsd.so primeiro
 echo "📦 Compilando nocsd.so..."
@@ -33,6 +58,7 @@ cleanup() {
     pkill -9 genesi-wm 2>/dev/null || true
     pkill -9 genesi-desktop 2>/dev/null || true
     pkill -9 cargo 2>/dev/null || true
+    pkill -9 node 2>/dev/null || true
     
     echo "✓ Processos finalizados"
     exit 0
@@ -44,13 +70,19 @@ trap cleanup SIGINT SIGTERM EXIT
 # 1. Inicia o Window Manager em background
 echo "🪟 Iniciando Window Manager (genesi-wm)..."
 cd genesi-desktop/genesi-wm
-cargo build --release 2>&1 | grep -E "Compiling|Finished|error" || true
+
+# Verifica se precisa compilar
+if [ ! -f "target/release/genesi-wm" ]; then
+    echo "📦 Compilando Window Manager..."
+    cargo build --release 2>&1 | grep -E "Compiling|Finished|error" || true
+fi
+
 cargo run --release &
 WM_PID=$!
 cd ../..
 
 # Aguarda o WM inicializar
-sleep 2
+sleep 3
 
 # Verifica se o WM está rodando
 if ! kill -0 $WM_PID 2>/dev/null; then
@@ -70,6 +102,10 @@ if [ ! -d "node_modules" ]; then
     echo "📦 Instalando dependências npm..."
     npm install
 fi
+
+# Configura variáveis de ambiente para Tauri no WSL
+export WEBKIT_DISABLE_COMPOSITING_MODE=1
+export GDK_BACKEND=x11
 
 echo ""
 echo "✓ Genesi OS iniciado!"

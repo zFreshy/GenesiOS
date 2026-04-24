@@ -4,6 +4,33 @@ Sistema operacional baseado em Linux com interface desktop moderna usando Waylan
 
 ## 🚀 Como Rodar
 
+### WSL (Ubuntu no Windows)
+
+**IMPORTANTE**: Se você está no WSL, primeiro execute o setup:
+
+```bash
+# No terminal WSL (Ubuntu)
+cd /mnt/d/Desenvolvimento/Genesi  # Ajuste o caminho conforme necessário
+bash setup-wsl.sh
+```
+
+Depois de instalar as dependências, rode o sistema:
+
+```bash
+bash run-genesi.sh
+```
+
+**Para parar:**
+```bash
+# Pressione Ctrl+C no terminal onde está rodando
+
+# Ou em outro terminal:
+bash stop-genesi.sh
+
+# Ou comando rápido:
+./cleanup
+```
+
 ### Windows (Recomendado)
 
 **Opção 1: PowerShell Híbrido (Recomendado)**
@@ -124,28 +151,40 @@ wsl --shutdown
 
 **Problema:** Ao rodar `bash run-genesi.sh` no WSL, aparece erro de GTK.
 
-**Causa:** O Tauri precisa de interface gráfica, e o WSL sem WSLg não tem.
+**Solução:** Execute o script de setup primeiro:
 
-**Soluções:**
-1. **Use o script híbrido** (Recomendado):
-   ```powershell
-   .\run-genesi-hybrid.ps1
-   ```
+```bash
+# No terminal WSL
+bash setup-wsl.sh
+```
 
-2. **Rode direto no Windows**:
-   ```powershell
-   cd genesi-desktop
-   npm run tauri dev
-   ```
+Este script irá:
+- Instalar todas as dependências do Tauri (WebKit2GTK, GTK3, etc.)
+- Instalar Node.js e npm
+- Instalar Rust e Cargo
+- Configurar o DISPLAY para WSLg
+- Testar se a interface gráfica está funcionando
 
-3. **Habilite WSLg no WSL**:
+Depois do setup, rode:
+```bash
+bash run-genesi.sh
+```
+
+**Se ainda der erro:**
+1. Atualize o WSL no PowerShell (como Admin):
    ```powershell
-   # No PowerShell como Admin
    wsl --update
    wsl --shutdown
-   
-   # No WSL, verifique:
+   ```
+
+2. Verifique se o DISPLAY está configurado:
+   ```bash
    echo $DISPLAY  # Deve mostrar :0 ou :1
+   ```
+
+3. Teste se o X11 funciona:
+   ```bash
+   xeyes  # Deve abrir uma janela com olhos
    ```
 
 ### Firefox com Duas Topbars
