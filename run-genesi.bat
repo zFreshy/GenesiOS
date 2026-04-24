@@ -45,5 +45,15 @@ echo.
 echo [*] Parando Genesi OS...
 taskkill /F /IM "genesi-desktop.exe" 2>nul
 taskkill /F /IM "cargo.exe" 2>nul
+
+REM Para o WSL se estiver rodando
+echo [*] Parando WSL (Window Manager)...
+wsl pkill -9 genesi-wm 2>nul
+wsl pkill -9 cargo 2>nul
+
 echo [OK] Processos finalizados
+echo.
+echo [!] Se o vmmemWSL ainda estiver rodando, execute:
+echo     wsl --shutdown
+echo.
 cd ..

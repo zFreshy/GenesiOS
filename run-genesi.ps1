@@ -96,5 +96,17 @@ try {
     Get-Process | Where-Object {$_.ProcessName -like "*genesi*"} | Stop-Process -Force -ErrorAction SilentlyContinue
     Get-Process | Where-Object {$_.ProcessName -like "*tauri*"} | Stop-Process -Force -ErrorAction SilentlyContinue
     
+    # Para o WSL se estiver rodando o WM
+    Write-Host "🛑 Parando WSL (Window Manager)..." -ForegroundColor Yellow
+    try {
+        wsl pkill -9 genesi-wm 2>$null
+        wsl pkill -9 cargo 2>$null
+    } catch {
+        # Ignora erros se WSL não estiver rodando
+    }
+    
     Write-Host "✓ Processos finalizados" -ForegroundColor Green
+    Write-Host ""
+    Write-Host "💡 Se o vmmemWSL ainda estiver rodando, execute:" -ForegroundColor Cyan
+    Write-Host "   wsl --shutdown" -ForegroundColor White
 }

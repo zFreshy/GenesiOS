@@ -49,10 +49,37 @@ npm run tauri dev
 ## 🛑 Como Parar
 
 ### Windows
-- **Fechar a janela**: Clique no X da janela do Genesi OS
-- **Ctrl+C no terminal**: Pressione Ctrl+C (pode precisar pressionar 2x)
-- **Task Manager**: Ctrl+Shift+Esc → Procure "genesi-desktop" → End Task
-- **PowerShell**: `Get-Process | Where-Object {$_.ProcessName -like "*genesi*"} | Stop-Process -Force`
+
+**Opção 1: Script de Parada (Recomendado)**
+```powershell
+# PowerShell
+.\stop-genesi.ps1
+
+# Ou Batch
+stop-genesi.bat
+```
+
+**Opção 2: Fechar a janela**
+- Clique no X da janela do Genesi OS
+
+**Opção 3: Parar o WSL (mata o vmmemWSL)**
+```powershell
+wsl --shutdown
+```
+
+**Opção 4: Task Manager**
+- Ctrl+Shift+Esc → Procure "genesi-desktop" → End Task
+- **Nota**: O vmmemWSL (Window Manager no WSL) não pode ser fechado pelo Task Manager
+  - Use `wsl --shutdown` para parar ele
+
+**Opção 5: PowerShell Manual**
+```powershell
+# Para o Desktop
+Get-Process | Where-Object {$_.ProcessName -like "*genesi*"} | Stop-Process -Force
+
+# Para o WSL (Window Manager)
+wsl --shutdown
+```
 
 ### Linux/macOS
 - **Ctrl+C no terminal**: Pressione Ctrl+C
