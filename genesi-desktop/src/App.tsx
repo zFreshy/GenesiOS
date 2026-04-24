@@ -90,7 +90,7 @@ const DesktopIconItem = ({
 };
 
 // --- COMPONENTE DE JANELA (DRAGGABLE, RESIZABLE E ANIMADA) ---
-const DesktopWindow = ({ app, onClose, onMinimize, onMaximize, onFocus, isFullscreen, onUpdateBounds, displays, onSaveBounds }: any) => {
+const DesktopWindow = ({ app, onClose, onMinimize, onMaximize, onFocus, isFullscreen, onUpdateBounds, displays, onSaveBounds, hideTopbar = false }: any) => {
   const dragControls = useDragControls();
   const [isResizing, setIsResizing] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -280,8 +280,8 @@ const DesktopWindow = ({ app, onClose, onMinimize, onMaximize, onFocus, isFullsc
         </>
       )}
 
-      {/* Title bar (Hidden in true fullscreen) */}
-      {!isFullscreen && (
+      {/* Title bar (Hidden in true fullscreen or when hideTopbar is true) */}
+      {!isFullscreen && !hideTopbar && (
         <div 
           onPointerDown={(e) => dragControls.start(e)}
           onDoubleClick={onMaximize}
@@ -645,7 +645,15 @@ function App() {
   // Injeta o conteúdo dinâmico que depende do state "apps" no Task Manager
   const appsWithDynamicContent = apps.map(a => {
     if (a.baseId === 'browser') {
-      return { ...a, content: <BrowserApp /> };
+      return { 
+        ...a, 
+        hideTopbar: true, // Browser tem sua própria barra integrada
+        content: <BrowserApp 
+          onClose={() => closeApp(a.id)}
+          onMinimize={() => toggleMinimize(a.id)}
+          onMaximize={() => toggleMaximize(a.id)}
+        /> 
+      };
     }
     if (a.id === 'taskmgr') {
       return { ...a, content: <TaskManager apps={apps} onCloseApp={closeApp} /> };
@@ -1145,6 +1153,7 @@ function App() {
           <DesktopWindow 
             key={app.id} 
             app={app} 
+            hideTopbar={app.hideTopbar}
             isFullscreen={isFullscreenMode && app.zIndex === Math.max(...apps.filter(a => a.isOpen).map(a => a.zIndex))} // Apenas o app no topo ganha o F11
             onUpdateBounds={updateAppBounds}
             onClose={() => closeApp(app.id)}
