@@ -133,6 +133,7 @@ apt install -y \
 apt install -y \
     libwayland-dev \
     libxkbcommon-dev \
+    libxkbcommon-x11-dev \
     libegl1-mesa-dev \
     libgles2-mesa-dev \
     libgbm-dev \
