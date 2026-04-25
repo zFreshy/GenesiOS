@@ -274,14 +274,14 @@ echo "=== Genesi OS Startup $(date) ===" > "$LOG_FILE"
 
 echo "Starting Weston (Base Wayland Compositor)..." >> "$LOG_FILE"
 
-# Inicia Weston como compositor base (necessário porque Genesi WM usa backend Winit)
-# Weston roda no DRM e fornece wayland-0
-weston --backend=drm-backend.so --tty=1 >> "$LOG_FILE" 2>&1 &
+# Inicia Weston usando weston-launch (necessário para DRM)
+# weston-launch cuida das permissões e do logind automaticamente
+weston-launch -- --backend=drm-backend.so >> "$LOG_FILE" 2>&1 &
 WESTON_PID=$!
 echo "Weston PID: $WESTON_PID" >> "$LOG_FILE"
 
 # Aguarda Weston criar o socket
-sleep 3
+sleep 5
 
 # Verifica se Weston está rodando
 if ! kill -0 $WESTON_PID 2>/dev/null; then
