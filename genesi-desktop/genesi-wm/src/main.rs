@@ -3,6 +3,11 @@ use tracing_subscriber::FmtSubscriber;
 use wayland_server::{Display, Client};
 use calloop::{EventLoop, Interest, Mode, PostAction, generic::Generic};
 
+// Permite warnings sobre código não usado durante desenvolvimento
+#![allow(dead_code)]
+#![allow(unused_variables)]
+#![allow(unused_assignments)]
+
 use smithay::{
     delegate_compositor, delegate_shm, delegate_xdg_shell, delegate_seat, delegate_data_device, delegate_output,
     backend::{
