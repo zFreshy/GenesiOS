@@ -318,7 +318,11 @@ cat >> chroot/home/genesi/.bashrc << 'EOF'
 # Inicia Genesi OS automaticamente no login do tty1
 if [ -z "$DISPLAY" ] && [ "$(tty)" = "/dev/tty1" ]; then
     echo "🔥 Iniciando Genesi OS..."
-    exec startx
+    echo "   Para iniciar manualmente: startx"
+    echo "   Para ver logs: cat /tmp/genesi-startup.log"
+    echo ""
+    # Comentado para debug - descomente para autostart
+    # exec startx
 fi
 EOF
 

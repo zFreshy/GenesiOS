@@ -77,8 +77,30 @@ mkdir -p chroot/home/genesi/GenesiOS
 cp -r "$GENESI_SOURCE"/* chroot/home/genesi/GenesiOS/
 chown -R 1000:1000 chroot/home/genesi/GenesiOS
 
-# Atualiza script de autostart
-echo "🔧 Atualizando script de autostart..."
+# Atualiza .bashrc
+cat > chroot/home/genesi/.bashrc << 'EOF'
+# ~/.bashrc
+
+# If not running interactively, don't do anything
+case $- in
+    *i*) ;;
+      *) return;;
+esac
+
+# Inicia Genesi OS automaticamente no login do tty1
+if [ -z "$DISPLAY" ] && [ "$(tty)" = "/dev/tty1" ]; then
+    echo "🔥 Genesi OS"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+    echo "Para iniciar: startx"
+    echo "Para ver logs: cat /tmp/genesi-startup.log"
+    echo ""
+    # Comentado para debug - descomente para autostart
+    # exec startx
+fi
+EOF
+
+chown 1000:1000 chroot/home/genesi/.bashrc
 cat > chroot/usr/local/bin/start-genesi.sh << 'EOF'
 #!/bin/bash
 export DISPLAY=:0
