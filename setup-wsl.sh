@@ -35,7 +35,10 @@ sudo apt install -y \
     librsvg2-dev \
     libjavascriptcoregtk-4.1-dev \
     libsoup-3.0-dev \
-    patchelf
+    patchelf \
+    pkg-config \
+    libudev-dev \
+    libdbus-1-dev
 
 # Instala dependências do WSLg (interface gráfica)
 echo "📦 Instalando dependências gráficas..."

@@ -113,7 +113,9 @@ apt install -y \
     git \
     build-essential \
     gcc \
-    pkg-config
+    pkg-config \
+    libudev-dev \
+    libdbus-1-dev
 
 # Instala dependências do Tauri
 apt install -y \
