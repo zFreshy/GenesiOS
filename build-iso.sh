@@ -257,8 +257,6 @@ echo ""
 # Script de inicialização
 cat > chroot/usr/local/bin/start-genesi.sh << 'EOF'
 #!/bin/bash
-export DISPLAY=:0
-export WAYLAND_DISPLAY=wayland-0
 export XDG_RUNTIME_DIR=/run/user/$(id -u)
 export MOZ_ENABLE_WAYLAND=1
 export GTK_CSD=0
@@ -272,28 +270,44 @@ chmod 700 "$XDG_RUNTIME_DIR"
 LOG_FILE="/tmp/genesi-startup.log"
 echo "=== Genesi OS Startup $(date) ===" > "$LOG_FILE"
 
-# Aguarda sistema gráfico estar pronto
-sleep 3
+echo "Starting Genesi WM (Wayland Compositor)..." >> "$LOG_FILE"
 
-# Inicia Window Manager
-echo "Starting Genesi WM..." >> "$LOG_FILE"
-/home/genesi/GenesiOS/genesi-desktop/genesi-wm/target/release/genesi-wm >> "$LOG_FILE" 2>&1 &
+# IMPORTANTE: Genesi WM é um compositor Wayland, precisa rodar direto no DRM
+# Não usa DISPLAY ou WAYLAND_DISPLAY antes de iniciar
+cd /home/genesi/GenesiOS/genesi-desktop/genesi-wm
+./target/release/genesi-wm >> "$LOG_FILE" 2>&1 &
 WM_PID=$!
 echo "WM PID: $WM_PID" >> "$LOG_FILE"
 
-# Aguarda WM iniciar e verifica se está rodando
+# Aguarda WM criar o socket Wayland
 sleep 5
+
+# Verifica se WM está rodando
 if ! kill -0 $WM_PID 2>/dev/null; then
     echo "ERROR: WM crashed!" >> "$LOG_FILE"
-    echo "WM failed to start. Check /tmp/genesi-startup.log" > /dev/tty1
-    # Fallback: abre terminal
+    cat "$LOG_FILE"
+    echo ""
+    echo "WM failed to start. Check log above."
     exec /bin/bash
     exit 1
 fi
 
-echo "WM started successfully" >> "$LOG_FILE"
+# Detecta o socket Wayland criado pelo WM
+if [ -S "$XDG_RUNTIME_DIR/wayland-0" ]; then
+    export WAYLAND_DISPLAY=wayland-0
+elif [ -S "$XDG_RUNTIME_DIR/wayland-1" ]; then
+    export WAYLAND_DISPLAY=wayland-1
+else
+    echo "ERROR: No Wayland socket found!" >> "$LOG_FILE"
+    cat "$LOG_FILE"
+    kill $WM_PID 2>/dev/null
+    exec /bin/bash
+    exit 1
+fi
 
-# Aguarda mais um pouco para garantir
+echo "WM started successfully on $WAYLAND_DISPLAY" >> "$LOG_FILE"
+
+# Aguarda mais um pouco
 sleep 2
 
 # Inicia Desktop
@@ -312,23 +326,10 @@ EOF
 
 chmod +x chroot/usr/local/bin/start-genesi.sh
 
-# Configura .bashrc para iniciar automaticamente no tty1
-cat >> chroot/home/genesi/.bashrc << 'EOF'
-
-# Inicia Genesi OS automaticamente no login do tty1
-if [ -z "$DISPLAY" ] && [ "$(tty)" = "/dev/tty1" ]; then
-    echo "🔥 Iniciando Genesi OS..."
-    echo "   Para iniciar manualmente: startx"
-    echo "   Para ver logs: cat /tmp/genesi-startup.log"
-    echo ""
-    # Comentado para debug - descomente para autostart
-    # exec startx
-fi
-EOF
-
-# Cria .xinitrc para iniciar o Genesi OS
+# Cria .xinitrc que NÃO usa startx, roda direto
 cat > chroot/home/genesi/.xinitrc << 'EOF'
 #!/bin/bash
+# Genesi OS não usa X11, roda Wayland puro
 exec /usr/local/bin/start-genesi.sh
 EOF
 
