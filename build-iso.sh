@@ -140,7 +140,7 @@ apt install -y \
     libinput-dev \
     libsystemd-dev \
     libdrm-dev \
-    weston
+    sway
 
 # Instala dependências do Tauri
 apt install -y \
@@ -276,38 +276,40 @@ chmod 700 "$XDG_RUNTIME_DIR"
 LOG_FILE="/tmp/genesi-startup.log"
 echo "=== Genesi OS Startup $(date) ===" > "$LOG_FILE"
 
-echo "Starting Weston (Base Wayland Compositor)..." >> "$LOG_FILE"
+echo "Starting Sway (Base Wayland Compositor)..." >> "$LOG_FILE"
 
-# Inicia Weston direto no DRM (sem weston-launch, usando sudo para permissões)
-# Precisa rodar como root para acessar DRM, mas mantém o ambiente do usuário
-sudo -E weston --backend=drm-backend.so --tty=1 >> "$LOG_FILE" 2>&1 &
-WESTON_PID=$!
-echo "Weston PID: $WESTON_PID" >> "$LOG_FILE"
+# Inicia Sway (mais simples que Weston, não precisa de permissões especiais)
+sway >> "$LOG_FILE" 2>&1 &
+SWAY_PID=$!
+echo "Sway PID: $SWAY_PID" >> "$LOG_FILE"
 
-# Aguarda Weston criar o socket
+# Aguarda Sway criar o socket
 sleep 5
 
-# Verifica se Weston está rodando
-if ! kill -0 $WESTON_PID 2>/dev/null; then
-    echo "ERROR: Weston crashed!" >> "$LOG_FILE"
+# Verifica se Sway está rodando
+if ! kill -0 $SWAY_PID 2>/dev/null; then
+    echo "ERROR: Sway crashed!" >> "$LOG_FILE"
     cat "$LOG_FILE"
     echo ""
-    echo "Weston failed to start. Check log above."
+    echo "Sway failed to start. Check log above."
     exec /bin/bash
     exit 1
 fi
 
-# Weston cria wayland-0
-if [ ! -S "$XDG_RUNTIME_DIR/wayland-0" ]; then
-    echo "ERROR: Weston socket not found!" >> "$LOG_FILE"
+# Sway cria wayland-0 ou wayland-1
+if [ -S "$XDG_RUNTIME_DIR/wayland-0" ]; then
+    export WAYLAND_DISPLAY=wayland-0
+elif [ -S "$XDG_RUNTIME_DIR/wayland-1" ]; then
+    export WAYLAND_DISPLAY=wayland-1
+else
+    echo "ERROR: Sway socket not found!" >> "$LOG_FILE"
     cat "$LOG_FILE"
-    kill $WESTON_PID 2>/dev/null
+    kill $SWAY_PID 2>/dev/null
     exec /bin/bash
     exit 1
 fi
 
-export WAYLAND_DISPLAY=wayland-0
-echo "Weston started successfully on $WAYLAND_DISPLAY" >> "$LOG_FILE"
+echo "Sway started successfully on $WAYLAND_DISPLAY" >> "$LOG_FILE"
 
 echo "Starting Genesi WM (Window Manager)..." >> "$LOG_FILE"
 
@@ -377,7 +379,7 @@ DISPLAY="" \
 # Se o desktop fechar, mata tudo
 echo "Desktop closed, cleaning up..." >> "$LOG_FILE"
 kill $WM_PID 2>/dev/null
-kill $WESTON_PID 2>/dev/null
+kill $SWAY_PID 2>/dev/null
 
 # Mostra log e abre shell
 cat "$LOG_FILE"
