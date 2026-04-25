@@ -113,7 +113,7 @@ fn read_file_bytes(path: &str) -> Result<Vec<u8>, String> {
 }
 
 #[tauri::command]
-fn create_desktop_shortcut(target_path: &str, file_name: &str) -> Result<(), String> {
+fn create_desktop_shortcut(_target_path: &str, _file_name: &str) -> Result<(), String> {
     #[cfg(windows)]
     {
         let ps_script = format!(
@@ -121,7 +121,7 @@ fn create_desktop_shortcut(target_path: &str, file_name: &str) -> Result<(), Str
              $Shortcut = $WshShell.CreateShortcut([Environment]::GetFolderPath('Desktop') + '\\{}.lnk'); \
              $Shortcut.TargetPath = '{}'; \
              $Shortcut.Save()",
-            file_name, target_path
+            _file_name, _target_path
         );
         
         let output = std::process::Command::new("powershell")
@@ -219,7 +219,7 @@ fn get_wifi_networks() -> Result<Vec<WifiNetwork>, String> {
 }
 
 #[tauri::command]
-fn connect_wifi(ssid: String, _password: Option<String>) -> Result<bool, String> {
+fn connect_wifi(_ssid: String, _password: Option<String>) -> Result<bool, String> {
     #[cfg(target_os = "windows")]
     {
         // On Windows, you typically need to create a profile XML first, 
@@ -528,7 +528,7 @@ async fn create_browser_window(app: tauri::AppHandle, url: String, title: String
         .unwrap()
         .as_millis());
     
-    let window = tauri::WebviewWindowBuilder::new(
+    let _window = tauri::WebviewWindowBuilder::new(
         &app,
         &window_label,
         tauri::WebviewUrl::External(url.parse().map_err(|e| format!("Invalid URL: {}", e))?)
