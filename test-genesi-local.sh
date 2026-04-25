@@ -30,14 +30,62 @@ if ! command -v npm &> /dev/null; then
     MISSING_DEPS+=("npm (Node.js)")
 fi
 
-if [ ${#MISSING_DEPS[@]} -gt 0 ]; then
-    echo "❌ Dependências faltando: ${MISSING_DEPS[*]}"
+# Verifica bibliotecas de desenvolvimento
+echo "📚 Verificando bibliotecas de desenvolvimento..."
+MISSING_LIBS=()
+
+if ! pkg-config --exists wayland-server; then
+    MISSING_LIBS+=("libwayland-dev")
+fi
+
+if ! pkg-config --exists xkbcommon; then
+    MISSING_LIBS+=("libxkbcommon-dev")
+fi
+
+if ! pkg-config --exists gbm; then
+    MISSING_LIBS+=("libgbm-dev")
+fi
+
+if ! pkg-config --exists libinput; then
+    MISSING_LIBS+=("libinput-dev")
+fi
+
+if ! pkg-config --exists libdrm; then
+    MISSING_LIBS+=("libdrm-dev")
+fi
+
+if ! pkg-config --exists egl; then
+    MISSING_LIBS+=("libegl1-mesa-dev")
+fi
+
+if ! pkg-config --exists libudev; then
+    MISSING_LIBS+=("libudev-dev")
+fi
+
+if ! pkg-config --exists dbus-1; then
+    MISSING_LIBS+=("libdbus-1-dev")
+fi
+
+if [ ${#MISSING_DEPS[@]} -gt 0 ] || [ ${#MISSING_LIBS[@]} -gt 0 ]; then
+    echo "❌ Dependências faltando!"
+    echo ""
+    if [ ${#MISSING_DEPS[@]} -gt 0 ]; then
+        echo "Programas: ${MISSING_DEPS[*]}"
+    fi
+    if [ ${#MISSING_LIBS[@]} -gt 0 ]; then
+        echo "Bibliotecas: ${MISSING_LIBS[*]}"
+    fi
     echo ""
     echo "Instale com:"
     echo "  sudo apt update"
-    echo "  sudo apt install -y weston"
+    if [ ${#MISSING_DEPS[@]} -gt 0 ]; then
+        echo "  sudo apt install -y weston"
+    fi
+    if [ ${#MISSING_LIBS[@]} -gt 0 ]; then
+        echo "  sudo apt install -y ${MISSING_LIBS[*]}"
+    fi
     echo ""
-    echo "Para Rust e Node.js, execute:"
+    echo "Para instalar tudo de uma vez:"
     echo "  bash setup-ubuntu-desktop.sh"
     exit 1
 fi
@@ -48,9 +96,12 @@ echo ""
 # Compila o WM
 echo "🔨 Compilando Genesi WM..."
 cd genesi-desktop/genesi-wm
-cargo build --release
-if [ $? -ne 0 ]; then
+cargo build --release 2>&1 | tee /tmp/wm-build.log
+if [ ${PIPESTATUS[0]} -ne 0 ]; then
     echo "❌ Falha ao compilar o WM"
+    echo ""
+    echo "Últimas linhas do erro:"
+    tail -20 /tmp/wm-build.log
     exit 1
 fi
 echo "✅ WM compilado"
@@ -67,9 +118,12 @@ if [ ! -d "node_modules" ]; then
 fi
 
 # Compila o Tauri
-npm run tauri build
-if [ $? -ne 0 ]; then
+npm run tauri build 2>&1 | tee /tmp/desktop-build.log
+if [ ${PIPESTATUS[0]} -ne 0 ]; then
     echo "❌ Falha ao compilar o Desktop"
+    echo ""
+    echo "Últimas linhas do erro:"
+    tail -20 /tmp/desktop-build.log
     exit 1
 fi
 echo "✅ Desktop compilado"
@@ -83,6 +137,10 @@ echo ""
 echo "Binários gerados:"
 echo "  WM:      genesi-desktop/genesi-wm/target/release/genesi-wm"
 echo "  Desktop: genesi-desktop/src-tauri/target/release/genesi-desktop"
+echo ""
+echo "Logs salvos em:"
+echo "  WM:      /tmp/wm-build.log"
+echo "  Desktop: /tmp/desktop-build.log"
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "  Como Testar"
