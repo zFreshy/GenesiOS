@@ -348,20 +348,6 @@ pub fn send_frames_surface_tree(surface: &WlSurface, time: u32) {
     );
 }
 
-/// Detecta se o app é um navegador que já tem controles de janela integrados na tab strip.
-/// Esses apps não precisam de SSD porque a tab strip já funciona como barra de título.
-fn is_self_decorating_browser(app_id: &str) -> bool {
-    let id = app_id.to_lowercase();
-    id.contains("chromium") ||
-    id.contains("chrome") ||
-    id.contains("google-chrome") ||
-    id.contains("brave") ||
-    id.contains("microsoft-edge") ||
-    id.contains("vivaldi") ||
-    id.contains("opera")
-    // Firefox NÃO está aqui: ele usa libdecor CSD e precisa de nocsd + nosso SSD
-}
-
 /// Compila nocsd.c como biblioteca LD_PRELOAD e salva o path em /tmp.
 /// O caminho é depois lido pelo Tauri para injetar o LD_PRELOAD ao lançar apps externos.
 fn compile_nocsd_lib() -> Option<String> {
