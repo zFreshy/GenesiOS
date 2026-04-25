@@ -5,6 +5,8 @@ use std::sync::Mutex;
 use sysinfo::{Disks, System};
 use btleplug::api::{Central, Manager as _, Peripheral, ScanFilter};
 use btleplug::platform::Manager;
+#[allow(unused_imports)]
+use tauri::Manager as TauriManager;
 use tokio::time;
 use std::time::Duration;
 use std::process::Command;
@@ -521,8 +523,6 @@ fn open_url_in_browser(url: String) -> Result<(), String> {
 /// Cria uma janela de navegador WebView nativa
 #[tauri::command]
 async fn create_browser_window(app: tauri::AppHandle, url: String, title: String) -> Result<String, String> {
-    use tauri::Manager;
-    
     let window_label = format!("browser-{}", std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
