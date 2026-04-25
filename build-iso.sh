@@ -113,6 +113,9 @@ apt install -y \
     git \
     build-essential \
     gcc \
+    g++ \
+    make \
+    cmake \
     pkg-config \
     libudev-dev \
     libdbus-1-dev \
@@ -125,6 +128,17 @@ apt install -y \
     live-config \
     live-config-systemd \
     casper
+
+# Instala dependências do Wayland/Smithay
+apt install -y \
+    libwayland-dev \
+    libxkbcommon-dev \
+    libegl1-mesa-dev \
+    libgles2-mesa-dev \
+    libgbm-dev \
+    libinput-dev \
+    libsystemd-dev \
+    libdrm-dev
 
 # Instala dependências do Tauri
 apt install -y \
@@ -190,30 +204,45 @@ chown -R 1000:1000 chroot/home/genesi/GenesiOS
 # Compila dentro do chroot
 echo "🔨 Compilando Genesi OS (isso pode demorar 10-15 minutos)..."
 chroot chroot su - genesi -c '
+set -e
 source ~/.cargo/env
 cd ~/GenesiOS/genesi-desktop/genesi-wm
 echo "  → Compilando Window Manager..."
-cargo build --release 2>&1 | tee /tmp/wm-build.log
+cargo build --release 2>&1 | tee /tmp/wm-build.log || { echo "ERRO WM"; exit 1; }
 cd ~/GenesiOS/genesi-desktop
 echo "  → Instalando dependências npm..."
-npm install 2>&1 | tee /tmp/npm-install.log
+npm install 2>&1 | tee /tmp/npm-install.log || { echo "ERRO NPM INSTALL"; exit 1; }
 echo "  → Buildando frontend..."
-npm run build 2>&1 | tee /tmp/npm-build.log
+npm run build 2>&1 | tee /tmp/npm-build.log || { echo "ERRO NPM BUILD"; exit 1; }
 cd src-tauri
 echo "  → Compilando Tauri (sem bundling)..."
-cargo build --release 2>&1 | tee /tmp/tauri-build.log
-'
+cargo build --release 2>&1 | tee /tmp/tauri-build.log || { echo "ERRO TAURI"; exit 1; }
+' || {
+    echo ""
+    echo "❌ ERRO na compilação!"
+    echo ""
+    echo "Logs disponíveis no chroot:"
+    echo "  - /tmp/wm-build.log"
+    echo "  - /tmp/npm-install.log"
+    echo "  - /tmp/npm-build.log"
+    echo "  - /tmp/tauri-build.log"
+    echo ""
+    echo "Para ver os logs:"
+    echo "  sudo chroot $WORK_DIR/chroot cat /tmp/wm-build.log"
+    echo ""
+    exit 1
+}
 
 # Verifica se a compilação foi bem-sucedida
 if [ ! -f "chroot/home/genesi/GenesiOS/genesi-desktop/src-tauri/target/release/genesi-desktop" ]; then
     echo "❌ ERRO: Falha na compilação do Genesi Desktop"
-    echo "   Verifique os logs em /tmp/*-build.log"
+    echo "   Verifique: sudo chroot $WORK_DIR/chroot cat /tmp/tauri-build.log"
     exit 1
 fi
 
 if [ ! -f "chroot/home/genesi/GenesiOS/genesi-desktop/genesi-wm/target/release/genesi-wm" ]; then
     echo "❌ ERRO: Falha na compilação do Window Manager"
-    echo "   Verifique os logs em /tmp/wm-build.log"
+    echo "   Verifique: sudo chroot $WORK_DIR/chroot cat /tmp/wm-build.log"
     exit 1
 fi
 
