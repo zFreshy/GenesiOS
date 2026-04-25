@@ -179,8 +179,11 @@ cargo build --release
 cd ~/GenesiOS/genesi-desktop
 echo "  → Instalando dependências npm..."
 npm install
-echo "  → Compilando Desktop..."
-npm run tauri build
+echo "  → Buildando frontend..."
+npm run build
+cd src-tauri
+echo "  → Compilando Tauri (sem bundling)..."
+cargo build --release
 '
 
 echo ""
