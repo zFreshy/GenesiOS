@@ -118,6 +118,14 @@ apt install -y \
     libdbus-1-dev \
     libseat-dev
 
+# Instala pacotes para Live CD
+apt install -y \
+    live-boot \
+    live-boot-initramfs-tools \
+    live-config \
+    live-config-systemd \
+    casper
+
 # Instala dependências do Tauri
 apt install -y \
     libwebkit2gtk-4.1-dev \
@@ -128,10 +136,17 @@ apt install -y \
     libsoup-3.0-dev \
     patchelf \
     libssl-dev \
-    xdg-utils
+    xdg-utils \
+    desktop-file-utils
 
 # Instala navegadores
 apt install -y chromium-browser firefox
+
+# Instala servidor gráfico mínimo
+apt install -y \
+    xserver-xorg-core \
+    xserver-xorg-video-all \
+    xinit
 
 # Instala Node.js 20
 curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
@@ -178,16 +193,31 @@ chroot chroot su - genesi -c '
 source ~/.cargo/env
 cd ~/GenesiOS/genesi-desktop/genesi-wm
 echo "  → Compilando Window Manager..."
-cargo build --release
+cargo build --release 2>&1 | tee /tmp/wm-build.log
 cd ~/GenesiOS/genesi-desktop
 echo "  → Instalando dependências npm..."
-npm install
+npm install 2>&1 | tee /tmp/npm-install.log
 echo "  → Buildando frontend..."
-npm run build
+npm run build 2>&1 | tee /tmp/npm-build.log
 cd src-tauri
 echo "  → Compilando Tauri (sem bundling)..."
-cargo build --release
+cargo build --release 2>&1 | tee /tmp/tauri-build.log
 '
+
+# Verifica se a compilação foi bem-sucedida
+if [ ! -f "chroot/home/genesi/GenesiOS/genesi-desktop/src-tauri/target/release/genesi-desktop" ]; then
+    echo "❌ ERRO: Falha na compilação do Genesi Desktop"
+    echo "   Verifique os logs em /tmp/*-build.log"
+    exit 1
+fi
+
+if [ ! -f "chroot/home/genesi/GenesiOS/genesi-desktop/genesi-wm/target/release/genesi-wm" ]; then
+    echo "❌ ERRO: Falha na compilação do Window Manager"
+    echo "   Verifique os logs em /tmp/wm-build.log"
+    exit 1
+fi
+
+echo "✅ Compilação concluída com sucesso!"
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -201,16 +231,23 @@ cat > chroot/usr/local/bin/start-genesi.sh << 'EOF'
 export DISPLAY=:0
 export WAYLAND_DISPLAY=wayland-0
 export XDG_RUNTIME_DIR=/run/user/$(id -u)
+export MOZ_ENABLE_WAYLAND=1
+export GTK_CSD=0
+export LIBDECOR_PLUGIN_DIR=/dev/null
 
-# Aguarda sistema gráfico
-sleep 2
+# Cria XDG_RUNTIME_DIR se não existir
+mkdir -p "$XDG_RUNTIME_DIR"
+chmod 700 "$XDG_RUNTIME_DIR"
+
+# Aguarda sistema gráfico estar pronto
+sleep 3
 
 # Inicia Window Manager
 /home/genesi/GenesiOS/genesi-desktop/genesi-wm/target/release/genesi-wm &
 WM_PID=$!
 
-# Aguarda WM iniciar
-sleep 3
+# Aguarda WM iniciar completamente
+sleep 5
 
 # Inicia Desktop
 cd /home/genesi/GenesiOS/genesi-desktop/src-tauri/target/release
@@ -222,44 +259,32 @@ EOF
 
 chmod +x chroot/usr/local/bin/start-genesi.sh
 
-# Systemd service
-cat > chroot/etc/systemd/system/genesi.service << 'EOF'
-[Unit]
-Description=Genesi OS Desktop Environment
-After=graphical.target
-
-[Service]
-Type=simple
-User=genesi
-Environment="DISPLAY=:0"
-Environment="WAYLAND_DISPLAY=wayland-0"
-ExecStart=/usr/local/bin/start-genesi.sh
-Restart=on-failure
-
-[Install]
-WantedBy=graphical.target
-EOF
-
-# Habilita serviço
-chroot chroot systemctl enable genesi.service
-
-# Configura .bashrc para iniciar automaticamente
+# Configura .bashrc para iniciar automaticamente no tty1
 cat >> chroot/home/genesi/.bashrc << 'EOF'
 
-# Inicia Genesi OS automaticamente no login
+# Inicia Genesi OS automaticamente no login do tty1
 if [ -z "$DISPLAY" ] && [ "$(tty)" = "/dev/tty1" ]; then
+    echo "🔥 Iniciando Genesi OS..."
     exec startx
 fi
 EOF
 
-# Cria .xinitrc
+# Cria .xinitrc para iniciar o Genesi OS
 cat > chroot/home/genesi/.xinitrc << 'EOF'
 #!/bin/bash
 exec /usr/local/bin/start-genesi.sh
 EOF
 
 chmod +x chroot/home/genesi/.xinitrc
-chown 1000:1000 chroot/home/genesi/.xinitrc
+chown 1000:1000 chroot/home/genesi/.xinitrc chroot/home/genesi/.bashrc
+
+# Configura autologin no Live CD via live-config
+mkdir -p chroot/etc/live/config.conf.d
+cat > chroot/etc/live/config.conf.d/genesi.conf << 'EOF'
+LIVE_USERNAME="genesi"
+LIVE_HOSTNAME="genesi-os"
+LIVE_USER_FULLNAME="Genesi User"
+EOF
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -283,23 +308,28 @@ cp chroot/boot/vmlinuz-* iso/boot/vmlinuz
 cp chroot/boot/initrd.img-* iso/boot/initrd.img
 mv filesystem.squashfs iso/live/
 
-# GRUB config
+# GRUB config com parâmetros corretos para Live CD
 cat > iso/boot/grub/grub.cfg << 'EOF'
 set timeout=5
 set default=0
 
 menuentry "Genesi OS" {
-    linux /boot/vmlinuz boot=live quiet splash
+    linux /boot/vmlinuz boot=live components quiet splash username=genesi hostname=genesi-os
     initrd /boot/initrd.img
 }
 
 menuentry "Genesi OS (Safe Mode)" {
-    linux /boot/vmlinuz boot=live nomodeset
+    linux /boot/vmlinuz boot=live components nomodeset username=genesi hostname=genesi-os
     initrd /boot/initrd.img
 }
 
-menuentry "Genesi OS (Debug)" {
-    linux /boot/vmlinuz boot=live debug
+menuentry "Genesi OS (Debug Mode)" {
+    linux /boot/vmlinuz boot=live components debug verbose username=genesi hostname=genesi-os
+    initrd /boot/initrd.img
+}
+
+menuentry "Genesi OS (Failsafe)" {
+    linux /boot/vmlinuz boot=live components nomodeset noapic noacpi nosplash username=genesi hostname=genesi-os
     initrd /boot/initrd.img
 }
 EOF
