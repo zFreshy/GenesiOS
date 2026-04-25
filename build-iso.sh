@@ -115,7 +115,8 @@ apt install -y \
     gcc \
     pkg-config \
     libudev-dev \
-    libdbus-1-dev
+    libdbus-1-dev \
+    libseat-dev
 
 # Instala dependências do Tauri
 apt install -y \

@@ -38,7 +38,8 @@ sudo apt install -y \
     patchelf \
     pkg-config \
     libudev-dev \
-    libdbus-1-dev
+    libdbus-1-dev \
+    libseat-dev
 
 # Instala dependências do WSLg (interface gráfica)
 echo "📦 Instalando dependências gráficas..."

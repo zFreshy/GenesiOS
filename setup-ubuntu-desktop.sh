@@ -21,7 +21,8 @@ sudo apt install -y \
     pkg-config \
     libssl-dev \
     libudev-dev \
-    libdbus-1-dev
+    libdbus-1-dev \
+    libseat-dev
 
 # Instala dependências gráficas (sem libgl1-mesa-glx obsoleto)
 echo "🎨 Instalando dependências gráficas..."
