@@ -17,6 +17,7 @@ iso/
 !SOLUCAO-*.md
 !WSL-*.md
 !CORRECAO-*.md
+!RESUMO-*.md
 
 node_modules/
 dist/
