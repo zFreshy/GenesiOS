@@ -151,12 +151,26 @@ fi
 echo "WM started successfully on $WAYLAND_DISPLAY" >> "$LOG_FILE"
 
 # Aguarda mais um pouco
-sleep 2
+sleep 3
 
-# Inicia Desktop
+# Inicia Desktop com variáveis corretas
 echo "Starting Genesi Desktop..." >> "$LOG_FILE"
+echo "WAYLAND_DISPLAY=$WAYLAND_DISPLAY" >> "$LOG_FILE"
+echo "XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR" >> "$LOG_FILE"
+
 cd /home/genesi/GenesiOS/genesi-desktop/src-tauri/target/release
-./genesi-desktop >> "$LOG_FILE" 2>&1
+
+# Verifica se o binário existe
+if [ ! -f "./genesi-desktop" ]; then
+    echo "ERROR: genesi-desktop binary not found!" >> "$LOG_FILE"
+    cat "$LOG_FILE"
+    kill $WM_PID 2>/dev/null
+    exec /bin/bash
+    exit 1
+fi
+
+# Roda o desktop
+WAYLAND_DISPLAY=$WAYLAND_DISPLAY XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR ./genesi-desktop >> "$LOG_FILE" 2>&1
 
 # Se o desktop fechar, mata o WM
 echo "Desktop closed, killing WM..." >> "$LOG_FILE"
