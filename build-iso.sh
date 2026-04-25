@@ -124,7 +124,8 @@ apt install -y \
     libjavascriptcoregtk-4.1-dev \
     libsoup-3.0-dev \
     patchelf \
-    libssl-dev
+    libssl-dev \
+    xdg-utils
 
 # Instala navegadores
 apt install -y chromium-browser firefox
