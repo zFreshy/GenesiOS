@@ -565,59 +565,24 @@ fn launch_browser_wayland() -> Result<(), String> {
             ("GDK_BACKEND",                    "wayland"),   // força Wayland no GTK
         ];
 
-        // ── Ordem de tentativa: Chromium > Chrome > Firefox (+ nocsd) > Epiphany ──
+        // ── Ordem de tentativa: Firefox > Chromium > Chrome > Epiphany ──
         //
-        // Chromium é o navegador PREFERIDO do Genesi OS porque:
-        //   1. Implementa xdg-decoration-unstable-v1 corretamente
-        //   2. Quando o compositor responde ServerSide, ele NÃO desenha própria barra
-        //   3. --ozone-platform=wayland força backend Wayland nativo (sem XWayland)
-        //
-        // O Firefox IGNORA a resposta ServerSide e desenha CSD mesmo assim
-        // (usa libdecor internamente). Só funciona com nocsd LD_PRELOAD.
+        // Firefox é o navegador PADRÃO do Genesi OS
+        // Usa nocsd.so para suprimir CSD (Client-Side Decorations)
 
         let chromium_flags = [
             "--ozone-platform=wayland",
             "--enable-features=UseOzonePlatform",
-            "--gtk-version=4",              // GTK4 respeita melhor o xdg-decoration SSD
+            "--gtk-version=4",
         ];
 
-        // 1) chromium-browser (Ubuntu/Debian/WSL)
+        // 1) Firefox com nocsd LD_PRELOAD
         let result = {
-            let mut cmd = Command::new("chromium-browser");
-            cmd.args(&chromium_flags);
-            for (k, v) in &wayland_envs { cmd.env(k, v); }
-            cmd.spawn()
-        }
-        // 2) chromium (Arch/Fedora/Alpine)
-        .or_else(|_| {
-            let mut cmd = Command::new("chromium");
-            cmd.args(&chromium_flags);
-            for (k, v) in &wayland_envs { cmd.env(k, v); }
-            cmd.spawn()
-        })
-        // 3) google-chrome / google-chrome-stable
-        .or_else(|_| {
-            let mut cmd = Command::new("google-chrome");
-            cmd.args(&chromium_flags);
-            for (k, v) in &wayland_envs { cmd.env(k, v); }
-            cmd.spawn()
-        })
-        .or_else(|_| {
-            let mut cmd = Command::new("google-chrome-stable");
-            cmd.args(&chromium_flags);
-            for (k, v) in &wayland_envs { cmd.env(k, v); }
-            cmd.spawn()
-        })
-        // 4) Firefox com nocsd LD_PRELOAD como último recurso
-        .or_else(|_| {
             let mut cmd = Command::new("firefox");
             // CRÍTICO: --new-instance força nova instância isolada
             // Sem isso, Firefox reutiliza processo existente e ignora LD_PRELOAD
             cmd.arg("--new-instance")
-               .arg("--new-window")
-               // Força profile temporário para garantir isolamento total
-               .arg("--profile")
-               .arg("/tmp/genesi-firefox-profile");
+               .arg("--new-window");
             
             for (k, v) in &wayland_envs { cmd.env(k, v); }
             
@@ -630,6 +595,33 @@ fn launch_browser_wayland() -> Result<(), String> {
             if let Some(ref nocsd_path) = nocsd {
                 cmd.env("LD_PRELOAD", nocsd_path);
             }
+            cmd.spawn()
+        }
+        // 2) chromium-browser (Ubuntu/Debian/WSL)
+        .or_else(|_| {
+            let mut cmd = Command::new("chromium-browser");
+            cmd.args(&chromium_flags);
+            for (k, v) in &wayland_envs { cmd.env(k, v); }
+            cmd.spawn()
+        })
+        // 3) chromium (Arch/Fedora/Alpine)
+        .or_else(|_| {
+            let mut cmd = Command::new("chromium");
+            cmd.args(&chromium_flags);
+            for (k, v) in &wayland_envs { cmd.env(k, v); }
+            cmd.spawn()
+        })
+        // 4) google-chrome / google-chrome-stable
+        .or_else(|_| {
+            let mut cmd = Command::new("google-chrome");
+            cmd.args(&chromium_flags);
+            for (k, v) in &wayland_envs { cmd.env(k, v); }
+            cmd.spawn()
+        })
+        .or_else(|_| {
+            let mut cmd = Command::new("google-chrome-stable");
+            cmd.args(&chromium_flags);
+            for (k, v) in &wayland_envs { cmd.env(k, v); }
             cmd.spawn()
         })
         // 5) Epiphany (GNOME Web) — respeitoso com SSD por ser GTK nativo
