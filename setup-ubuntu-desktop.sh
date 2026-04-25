@@ -19,7 +19,9 @@ sudo apt install -y \
     git \
     build-essential \
     pkg-config \
-    libssl-dev
+    libssl-dev \
+    libudev-dev \
+    libdbus-1-dev
 
 # Instala dependências gráficas (sem libgl1-mesa-glx obsoleto)
 echo "🎨 Instalando dependências gráficas..."
