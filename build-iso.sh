@@ -335,6 +335,7 @@ QT_QPA_PLATFORM=wayland \
 SDL_VIDEODRIVER=wayland \
 CLUTTER_BACKEND=wayland \
 MOZ_ENABLE_WAYLAND=1 \
+DISPLAY="" \
 ./genesi-desktop >> "$LOG_FILE" 2>&1
 
 # Se o desktop fechar, mata o WM
