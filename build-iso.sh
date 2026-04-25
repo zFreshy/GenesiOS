@@ -268,22 +268,46 @@ export LIBDECOR_PLUGIN_DIR=/dev/null
 mkdir -p "$XDG_RUNTIME_DIR"
 chmod 700 "$XDG_RUNTIME_DIR"
 
+# Log file
+LOG_FILE="/tmp/genesi-startup.log"
+echo "=== Genesi OS Startup $(date) ===" > "$LOG_FILE"
+
 # Aguarda sistema gráfico estar pronto
 sleep 3
 
 # Inicia Window Manager
-/home/genesi/GenesiOS/genesi-desktop/genesi-wm/target/release/genesi-wm &
+echo "Starting Genesi WM..." >> "$LOG_FILE"
+/home/genesi/GenesiOS/genesi-desktop/genesi-wm/target/release/genesi-wm >> "$LOG_FILE" 2>&1 &
 WM_PID=$!
+echo "WM PID: $WM_PID" >> "$LOG_FILE"
 
-# Aguarda WM iniciar completamente
+# Aguarda WM iniciar e verifica se está rodando
 sleep 5
+if ! kill -0 $WM_PID 2>/dev/null; then
+    echo "ERROR: WM crashed!" >> "$LOG_FILE"
+    echo "WM failed to start. Check /tmp/genesi-startup.log" > /dev/tty1
+    # Fallback: abre terminal
+    exec /bin/bash
+    exit 1
+fi
+
+echo "WM started successfully" >> "$LOG_FILE"
+
+# Aguarda mais um pouco para garantir
+sleep 2
 
 # Inicia Desktop
+echo "Starting Genesi Desktop..." >> "$LOG_FILE"
 cd /home/genesi/GenesiOS/genesi-desktop/src-tauri/target/release
-./genesi-desktop
+./genesi-desktop >> "$LOG_FILE" 2>&1
 
 # Se o desktop fechar, mata o WM
+echo "Desktop closed, killing WM..." >> "$LOG_FILE"
 kill $WM_PID 2>/dev/null
+
+# Mostra log e abre shell
+cat "$LOG_FILE"
+exec /bin/bash
 EOF
 
 chmod +x chroot/usr/local/bin/start-genesi.sh
