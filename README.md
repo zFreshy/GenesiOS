@@ -22,11 +22,13 @@ bash stop-genesi.sh
 ### Criar ISO (VM Ubuntu - NÃO funciona no WSL!)
 
 ```bash
-# Na VM Ubuntu (não WSL!)
+# Primeira vez (build completo - 10-20 min)
 sudo ./build-iso.sh
 
-# Aguarde 10-20 minutos
-# ISO estará em: GenesiOS-YYYYMMDD.iso
+# Rebuilds rápidos depois (5-10 min)
+sudo ./rebuild-iso.sh
+
+# ISO estará em: GenesiOS-YYYYMMDD-HHMM.iso
 ```
 
 ## 📋 Documentação

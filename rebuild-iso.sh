@@ -89,16 +89,31 @@ chroot chroot su - genesi -c '
 source ~/.cargo/env
 cd ~/GenesiOS/genesi-desktop/genesi-wm
 echo "  → Recompilando Window Manager..."
-cargo build --release
+cargo build --release 2>&1 | tee /tmp/wm-rebuild.log
 cd ~/GenesiOS/genesi-desktop
 echo "  → Reinstalando dependências npm (se necessário)..."
-npm install
+npm install 2>&1 | tee /tmp/npm-reinstall.log
 echo "  → Rebuildando frontend..."
-npm run build
+npm run build 2>&1 | tee /tmp/npm-rebuild.log
 cd src-tauri
 echo "  → Recompilando Tauri (sem bundling)..."
-cargo build --release
+cargo build --release 2>&1 | tee /tmp/tauri-rebuild.log
 '
+
+# Verifica se a compilação foi bem-sucedida
+if [ ! -f "chroot/home/genesi/GenesiOS/genesi-desktop/src-tauri/target/release/genesi-desktop" ]; then
+    echo "❌ ERRO: Falha na recompilação do Genesi Desktop"
+    echo "   Verifique os logs em /tmp/*-rebuild.log"
+    exit 1
+fi
+
+if [ ! -f "chroot/home/genesi/GenesiOS/genesi-desktop/genesi-wm/target/release/genesi-wm" ]; then
+    echo "❌ ERRO: Falha na recompilação do Window Manager"
+    echo "   Verifique os logs em /tmp/wm-rebuild.log"
+    exit 1
+fi
+
+echo "✅ Recompilação concluída com sucesso!"
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -126,23 +141,28 @@ cp chroot/boot/vmlinuz-* iso/boot/vmlinuz
 cp chroot/boot/initrd.img-* iso/boot/initrd.img
 mv filesystem.squashfs iso/live/
 
-# GRUB config
+# GRUB config com parâmetros corretos para Live CD
 cat > iso/boot/grub/grub.cfg << 'EOF'
 set timeout=5
 set default=0
 
 menuentry "Genesi OS" {
-    linux /boot/vmlinuz boot=live quiet splash
+    linux /boot/vmlinuz boot=live components quiet splash username=genesi hostname=genesi-os
     initrd /boot/initrd.img
 }
 
 menuentry "Genesi OS (Safe Mode)" {
-    linux /boot/vmlinuz boot=live nomodeset
+    linux /boot/vmlinuz boot=live components nomodeset username=genesi hostname=genesi-os
     initrd /boot/initrd.img
 }
 
-menuentry "Genesi OS (Debug)" {
-    linux /boot/vmlinuz boot=live debug
+menuentry "Genesi OS (Debug Mode)" {
+    linux /boot/vmlinuz boot=live components debug verbose username=genesi hostname=genesi-os
+    initrd /boot/initrd.img
+}
+
+menuentry "Genesi OS (Failsafe)" {
+    linux /boot/vmlinuz boot=live components nomodeset noapic noacpi nosplash username=genesi hostname=genesi-os
     initrd /boot/initrd.img
 }
 EOF
