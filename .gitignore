@@ -8,12 +8,6 @@ iso/
 *.txt
 *.log
 
-# Documentação gerada (muito .md)
-FIREFOX-NO-ISO.md
-CORRECOES-ISO.md
-RESUMO-CORRECOES.md
-FLUXO-COMPLETO.md
-
 node_modules/
 dist/
 src-tauri/target/
