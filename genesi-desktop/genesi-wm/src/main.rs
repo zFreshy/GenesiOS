@@ -533,16 +533,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!("✅ Genesi OS ativo e aguardando aplicativos!");
     info!("Pressione Ctrl+C para encerrar.");
 
-    info!("✨ Iniciando o Genesi Desktop Environment automaticamente...");
-    let _desktop_process = std::process::Command::new("npm")
-        .arg("run")
-        .arg("tauri")
-        .arg("dev")
-        .current_dir("../") // Volta para a raiz do genesi-desktop
-        .env("WAYLAND_DISPLAY", &socket_name)
-        .spawn()
-        .expect("Falha ao iniciar o Genesi Desktop");
-
     let keyboard = seat.add_keyboard(Default::default(), 200, 200).unwrap();
     let pointer = seat.add_pointer();
 
