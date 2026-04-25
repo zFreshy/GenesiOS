@@ -172,6 +172,10 @@ apt install -y nodejs
 useradd -m -s /bin/bash -G sudo genesi
 echo "genesi:genesi" | chpasswd
 
+# Permite que genesi rode weston como root sem senha
+echo "genesi ALL=(ALL) NOPASSWD: /usr/bin/weston" >> /etc/sudoers.d/genesi-weston
+chmod 440 /etc/sudoers.d/genesi-weston
+
 # Configura autologin
 mkdir -p /etc/systemd/system/getty@tty1.service.d
 cat > /etc/systemd/system/getty@tty1.service.d/autologin.conf << EOF
@@ -274,9 +278,9 @@ echo "=== Genesi OS Startup $(date) ===" > "$LOG_FILE"
 
 echo "Starting Weston (Base Wayland Compositor)..." >> "$LOG_FILE"
 
-# Inicia Weston usando weston-launch (necessário para DRM)
-# weston-launch cuida das permissões e do logind automaticamente
-weston-launch -- --backend=drm-backend.so >> "$LOG_FILE" 2>&1 &
+# Inicia Weston direto no DRM (sem weston-launch, usando sudo para permissões)
+# Precisa rodar como root para acessar DRM, mas mantém o ambiente do usuário
+sudo -E weston --backend=drm-backend.so --tty=1 >> "$LOG_FILE" 2>&1 &
 WESTON_PID=$!
 echo "Weston PID: $WESTON_PID" >> "$LOG_FILE"
 
