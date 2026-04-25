@@ -327,8 +327,15 @@ if [ ! -f "./genesi-desktop" ]; then
     exit 1
 fi
 
-# Roda o desktop
-WAYLAND_DISPLAY=$WAYLAND_DISPLAY XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR ./genesi-desktop >> "$LOG_FILE" 2>&1
+# Roda o desktop com todas as variáveis Wayland
+WAYLAND_DISPLAY=$WAYLAND_DISPLAY \
+XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR \
+GDK_BACKEND=wayland \
+QT_QPA_PLATFORM=wayland \
+SDL_VIDEODRIVER=wayland \
+CLUTTER_BACKEND=wayland \
+MOZ_ENABLE_WAYLAND=1 \
+./genesi-desktop >> "$LOG_FILE" 2>&1
 
 # Se o desktop fechar, mata o WM
 echo "Desktop closed, killing WM..." >> "$LOG_FILE"
