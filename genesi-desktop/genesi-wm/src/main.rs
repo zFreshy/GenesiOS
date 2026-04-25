@@ -967,9 +967,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         );
 
         let damage = Rectangle::from_size(size);
-        let mut set_cursor_visible = true;
         
-        {
+        let set_cursor_visible = {
             let (renderer, mut framebuffer) = backend.bind().unwrap();
             let mut elements: Vec<CustomRenderElements<GlesRenderer>> = Vec::new();
 
@@ -1173,6 +1172,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
              let mut reset_cursor = false;
              let mut custom_cursor_drawn = false;
              let force_native_cursor = state.hovered_edge.is_some();
+             let mut set_cursor_visible = true;
              
              if !force_native_cursor {
                  if let smithay::input::pointer::CursorImageStatus::Surface(ref surface) = state.cursor_status {
@@ -1233,7 +1233,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
 
             let _ = display_handle.flush_clients();
-        }
+            
+            set_cursor_visible
+        };
 
         backend.window().set_cursor_visible(set_cursor_visible);
         backend.submit(Some(&[damage])).unwrap();
