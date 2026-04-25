@@ -8,6 +8,15 @@ iso/
 *.txt
 *.log
 
+# Ignora todos .md exceto importantes
+*.md
+!README.md
+!CRIAR-ISO.md
+!GUIA-*.md
+!QUICK-*.md
+!SOLUCAO-*.md
+!WSL-*.md
+
 node_modules/
 dist/
 src-tauri/target/
