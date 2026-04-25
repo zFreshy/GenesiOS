@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Globe, ArrowRight, RotateCw, X, Minus, Maximize2, ArrowLeft, Home, Download } from 'lucide-react';
+import { Globe, ArrowRight, RotateCw, X, Minus, Maximize2, ArrowLeft, Home } from 'lucide-react';
 import { useTheme } from './ThemeContext';
 
 const BrowserApp = ({ onClose, onMinimize, onMaximize }: { onClose?: () => void, onMinimize?: () => void, onMaximize?: () => void }) => {

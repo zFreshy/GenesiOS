@@ -21,7 +21,6 @@ import ImageViewer from './ImageViewer';
 import VideoPlayer from './VideoPlayer';
 import TextEditor from './TextEditor';
 import TerminalApp from './TerminalApp';
-import BrowserApp from './BrowserApp';
 import WaylandBrowserApp from './WaylandBrowserApp';
 
 // --- Relógio isolado para a Taskbar ---
@@ -335,13 +334,13 @@ function App() {
     {
       id: 'browser', baseId: 'browser', title: 'Genesi Browser', icon: Globe, color: 'bg-blue-500', 
       defaultX: 100, defaultY: 50, x: 100, y: 50, width: 800, height: 500,
-      isOpen: false, minimized: false, maximized: false, zIndex: 10,
+      isOpen: false, minimized: false, maximized: false, zIndex: 10, hideTopbar: false,
       content: null // Dynamically injected as <BrowserApp /> by appsWithDynamicContent
     },
     {
       id: 'terminal', baseId: 'terminal', title: 'Terminal - root@genesi', icon: Terminal, color: 'bg-gray-800', 
       defaultX: 150, defaultY: 100, x: 150, y: 100, width: 700, height: 450,
-      isOpen: false, minimized: false, maximized: false, zIndex: 10,
+      isOpen: false, minimized: false, maximized: false, zIndex: 10, hideTopbar: false,
       content: (
         <div className="p-4 font-mono text-sm text-green-400 h-full bg-black/90">
           <p>GenesiOS v1.0 (React/Tauri Env)</p>
@@ -355,7 +354,7 @@ function App() {
     {
       id: 'package', baseId: 'package', title: 'Genesi Package Manager', icon: Package, color: 'bg-purple-500', 
       defaultX: 200, defaultY: 150, x: 200, y: 150, width: 600, height: 400,
-      isOpen: false, minimized: false, maximized: false, zIndex: 10,
+      isOpen: false, minimized: false, maximized: false, zIndex: 10, hideTopbar: false,
       content: (
         <div className="w-full h-full bg-[#1e1e1e] text-white p-8 flex flex-col items-center justify-center">
           <Package size={64} className="text-purple-400 mb-4" />
@@ -368,43 +367,43 @@ function App() {
     {
       id: 'settings', baseId: 'settings', title: 'Configurações', icon: Settings, color: 'bg-blue-600', 
       defaultX: 250, defaultY: 100, x: 250, y: 100, width: 900, height: 600,
-      isOpen: false, minimized: false, maximized: false, zIndex: 10,
+      isOpen: false, minimized: false, maximized: false, zIndex: 10, hideTopbar: false,
       content: <SettingsApp />
     },
     {
       id: 'files', baseId: 'files', title: 'File Explorer', icon: Folder, color: 'bg-yellow-500', 
       defaultX: 300, defaultY: 120, x: 300, y: 120, width: 850, height: 550,
-      isOpen: false, minimized: false, maximized: false, zIndex: 10,
+      isOpen: false, minimized: false, maximized: false, zIndex: 10, hideTopbar: false,
       content: <FileExplorer />
     },
     {
       id: 'taskmgr', baseId: 'taskmgr', title: 'Task Manager', icon: Activity, color: 'bg-blue-500', 
       defaultX: 350, defaultY: 150, x: 350, y: 150, width: 800, height: 500,
-      isOpen: false, minimized: false, maximized: false, zIndex: 10,
+      isOpen: false, minimized: false, maximized: false, zIndex: 10, hideTopbar: false,
       content: null // Injetado abaixo para evitar problemas de escopo circular com apps e closeApp
     },
     {
       id: 'image-viewer', baseId: 'image-viewer', title: 'Image Viewer', icon: Folder, color: 'bg-purple-500', 
       defaultX: 400, defaultY: 150, x: 400, y: 150, width: 800, height: 600,
-      isOpen: false, minimized: false, maximized: false, zIndex: 10,
+      isOpen: false, minimized: false, maximized: false, zIndex: 10, hideTopbar: false,
       content: null // dynamically injected
     },
     {
       id: 'video-player', baseId: 'video-player', title: 'Video Player', icon: Play, color: 'bg-red-500', 
       defaultX: 450, defaultY: 180, x: 450, y: 180, width: 800, height: 600,
-      isOpen: false, minimized: false, maximized: false, zIndex: 10,
+      isOpen: false, minimized: false, maximized: false, zIndex: 10, hideTopbar: false,
       content: null
     },
     {
       id: 'text-editor', baseId: 'text-editor', title: 'Text Editor', icon: List, color: 'bg-gray-500', 
       defaultX: 500, defaultY: 200, x: 500, y: 200, width: 800, height: 600,
-      isOpen: false, minimized: false, maximized: false, zIndex: 10,
+      isOpen: false, minimized: false, maximized: false, zIndex: 10, hideTopbar: false,
       content: null
     },
     {
       id: 'chrome', baseId: 'chrome', title: 'Google Chrome', icon: IconBrandChrome, color: 'bg-green-500', 
       defaultX: 120, defaultY: 70, x: 120, y: 70, width: 800, height: 500,
-      isOpen: false, minimized: false, maximized: false, zIndex: 10,
+      isOpen: false, minimized: false, maximized: false, zIndex: 10, hideTopbar: false,
       content: null // Dynamically injected as <BrowserApp /> by appsWithDynamicContent
     }
   ]);

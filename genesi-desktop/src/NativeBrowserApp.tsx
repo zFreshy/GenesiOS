@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Globe, ArrowRight, RotateCw, X, Minus, Maximize2, ArrowLeft, Home, Plus, ExternalLink } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Globe, ArrowRight, RotateCw, X, Minus, Maximize2, Home, Plus, ExternalLink } from 'lucide-react';
 import { useTheme } from './ThemeContext';
 import { invoke } from '@tauri-apps/api/core';
 
