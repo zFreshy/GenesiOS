@@ -10,94 +10,27 @@
 }
 
 /* ============================================
-   PANEL (Barra Superior) - Estilo macOS
+   PANEL (Barra Superior) - Simples
    ============================================ */
 .panel {
-    background: rgba(20, 20, 25, 0.85);
-    backdrop-filter: blur(30px);
-    -gtk-backdrop-filter: blur(30px);
-    padding: 4px 12px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-/* Botão G (estilo macOS) */
-.g-button {
-    background: rgba(255, 255, 255, 0.12);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 8px;
-    color: white;
-    font-size: 16px;
-    font-weight: 700;
-    min-width: 36px;
-    min-height: 32px;
+    background: rgba(20, 20, 25, 0.75);
+    backdrop-filter: blur(20px);
+    -gtk-backdrop-filter: blur(20px);
     padding: 0;
-    transition: all 0.2s ease;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-.g-button:hover {
-    background: rgba(255, 255, 255, 0.18);
-    transform: scale(1.05);
-}
-
-/* Separador vertical */
-.panel-separator {
-    background: rgba(255, 255, 255, 0.15);
-    min-width: 1px;
-    min-height: 24px;
-    margin: 0 4px;
-}
-
-/* Ícones de apps no panel */
-.panel-app-icon {
-    background: transparent;
-    border: none;
-    color: white;
-    font-size: 18px;
-    min-width: 32px;
-    min-height: 32px;
-    border-radius: 8px;
-    padding: 0;
-    transition: all 0.2s ease;
-}
-
-.panel-app-icon:hover {
-    background: rgba(255, 255, 255, 0.12);
-    transform: scale(1.08);
-}
-
-/* System tray (direita) */
-.system-tray {
-    background: rgba(255, 255, 255, 0.08);
-    border-radius: 20px;
-    padding: 4px 12px;
-}
-
-.time-box {
-    spacing: 0;
-}
-
-.time-label {
-    color: rgba(255, 255, 255, 0.95);
-    font-size: 11px;
-    font-weight: 500;
-    font-family: "SF Mono", "Consolas", monospace;
-}
-
-.date-label {
-    color: rgba(255, 255, 255, 0.7);
-    font-size: 9px;
-    font-family: "SF Mono", "Consolas", monospace;
-}
-
-.system-icon {
+.panel-logo {
     color: white;
     font-size: 14px;
+    font-weight: 600;
 }
 
-.locale-label {
-    color: white;
-    font-size: 11px;
-    font-weight: 600;
+.panel-clock {
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 12px;
+    font-weight: 500;
+    font-family: "SF Mono", "Consolas", monospace;
 }
 
 /* ============================================
@@ -123,38 +56,102 @@
 }
 
 /* ============================================
-   DOCK (Barra Inferior)
+   DOCK (Barra Inferior) - Estilo macOS Completo
    ============================================ */
 .dock {
-    background: rgba(30, 30, 40, 0.7);
+    background: rgba(20, 20, 25, 0.85);
     backdrop-filter: blur(40px);
     -gtk-backdrop-filter: blur(40px);
-    border-radius: 20px;
-    padding: 10px 20px;
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    border-radius: 16px;
+    padding: 6px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
 }
 
-.dock-button {
+/* Botão G no dock */
+.dock-g-button {
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 10px;
+    color: white;
+    font-size: 18px;
+    font-weight: 700;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0;
+    transition: all 0.2s ease;
+}
+
+.dock-g-button:hover {
+    background: rgba(255, 255, 255, 0.22);
+    transform: scale(1.08);
+}
+
+/* Separador no dock */
+.dock-separator {
+    background: rgba(255, 255, 255, 0.18);
+    min-width: 1px;
+    min-height: 40px;
+    margin: 0 6px;
+}
+
+/* Botões de apps no dock */
+.dock-app-button {
     background: rgba(255, 255, 255, 0.08);
     border: 1px solid rgba(255, 255, 255, 0.1);
     color: white;
-    font-size: 28px;
-    min-width: 52px;
-    min-height: 52px;
+    font-size: 32px;
+    min-width: 56px;
+    min-height: 56px;
     border-radius: 14px;
     transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.dock-button:hover {
-    background: rgba(255, 255, 255, 0.15);
-    transform: translateY(-6px) scale(1.08);
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+.dock-app-button:hover {
+    background: rgba(255, 255, 255, 0.18);
+    transform: translateY(-8px) scale(1.12);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.25);
 }
 
-.dock-button:active {
-    transform: translateY(-3px) scale(1.04);
+.dock-app-button:active {
+    transform: translateY(-4px) scale(1.06);
+}
+
+/* System tray no dock */
+.dock-system-tray {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 6px 12px;
+    margin-left: 8px;
+}
+
+.dock-time-box {
+    spacing: 0;
+}
+
+.dock-time-label {
+    color: rgba(255, 255, 255, 0.95);
+    font-size: 11px;
+    font-weight: 600;
+    font-family: "SF Mono", "Consolas", monospace;
+}
+
+.dock-date-label {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 9px;
+    font-family: "SF Mono", "Consolas", monospace;
+}
+
+.dock-system-icon {
+    color: white;
+    font-size: 16px;
+}
+
+.dock-locale-label {
+    color: white;
+    font-size: 11px;
+    font-weight: 700;
 }
 
 /* ============================================
