@@ -65,7 +65,7 @@ impl Desktop {
             item_box.append(&btn);
             item_box.append(&label);
 
-            flowbox.append(&item_box);
+            flowbox.insert(&item_box, -1);
         }
 
         container.append(&flowbox);

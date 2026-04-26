@@ -126,7 +126,7 @@ impl FileExplorer {
             item_box.append(&icon_lbl);
             item_box.append(&name_lbl);
 
-            flowbox.append(&item_box);
+            flowbox.insert(&item_box, -1);
         }
 
         scroll.set_child(Some(&flowbox));
