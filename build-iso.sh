@@ -140,7 +140,14 @@ apt install -y \
     libinput-dev \
     libsystemd-dev \
     libdrm-dev \
-    sway
+    sway \
+    xwayland \
+    xdg-desktop-portal \
+    xdg-desktop-portal-gtk \
+    xdg-desktop-portal-wlr \
+    dbus-x11 \
+    mesa-utils \
+    mesa-utils-extra
 
 # Instala dependências do Tauri
 apt install -y \
@@ -279,6 +286,13 @@ chmod 700 "$XDG_RUNTIME_DIR"
 LOG_FILE="/tmp/genesi-startup.log"
 echo "=== Genesi OS Startup $(date) ===" > "$LOG_FILE"
 
+# Inicia DBus se não estiver rodando
+if [ -z "$DBUS_SESSION_BUS_ADDRESS" ]; then
+    echo "Starting DBus session..." >> "$LOG_FILE"
+    eval $(dbus-launch --sh-syntax)
+    echo "DBus session started: $DBUS_SESSION_BUS_ADDRESS" >> "$LOG_FILE"
+fi
+
 echo "Starting Sway (Wayland Compositor)..." >> "$LOG_FILE"
 
 # Configura Sway para não mostrar barra de status
@@ -339,6 +353,13 @@ echo "Sway started successfully on $WAYLAND_DISPLAY" >> "$LOG_FILE"
 # Aguarda mais um pouco para Sway estabilizar
 sleep 2
 
+# Inicia xdg-desktop-portal para Tauri/GTK
+echo "Starting xdg-desktop-portal..." >> "$LOG_FILE"
+/usr/libexec/xdg-desktop-portal >> "$LOG_FILE" 2>&1 &
+XDG_PORTAL_PID=$!
+echo "xdg-desktop-portal PID: $XDG_PORTAL_PID" >> "$LOG_FILE"
+sleep 2
+
 # Inicia Desktop diretamente no Sway
 echo "Starting Genesi Desktop on Sway..." >> "$LOG_FILE"
 echo "WAYLAND_DISPLAY=$WAYLAND_DISPLAY" >> "$LOG_FILE"
@@ -358,6 +379,7 @@ fi
 # Roda o desktop diretamente no Sway
 WAYLAND_DISPLAY=$WAYLAND_DISPLAY \
 XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR \
+DBUS_SESSION_BUS_ADDRESS=$DBUS_SESSION_BUS_ADDRESS \
 GDK_BACKEND=wayland \
 QT_QPA_PLATFORM=wayland \
 SDL_VIDEODRIVER=wayland \
