@@ -10,36 +10,39 @@ pub struct Dock {
 
 impl Dock {
     pub fn new() -> Self {
-        let container = Box::new(Orientation::Horizontal, 8);
-        container.add_css_class("dock");
-        container.set_height_request(64);
-        container.set_halign(gtk4::Align::Center);
-        container.set_valign(gtk4::Align::End);
-        container.set_margin_bottom(16);
+        let container = Box::new(Orientation::Horizontal, 16);
+        container.add_css_class("taskbar");
+        container.set_height_request(60);
+        container.set_width_request(1100); // Max width from React
 
-        // Botão G (estilo macOS)
+
+        // Lado esquerdo: Botão G + Separador + Apps
+        let left_box = Box::new(Orientation::Horizontal, 8);
+        left_box.set_valign(gtk4::Align::Center);
+
+        // Botão G
         let g_button = Button::with_label("G");
-        g_button.add_css_class("dock-g-button");
-        container.append(&g_button);
+        g_button.add_css_class("start-btn");
+        left_box.append(&g_button);
 
         // Separador vertical
-        let separator = Separator::new(Orientation::Vertical);
-        separator.add_css_class("dock-separator");
-        container.append(&separator);
+        let separator = Box::new(Orientation::Vertical, 0);
+        separator.add_css_class("taskbar-separator");
+        left_box.append(&separator);
 
-        // Apps principais (ícones grandes estilo macOS)
+        // Apps principais
         let apps = vec![
-            ("🌐", "Browser", "chromium-browser"),
-            ("📁", "Files", "nautilus"),
-            ("⚙️", "Settings", "gnome-control-center"),
-            ("📊", "System", "gnome-system-monitor"),
-            ("🎨", "Terminal", "gnome-terminal"),
-            ("⚡", "About", "gnome-control-center"),
+            ("🌐", "Genesi Browser", "chromium-browser"),
+            ("📁", "File Explorer", "nautilus"),
+            ("⚙️", "Configurações", "gnome-control-center"),
+            ("📊", "Task Manager", "gnome-system-monitor"),
+            ("🔵", "Google Chrome", "google-chrome"), // Chrome icon as blue circle or something, using emoji for now
         ];
 
+        let apps_box = Box::new(Orientation::Horizontal, 8);
         for (icon, name, command) in apps {
             let button = Button::with_label(icon);
-            button.add_css_class("dock-app-button");
+            button.add_css_class("taskbar-icon");
             button.set_tooltip_text(Some(name));
             
             let cmd = command.to_string();
@@ -47,46 +50,58 @@ impl Dock {
                 launch_app(&cmd);
             });
             
-            container.append(&button);
+            apps_box.append(&button);
         }
+        left_box.append(&apps_box);
+        
+        container.append(&left_box);
 
-        // Spacer antes do system tray
+        // Spacer para empurrar o Tray para a direita
         let spacer = Box::new(Orientation::Horizontal, 0);
         spacer.set_hexpand(true);
         container.append(&spacer);
 
-        // System tray (direita)
-        let system_box = Box::new(Orientation::Horizontal, 8);
-        system_box.add_css_class("dock-system-tray");
+        // Lado Direito: Tray System
+        let right_box = Box::new(Orientation::Horizontal, 12);
+        right_box.set_valign(gtk4::Align::Center);
         
-        // Relógio e data
-        let time_box = Box::new(Orientation::Vertical, 0);
-        time_box.add_css_class("dock-time-box");
+        // Relógio (TaskbarClock)
+        let clock_box = Box::new(Orientation::Vertical, 0);
+        clock_box.set_valign(gtk4::Align::Center);
+        clock_box.add_css_class("taskbar-clock-box");
         
         let time_label = Label::new(Some(&Self::get_time()));
-        time_label.add_css_class("dock-time-label");
-        time_box.append(&time_label);
+        time_label.add_css_class("taskbar-time");
+        clock_box.append(&time_label);
         
         let date_label = Label::new(Some(&Self::get_date()));
-        date_label.add_css_class("dock-date-label");
-        time_box.append(&date_label);
+        date_label.add_css_class("taskbar-date");
+        clock_box.append(&date_label);
         
-        system_box.append(&time_box);
+        right_box.append(&clock_box);
+
+        // Ícones de sistema
+        let tray_box = Box::new(Orientation::Horizontal, 8);
+        tray_box.add_css_class("system-tray");
         
-        // Ícones do sistema
         let battery_icon = Label::new(Some("🔋"));
-        battery_icon.add_css_class("dock-system-icon");
-        system_box.append(&battery_icon);
+        tray_box.append(&battery_icon);
         
         let wifi_icon = Label::new(Some("📶"));
-        wifi_icon.add_css_class("dock-system-icon");
-        system_box.append(&wifi_icon);
+        tray_box.append(&wifi_icon);
         
         let locale_label = Label::new(Some("BR"));
-        locale_label.add_css_class("dock-locale-label");
-        system_box.append(&locale_label);
+        locale_label.add_css_class("font-medium");
+        tray_box.append(&locale_label);
         
-        container.append(&system_box);
+        right_box.append(&tray_box);
+
+        // Separador para o "Show Desktop"
+        let show_desktop_sep = Box::new(Orientation::Vertical, 0);
+        show_desktop_sep.add_css_class("show-desktop-separator");
+        right_box.append(&show_desktop_sep);
+
+        container.append(&right_box);
         
         // Atualiza relógio
         let time_clone = time_label.clone();

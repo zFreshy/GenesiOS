@@ -391,7 +391,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     // Precisamos de acesso ao display do host para o winit, não apagar o WAYLAND_DISPLAY original
     // antes de instanciar a janela.
-    let host_wayland_display = std::env::var("WAYLAND_DISPLAY").unwrap_or_else(|_| "wayland-0".to_string());
+    let _host_wayland_display = std::env::var("WAYLAND_DISPLAY").unwrap_or_else(|_| "wayland-0".to_string());
 
     let subscriber = FmtSubscriber::builder()
         .with_max_level(Level::INFO)
@@ -844,7 +844,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                     // Layout macOS: botões coloridos no lado ESQUERDO
                                     // [10px] [●close 12px] [6px] [●minimize 12px] [6px] [●maximize 12px]
                                     let btn_y_top = visual_y - titlebar_height;
-                                    let btn_y_bot = btn_y_top + 30.0;
+                                    let _btn_y_bot = btn_y_top + 30.0;
                                     let close_x1 = visual_x + 10.0;
                                     let close_x2 = close_x1 + 12.0;
                                     let minim_x1 = close_x2 + 6.0;
@@ -1061,7 +1061,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 .unwrap_or(Rectangle::new((0, 0).into(), (800, 600).into()))
                         });
                         
-                        let surface_size = toplevel.with_pending_state(|s| s.size).unwrap_or((800, 600).into());
+                        let _surface_size = toplevel.with_pending_state(|s| s.size).unwrap_or((800, 600).into());
                         
                         // O x_i32 e y_i32 do loop principal referem-se à posição base da surface.
                         // Mas a geometria do cliente (geometry.loc) nos diz onde a janela 'real' começa!
