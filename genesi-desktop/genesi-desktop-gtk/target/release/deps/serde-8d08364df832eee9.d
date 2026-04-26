@@ -1,0 +1,14 @@
+/home/mathe/genesi/GenesiOS/genesi-desktop/genesi-desktop-gtk/target/release/deps/serde-8d08364df832eee9.d: /home/mathe/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs /home/mathe/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs /home/mathe/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs /home/mathe/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs /home/mathe/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs /home/mathe/genesi/GenesiOS/genesi-desktop/genesi-desktop-gtk/target/release/build/serde-5039f20097f0209d/out/private.rs
+
+/home/mathe/genesi/GenesiOS/genesi-desktop/genesi-desktop-gtk/target/release/deps/libserde-8d08364df832eee9.rlib: /home/mathe/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs /home/mathe/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs /home/mathe/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs /home/mathe/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs /home/mathe/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs /home/mathe/genesi/GenesiOS/genesi-desktop/genesi-desktop-gtk/target/release/build/serde-5039f20097f0209d/out/private.rs
+
+/home/mathe/genesi/GenesiOS/genesi-desktop/genesi-desktop-gtk/target/release/deps/libserde-8d08364df832eee9.rmeta: /home/mathe/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs /home/mathe/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs /home/mathe/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs /home/mathe/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs /home/mathe/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs /home/mathe/genesi/GenesiOS/genesi-desktop/genesi-desktop-gtk/target/release/build/serde-5039f20097f0209d/out/private.rs
+
+/home/mathe/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/lib.rs:
+/home/mathe/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/integer128.rs:
+/home/mathe/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/mod.rs:
+/home/mathe/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/de.rs:
+/home/mathe/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/serde-1.0.228/src/private/ser.rs:
+/home/mathe/genesi/GenesiOS/genesi-desktop/genesi-desktop-gtk/target/release/build/serde-5039f20097f0209d/out/private.rs:
+
+# env-dep:OUT_DIR=/home/mathe/genesi/GenesiOS/genesi-desktop/genesi-desktop-gtk/target/release/build/serde-5039f20097f0209d/out
