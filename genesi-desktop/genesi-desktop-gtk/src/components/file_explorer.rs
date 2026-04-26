@@ -1,5 +1,5 @@
 use gtk4::prelude::*;
-use gtk4::{Application, Window, Box, Orientation, Label, Button, ScrolledWindow, FlowBox, Align, SelectionMode, Separator, SearchEntry};
+use gtk4::{Application, Window, Box, Orientation, Label, Button, ScrolledWindow, FlowBox, Align, SelectionMode, Separator, SearchEntry, Image};
 
 pub struct FileExplorer;
 
@@ -28,21 +28,22 @@ impl FileExplorer {
         sidebar.append(&sidebar_title);
 
         let quick_access = vec![
-            ("🏠", "Home"),
-            ("🖥️", "Desktop"),
-            ("⬇️", "Downloads"),
-            ("📄", "Documents"),
-            ("🖼️", "Pictures"),
-            ("🎵", "Music"),
-            ("🎥", "Videos"),
+            ("go-home", "Home"),
+            ("user-desktop", "Desktop"),
+            ("folder-download", "Downloads"),
+            ("folder-documents", "Documents"),
+            ("folder-pictures", "Pictures"),
+            ("folder-music", "Music"),
+            ("folder-videos", "Videos"),
         ];
 
         for (icon, name) in quick_access {
             let btn_box = Box::new(Orientation::Horizontal, 12);
-            let icon_lbl = Label::new(Some(icon));
+            let img = Image::from_icon_name(icon);
+            img.set_pixel_size(16);
             let name_lbl = Label::new(Some(name));
             
-            btn_box.append(&icon_lbl);
+            btn_box.append(&img);
             btn_box.append(&name_lbl);
             
             let btn = Button::builder().child(&btn_box).build();
@@ -100,12 +101,12 @@ impl FileExplorer {
 
         // Mock files
         let files = vec![
-            ("📁", "Projects"),
-            ("📁", "Wallpapers"),
-            ("📄", "notes.txt"),
-            ("🖼️", "photo.png"),
-            ("🎵", "audio.mp3"),
-            ("📦", "archive.zip"),
+            ("folder", "Projects"),
+            ("folder", "Wallpapers"),
+            ("text-x-generic", "notes.txt"),
+            ("image-x-generic", "photo.png"),
+            ("audio-x-generic", "audio.mp3"),
+            ("package-x-generic", "archive.zip"),
         ];
 
         for (icon, name) in files {
@@ -115,15 +116,15 @@ impl FileExplorer {
             item_box.set_size_request(100, 100);
             item_box.add_css_class("file-item");
 
-            let icon_lbl = Label::new(Some(icon));
-            icon_lbl.add_css_class("file-icon");
+            let img = Image::from_icon_name(icon);
+            img.set_pixel_size(64);
             
             let name_lbl = Label::new(Some(name));
             name_lbl.add_css_class("file-name");
             name_lbl.set_wrap(true);
             name_lbl.set_justify(gtk4::Justification::Center);
 
-            item_box.append(&icon_lbl);
+            item_box.append(&img);
             item_box.append(&name_lbl);
 
             flowbox.insert(&item_box, -1);
