@@ -1,5 +1,5 @@
 use gtk4::prelude::*;
-use gtk4::{Box, Label, Button, Orientation};
+use gtk4::{Box, Label, Orientation};
 use chrono::Local;
 use glib;
 
@@ -9,19 +9,35 @@ pub struct Panel {
 
 impl Panel {
     pub fn new() -> Self {
-        let container = Box::new(Orientation::Horizontal, 10);
+        let container = Box::new(Orientation::Horizontal, 0);
         container.add_css_class("panel");
         container.set_height_request(40);
         container.set_hexpand(true);
 
-        // Logo/Menu
-        let menu_button = Button::with_label("🔥 Genesi");
-        menu_button.add_css_class("panel-button");
-        menu_button.add_css_class("logo-button");
+        // Logo (estilo Tauri: ícone + texto)
+        let logo_box = Box::new(Orientation::Horizontal, 8);
+        logo_box.set_margin_start(16);
         
-        // Relógio
+        let logo_icon = Label::new(Some("⚡"));
+        logo_icon.add_css_class("panel-logo-icon");
+        logo_box.append(&logo_icon);
+        
+        let logo_text = Label::new(Some("Genesi"));
+        logo_text.add_css_class("panel-logo-text");
+        logo_box.append(&logo_text);
+        
+        container.append(&logo_box);
+
+        // Spacer (empurra o relógio para a direita)
+        let spacer = Box::new(Orientation::Horizontal, 0);
+        spacer.set_hexpand(true);
+        container.append(&spacer);
+
+        // Relógio (formato HH:MM:SS igual ao Tauri)
         let clock_label = Label::new(Some(&Self::get_time()));
         clock_label.add_css_class("clock");
+        clock_label.set_margin_end(16);
+        container.append(&clock_label);
         
         // Atualiza relógio a cada segundo
         let clock_clone = clock_label.clone();
@@ -29,35 +45,6 @@ impl Panel {
             clock_clone.set_text(&Self::get_time());
             glib::ControlFlow::Continue
         });
-
-        // System tray (placeholder)
-        let system_box = Box::new(Orientation::Horizontal, 5);
-        system_box.add_css_class("system-tray");
-        
-        let wifi_button = Button::with_label("📶");
-        wifi_button.add_css_class("panel-button");
-        
-        let battery_button = Button::with_label("🔋");
-        battery_button.add_css_class("panel-button");
-        
-        let power_button = Button::with_label("⚡");
-        power_button.add_css_class("panel-button");
-        
-        system_box.append(&wifi_button);
-        system_box.append(&battery_button);
-        system_box.append(&power_button);
-
-        // Layout
-        container.append(&menu_button);
-        container.append(&clock_label);
-        container.append(&system_box);
-        
-        // Centraliza o relógio
-        clock_label.set_hexpand(true);
-        clock_label.set_halign(gtk4::Align::Center);
-        
-        // System tray à direita
-        system_box.set_halign(gtk4::Align::End);
 
         Self { container }
     }

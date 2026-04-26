@@ -12,13 +12,20 @@ impl Desktop {
         container.set_vexpand(true);
         container.set_hexpand(true);
 
-        // Wallpaper/Background
-        let welcome_label = Label::new(Some("🔥 Bem-vindo ao Genesi OS"));
-        welcome_label.add_css_class("welcome-text");
-        welcome_label.set_valign(gtk4::Align::Center);
-        welcome_label.set_halign(gtk4::Align::Center);
+        // Welcome message (estilo Tauri: ícone + texto grande)
+        let welcome_box = Box::new(Orientation::Horizontal, 16);
+        welcome_box.set_valign(gtk4::Align::Center);
+        welcome_box.set_halign(gtk4::Align::Center);
+        
+        let icon_label = Label::new(Some("⚡"));
+        icon_label.add_css_class("welcome-icon");
+        welcome_box.append(&icon_label);
+        
+        let text_label = Label::new(Some("Bem-vindo ao Genesi"));
+        text_label.add_css_class("welcome-text");
+        welcome_box.append(&text_label);
 
-        container.append(&welcome_label);
+        container.append(&welcome_box);
 
         Self { container }
     }

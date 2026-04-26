@@ -8,22 +8,30 @@ pub struct Dock {
 
 impl Dock {
     pub fn new() -> Self {
-        let container = Box::new(Orientation::Horizontal, 10);
+        let container = Box::new(Orientation::Horizontal, 12);
         container.add_css_class("dock");
-        container.set_height_request(64);
+        container.set_height_request(72);
         container.set_halign(gtk4::Align::Center);
         container.set_valign(gtk4::Align::End);
-        container.set_margin_bottom(10);
+        container.set_margin_bottom(16);
 
-        // Adiciona apps
-        for app in get_installed_apps() {
-            let button = Button::with_label(&app.icon);
+        // Apps principais (estilo Tauri)
+        let apps = vec![
+            ("🌐", "Browser", "chromium-browser"),
+            ("📁", "Files", "nautilus"),
+            ("⚙️", "Settings", "gnome-control-center"),
+            ("📊", "System", "gnome-system-monitor"),
+            ("🎨", "Terminal", "gnome-terminal"),
+        ];
+
+        for (icon, name, command) in apps {
+            let button = Button::with_label(icon);
             button.add_css_class("dock-button");
-            button.set_tooltip_text(Some(&app.name));
+            button.set_tooltip_text(Some(name));
             
-            let command = app.command.clone();
+            let cmd = command.to_string();
             button.connect_clicked(move |_| {
-                launch_app(&command);
+                launch_app(&cmd);
             });
             
             container.append(&button);
