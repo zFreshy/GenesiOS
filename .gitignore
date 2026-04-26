@@ -21,3 +21,24 @@ genesi-wm/target
 example/
 
 genesi-desktop-gtk/target/*
+
+dep-lib-bitflags
+*.timestamp
+lib-bitflags
+lib-bitflags.json
+
+dep-lib-bytes
+lib-bytes
+lib-bytes.json
+
+build-script-build-script-build
+build-script-build-script-build.json
+
+dep-build-script-build-script-build
+
+lib-cfg_expr
+lib-cfg_expr.json
+
+.fingerprint/
+
+debug/
