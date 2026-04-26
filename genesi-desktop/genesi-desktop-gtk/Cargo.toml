@@ -1,0 +1,23 @@
+[package]
+name = "genesi-desktop-gtk"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+gtk4 = { version = "0.9", features = ["v4_12"] }
+glib = "0.20"
+gio = "0.20"
+gdk4 = "0.9"
+adw = { version = "0.7", package = "libadwaita", features = ["v1_5"] }
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tracing = "0.1"
+tracing-subscriber = "0.3"
+chrono = "0.4"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true

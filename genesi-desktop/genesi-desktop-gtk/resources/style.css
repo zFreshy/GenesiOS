@@ -1,0 +1,136 @@
+/* ============================================
+   Genesi OS - GTK4 Theme
+   Design moderno com gradientes e blur
+   ============================================ */
+
+/* Container Principal */
+.main-container {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+/* ============================================
+   PANEL (Barra Superior)
+   ============================================ */
+.panel {
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(20px);
+    -gtk-backdrop-filter: blur(20px);
+    padding: 5px 15px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.panel-button {
+    background: transparent;
+    border: none;
+    color: white;
+    font-size: 14px;
+    padding: 8px 16px;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.panel-button:hover {
+    background: rgba(255, 255, 255, 0.1);
+    transform: scale(1.05);
+}
+
+.logo-button {
+    font-weight: bold;
+    font-size: 16px;
+}
+
+.clock {
+    color: white;
+    font-size: 14px;
+    font-weight: 500;
+    font-family: "SF Pro Display", "Inter", sans-serif;
+}
+
+.system-tray {
+    spacing: 5px;
+}
+
+/* ============================================
+   DESKTOP (Área Central)
+   ============================================ */
+.desktop {
+    background: transparent;
+}
+
+.welcome-text {
+    color: white;
+    font-size: 48px;
+    font-weight: bold;
+    text-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    font-family: "SF Pro Display", "Inter", sans-serif;
+}
+
+/* ============================================
+   DOCK (Barra Inferior)
+   ============================================ */
+.dock {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(30px);
+    -gtk-backdrop-filter: blur(30px);
+    border-radius: 24px;
+    padding: 8px 16px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.dock-button {
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    color: white;
+    font-size: 32px;
+    min-width: 56px;
+    min-height: 56px;
+    border-radius: 16px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.dock-button:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: translateY(-8px) scale(1.1);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.4);
+}
+
+.dock-button:active {
+    transform: translateY(-4px) scale(1.05);
+}
+
+/* ============================================
+   ANIMAÇÕES
+   ============================================ */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.main-container {
+    animation: fadeIn 0.5s ease-out;
+}
+
+/* ============================================
+   SCROLLBARS
+   ============================================ */
+scrollbar {
+    background: transparent;
+}
+
+scrollbar slider {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 10px;
+    min-width: 8px;
+    min-height: 8px;
+}
+
+scrollbar slider:hover {
+    background: rgba(255, 255, 255, 0.5);
+}
