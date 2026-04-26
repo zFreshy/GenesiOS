@@ -1,6 +1,5 @@
 use gtk4::prelude::*;
-use gtk4::{Application, ApplicationWindow, Box, Orientation, CssProvider, StyleContext};
-use gdk4::Display;
+use gtk4::{Application, ApplicationWindow, Box, Orientation};
 
 use crate::components::{panel::Panel, dock::Dock, desktop::Desktop};
 use crate::config::load_css;

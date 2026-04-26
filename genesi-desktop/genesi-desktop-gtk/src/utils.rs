@@ -10,7 +10,8 @@ pub fn launch_app(command: &str) {
     }
 }
 
-/// Retorna lista de apps instalados
+/// Retorna lista de apps instalados (não usado por enquanto)
+#[allow(dead_code)]
 pub fn get_installed_apps() -> Vec<AppInfo> {
     vec![
         AppInfo {

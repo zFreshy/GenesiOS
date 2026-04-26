@@ -1,4 +1,4 @@
-use gtk4::{CssProvider, StyleContext};
+use gtk4::CssProvider;
 use gdk4::Display;
 
 pub fn load_css() {
@@ -14,14 +14,17 @@ pub fn load_css() {
     tracing::info!("🎨 CSS carregado com sucesso");
 }
 
+// Config struct (não usado por enquanto, mas pode ser útil no futuro)
+#[allow(dead_code)]
 pub struct Config {
     pub panel_height: i32,
     pub dock_height: i32,
     pub icon_size: i32,
 }
 
-impl Default for Config {
-    fn default() -> Self {
+#[allow(dead_code)]
+impl Config {
+    pub fn default() -> Self {
         Self {
             panel_height: 40,
             dock_height: 64,

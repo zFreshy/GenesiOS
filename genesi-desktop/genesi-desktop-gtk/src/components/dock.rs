@@ -1,6 +1,6 @@
 use gtk4::prelude::*;
 use gtk4::{Box, Button, Orientation};
-use crate::utils::{launch_app, get_installed_apps};
+use crate::utils::launch_app;
 
 pub struct Dock {
     container: Box,
