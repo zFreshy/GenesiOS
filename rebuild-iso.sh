@@ -187,6 +187,10 @@ XDG_PORTAL_PID=$!
 echo "xdg-desktop-portal PID: $XDG_PORTAL_PID" >> "$LOG_FILE"
 sleep 2
 
+# Configura GTK para Wayland
+export GDK_BACKEND=wayland
+export GTK_THEME=Adwaita:dark
+
 # Inicia Desktop diretamente no Sway
 echo "Starting Genesi Desktop on Sway..." >> "$LOG_FILE"
 echo "WAYLAND_DISPLAY=$WAYLAND_DISPLAY" >> "$LOG_FILE"
@@ -215,7 +219,9 @@ MOZ_ENABLE_WAYLAND=1 \
 WEBKIT_DISABLE_COMPOSITING_MODE=1 \
 WEBKIT_DISABLE_DMABUF_RENDERER=1 \
 NO_AT_BRIDGE=1 \
+GTK_THEME=Adwaita:dark \
 DISPLAY="" \
+RUST_BACKTRACE=1 \
 ./genesi-desktop >> "$LOG_FILE" 2>&1
 
 # Se o desktop fechar, mata tudo
