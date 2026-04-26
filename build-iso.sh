@@ -176,6 +176,9 @@ echo "genesi:genesi" | chpasswd
 echo "genesi ALL=(ALL) NOPASSWD: /usr/bin/weston" >> /etc/sudoers.d/genesi-weston
 chmod 440 /etc/sudoers.d/genesi-weston
 
+# Ativa NetworkManager para ter internet automática
+systemctl enable NetworkManager
+
 # Configura autologin
 mkdir -p /etc/systemd/system/getty@tty1.service.d
 cat > /etc/systemd/system/getty@tty1.service.d/autologin.conf << EOF
