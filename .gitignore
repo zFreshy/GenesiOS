@@ -42,3 +42,7 @@ lib-cfg_expr.json
 .fingerprint/
 
 debug/
+
+release/
+
+.rustc_info.json
