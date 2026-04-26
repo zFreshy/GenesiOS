@@ -1,45 +1,107 @@
 /* ============================================
-   Genesi OS - GTK4 Theme (Tauri Style)
-   Replicando design exato do Tauri
+   Genesi OS - GTK4 Theme (Tauri Style Exact)
    ============================================ */
 
-/* Container Principal - Gradiente azul/roxo igual ao Tauri */
+/* Container Principal - Wallpaper real */
 .main-container {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background-image: url('wallpaper.png');
+    background-size: cover;
+    background-position: center;
 }
 
 /* ============================================
-   PANEL (Barra Superior) - Estilo Tauri
+   PANEL (Barra Superior) - Estilo macOS
    ============================================ */
 .panel {
-    background: rgba(30, 30, 40, 0.85);
-    backdrop-filter: blur(20px);
-    -gtk-backdrop-filter: blur(20px);
-    padding: 0;
+    background: rgba(20, 20, 25, 0.85);
+    backdrop-filter: blur(30px);
+    -gtk-backdrop-filter: blur(30px);
+    padding: 4px 12px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.panel-logo-icon {
+/* Botão G (estilo macOS) */
+.g-button {
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
     color: white;
-    font-size: 20px;
+    font-size: 16px;
+    font-weight: 700;
+    min-width: 36px;
+    min-height: 32px;
+    padding: 0;
+    transition: all 0.2s ease;
 }
 
-.panel-logo-text {
-    color: white;
-    font-size: 15px;
-    font-weight: 600;
-    font-family: "Inter", "SF Pro Display", sans-serif;
+.g-button:hover {
+    background: rgba(255, 255, 255, 0.18);
+    transform: scale(1.05);
 }
 
-.clock {
-    color: rgba(255, 255, 255, 0.9);
-    font-size: 13px;
+/* Separador vertical */
+.panel-separator {
+    background: rgba(255, 255, 255, 0.15);
+    min-width: 1px;
+    min-height: 24px;
+    margin: 0 4px;
+}
+
+/* Ícones de apps no panel */
+.panel-app-icon {
+    background: transparent;
+    border: none;
+    color: white;
+    font-size: 18px;
+    min-width: 32px;
+    min-height: 32px;
+    border-radius: 8px;
+    padding: 0;
+    transition: all 0.2s ease;
+}
+
+.panel-app-icon:hover {
+    background: rgba(255, 255, 255, 0.12);
+    transform: scale(1.08);
+}
+
+/* System tray (direita) */
+.system-tray {
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 20px;
+    padding: 4px 12px;
+}
+
+.time-box {
+    spacing: 0;
+}
+
+.time-label {
+    color: rgba(255, 255, 255, 0.95);
+    font-size: 11px;
     font-weight: 500;
     font-family: "SF Mono", "Consolas", monospace;
 }
 
+.date-label {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 9px;
+    font-family: "SF Mono", "Consolas", monospace;
+}
+
+.system-icon {
+    color: white;
+    font-size: 14px;
+}
+
+.locale-label {
+    color: white;
+    font-size: 11px;
+    font-weight: 600;
+}
+
 /* ============================================
-   DESKTOP (Área Central) - Estilo Tauri
+   DESKTOP (Área Central)
    ============================================ */
 .desktop {
     background: transparent;
@@ -48,20 +110,20 @@
 .welcome-icon {
     color: white;
     font-size: 64px;
-    text-shadow: 0 4px 30px rgba(0, 0, 0, 0.4);
+    text-shadow: 0 4px 30px rgba(0, 0, 0, 0.6);
 }
 
 .welcome-text {
     color: white;
     font-size: 56px;
     font-weight: 300;
-    text-shadow: 0 4px 30px rgba(0, 0, 0, 0.4);
+    text-shadow: 0 4px 30px rgba(0, 0, 0, 0.6);
     font-family: "Inter", "SF Pro Display", sans-serif;
     letter-spacing: -1px;
 }
 
 /* ============================================
-   DOCK (Barra Inferior) - Estilo Tauri
+   DOCK (Barra Inferior)
    ============================================ */
 .dock {
     background: rgba(30, 30, 40, 0.7);
