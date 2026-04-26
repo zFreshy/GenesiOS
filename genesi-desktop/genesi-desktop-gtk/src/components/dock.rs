@@ -1,5 +1,5 @@
 use gtk4::prelude::*;
-use gtk4::{Box, Button, Label, Orientation, Separator};
+use gtk4::{Box, Button, Label, Orientation};
 use crate::utils::launch_app;
 use chrono::Local;
 use glib;
