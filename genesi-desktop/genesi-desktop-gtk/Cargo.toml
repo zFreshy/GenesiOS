@@ -4,11 +4,10 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-gtk4 = { version = "0.9", features = ["v4_12"] }
+gtk4 = "0.9"
 glib = "0.20"
 gio = "0.20"
 gdk4 = "0.9"
-adw = { version = "0.7", package = "libadwaita", features = ["v1_5"] }
 tokio = { version = "1", features = ["full"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
