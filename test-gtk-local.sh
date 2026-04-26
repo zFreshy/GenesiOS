@@ -39,9 +39,45 @@ echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
-# Configura variáveis de ambiente
-export GDK_BACKEND=x11  # Usa X11 para teste local (mais compatível)
-export RUST_BACKTRACE=1
+# Detecta qual display usar
+if [ -z "$DISPLAY" ]; then
+    echo "⚠️  DISPLAY não configurado, tentando :0"
+    export DISPLAY=:0
+fi
 
-# Roda o desktop
-./target/release/genesi-desktop-gtk
+# Configura variáveis de ambiente para GTK4
+export GDK_BACKEND=x11  # Força X11 (mais compatível que Wayland para teste)
+export RUST_BACKTRACE=1
+export GTK_A11Y=none  # Desabilita acessibilidade (evita warnings)
+
+# Desabilita portal do Flatpak (não necessário para teste local)
+export GTK_USE_PORTAL=0
+
+echo "🔧 Configurações:"
+echo "   DISPLAY=$DISPLAY"
+echo "   GDK_BACKEND=$GDK_BACKEND"
+echo ""
+
+# Tenta rodar o desktop
+if ! ./target/release/genesi-desktop-gtk 2>&1; then
+    echo ""
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "❌ Erro ao iniciar!"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+    echo "Possíveis soluções:"
+    echo ""
+    echo "1. Se estiver via SSH:"
+    echo "   export DISPLAY=:0"
+    echo "   xhost +local:"
+    echo "   ./test-gtk-local.sh"
+    echo ""
+    echo "2. Se estiver no terminal do GNOME:"
+    echo "   Abra o terminal gráfico (não SSH)"
+    echo "   ./test-gtk-local.sh"
+    echo ""
+    echo "3. Verificar se X11 está rodando:"
+    echo "   echo \$DISPLAY"
+    echo "   ps aux | grep X"
+    echo ""
+fi
