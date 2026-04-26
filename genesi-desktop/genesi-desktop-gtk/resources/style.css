@@ -10,9 +10,7 @@
 
 /* Container Principal - Wallpaper real */
 .main-container {
-    background-image: url('wallpaper1.png'); /* You can update to Unsplash if you want, but local is fine */
-    background-size: cover;
-    background-position: center;
+    background-color: #1a1a1a;
 }
 
 /* ============================================
