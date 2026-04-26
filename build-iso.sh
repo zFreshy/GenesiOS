@@ -230,34 +230,27 @@ source ~/.cargo/env
 cd ~/GenesiOS/genesi-desktop/genesi-wm
 echo "  → Compilando Window Manager..."
 cargo build --release 2>&1 | tee /tmp/wm-build.log || { echo "ERRO WM"; exit 1; }
-cd ~/GenesiOS/genesi-desktop
-echo "  → Instalando dependências npm..."
-npm install 2>&1 | tee /tmp/npm-install.log || { echo "ERRO NPM INSTALL"; exit 1; }
-echo "  → Buildando frontend..."
-npm run build 2>&1 | tee /tmp/npm-build.log || { echo "ERRO NPM BUILD"; exit 1; }
-cd src-tauri
-echo "  → Compilando Tauri (sem bundling)..."
-cargo build --release 2>&1 | tee /tmp/tauri-build.log || { echo "ERRO TAURI"; exit 1; }
+cd ~/GenesiOS/genesi-desktop/genesi-desktop-gtk
+echo "  → Compilando Desktop GTK4..."
+cargo build --release 2>&1 | tee /tmp/gtk-build.log || { echo "ERRO GTK"; exit 1; }
 ' || {
     echo ""
     echo "❌ ERRO na compilação!"
     echo ""
     echo "Logs disponíveis no chroot:"
     echo "  - /tmp/wm-build.log"
-    echo "  - /tmp/npm-install.log"
-    echo "  - /tmp/npm-build.log"
-    echo "  - /tmp/tauri-build.log"
+    echo "  - /tmp/gtk-build.log"
     echo ""
     echo "Para ver os logs:"
-    echo "  sudo chroot $WORK_DIR/chroot cat /tmp/wm-build.log"
+    echo "  sudo chroot $WORK_DIR/chroot cat /tmp/gtk-build.log"
     echo ""
     exit 1
 }
 
 # Verifica se a compilação foi bem-sucedida
-if [ ! -f "chroot/home/genesi/GenesiOS/genesi-desktop/src-tauri/target/release/genesi-desktop" ]; then
-    echo "❌ ERRO: Falha na compilação do Genesi Desktop"
-    echo "   Verifique: sudo chroot $WORK_DIR/chroot cat /tmp/tauri-build.log"
+if [ ! -f "chroot/home/genesi/GenesiOS/genesi-desktop/genesi-desktop-gtk/target/release/genesi-desktop-gtk" ]; then
+    echo "❌ ERRO: Falha na compilação do Genesi Desktop GTK4"
+    echo "   Verifique: sudo chroot $WORK_DIR/chroot cat /tmp/gtk-build.log"
     exit 1
 fi
 
@@ -370,22 +363,22 @@ export GDK_BACKEND=wayland
 export GTK_THEME=Adwaita:dark
 
 # Inicia Desktop diretamente no Sway
-echo "Starting Genesi Desktop on Sway..." >> "$LOG_FILE"
+echo "Starting Genesi Desktop (GTK4) on Sway..." >> "$LOG_FILE"
 echo "WAYLAND_DISPLAY=$WAYLAND_DISPLAY" >> "$LOG_FILE"
 echo "XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR" >> "$LOG_FILE"
 
-cd /home/genesi/GenesiOS/genesi-desktop/src-tauri/target/release
+cd /home/genesi/GenesiOS/genesi-desktop/genesi-desktop-gtk/target/release
 
 # Verifica se o binário existe
-if [ ! -f "./genesi-desktop" ]; then
-    echo "ERROR: genesi-desktop binary not found!" >> "$LOG_FILE"
+if [ ! -f "./genesi-desktop-gtk" ]; then
+    echo "ERROR: genesi-desktop-gtk binary not found!" >> "$LOG_FILE"
     cat "$LOG_FILE"
     kill $SWAY_PID 2>/dev/null
     exec /bin/bash
     exit 1
 fi
 
-# Roda o desktop diretamente no Sway
+# Roda o desktop GTK4 diretamente no Sway
 WAYLAND_DISPLAY=$WAYLAND_DISPLAY \
 XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR \
 DBUS_SESSION_BUS_ADDRESS=$DBUS_SESSION_BUS_ADDRESS \
@@ -394,13 +387,10 @@ QT_QPA_PLATFORM=wayland \
 SDL_VIDEODRIVER=wayland \
 CLUTTER_BACKEND=wayland \
 MOZ_ENABLE_WAYLAND=1 \
-WEBKIT_DISABLE_COMPOSITING_MODE=1 \
-WEBKIT_DISABLE_DMABUF_RENDERER=1 \
-NO_AT_BRIDGE=1 \
 GTK_THEME=Adwaita:dark \
 DISPLAY="" \
 RUST_BACKTRACE=1 \
-./genesi-desktop >> "$LOG_FILE" 2>&1
+./genesi-desktop-gtk >> "$LOG_FILE" 2>&1
 
 # Se o desktop fechar, mata tudo
 echo "Desktop closed, cleaning up..." >> "$LOG_FILE"
