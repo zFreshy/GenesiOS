@@ -19,3 +19,5 @@ src-tauri/target/
 genesi-wm/target
 
 example/
+
+genesi-desktop-gtk/target/*
