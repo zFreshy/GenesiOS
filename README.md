@@ -2,6 +2,36 @@
 
 Sistema operacional baseado em Linux com interface desktop moderna usando Wayland.
 
+---
+
+## 🚨 ATUALIZAÇÃO IMPORTANTE - Solução WM Crash
+
+O Genesi WM estava crashando com erro `EventLoopCreation`. 
+
+**✅ SOLUÇÃO IMPLEMENTADA**: Removemos o WM e rodamos o Desktop diretamente no Sway.
+
+### 🚀 Para Testar AGORA
+
+```bash
+cd ~/GenesiOS
+sudo bash rebuild-iso.sh
+```
+
+### 📚 Documentação da Solução
+
+- **[QUICK-START.md](QUICK-START.md)** ⚡ Início rápido
+- **[RESUMAO.md](RESUMAO.md)** 📝 Resumo direto
+- **[TESTE-RAPIDO.md](TESTE-RAPIDO.md)** 📖 Instruções detalhadas
+- **[CHECKLIST-TESTE.md](CHECKLIST-TESTE.md)** ✅ Passo a passo
+- **[INDICE-DOCUMENTACAO.md](INDICE-DOCUMENTACAO.md)** 📚 Índice completo
+
+### 🔧 Ferramentas de Diagnóstico
+
+- **[diagnostico-sway.sh](diagnostico-sway.sh)** - Script de diagnóstico automático
+- **[COMANDOS-UTEIS.md](COMANDOS-UTEIS.md)** - Comandos para debugging
+
+---
+
 ## 🚀 Início Rápido
 
 ### Desenvolvimento (WSL/VM Ubuntu)

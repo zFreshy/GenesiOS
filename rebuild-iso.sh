@@ -113,15 +113,36 @@ chmod 700 "$XDG_RUNTIME_DIR"
 LOG_FILE="/tmp/genesi-startup.log"
 echo "=== Genesi OS Startup $(date) ===" > "$LOG_FILE"
 
-echo "Starting Sway (Base Wayland Compositor)..." >> "$LOG_FILE"
+echo "Starting Sway (Wayland Compositor)..." >> "$LOG_FILE"
 
-# Inicia Sway (mais simples que Weston, não precisa de permissões especiais)
+# Configura Sway para não mostrar barra de status
+mkdir -p ~/.config/sway
+cat > ~/.config/sway/config << 'SWAYEOF'
+# Genesi OS - Sway Configuration
+# Remove barra de status e decorações
+bar {
+    mode invisible
+}
+
+# Remove bordas das janelas
+default_border none
+default_floating_border none
+
+# Sem gaps
+gaps inner 0
+gaps outer 0
+
+# Foco segue o mouse
+focus_follows_mouse yes
+SWAYEOF
+
+# Inicia Sway
 sway >> "$LOG_FILE" 2>&1 &
 SWAY_PID=$!
 echo "Sway PID: $SWAY_PID" >> "$LOG_FILE"
 
 # Aguarda Sway criar o socket
-sleep 5
+sleep 3
 
 # Verifica se Sway está rodando
 if ! kill -0 $SWAY_PID 2>/dev/null; then
@@ -140,6 +161,7 @@ elif [ -S "$XDG_RUNTIME_DIR/wayland-1" ]; then
     export WAYLAND_DISPLAY=wayland-1
 else
     echo "ERROR: Sway socket not found!" >> "$LOG_FILE"
+    ls -la "$XDG_RUNTIME_DIR/" >> "$LOG_FILE"
     cat "$LOG_FILE"
     kill $SWAY_PID 2>/dev/null
     exec /bin/bash
@@ -148,46 +170,12 @@ fi
 
 echo "Sway started successfully on $WAYLAND_DISPLAY" >> "$LOG_FILE"
 
-echo "Starting Genesi WM (Window Manager)..." >> "$LOG_FILE"
-
-# Genesi WM roda DENTRO do Weston e cria wayland-1 para os apps
-cd /home/genesi/GenesiOS/genesi-desktop/genesi-wm
-WAYLAND_DISPLAY=wayland-0 ./target/release/genesi-wm >> "$LOG_FILE" 2>&1 &
-WM_PID=$!
-echo "WM PID: $WM_PID" >> "$LOG_FILE"
-
-# Aguarda WM criar seu socket
-sleep 5
-
-# Verifica se WM está rodando
-if ! kill -0 $WM_PID 2>/dev/null; then
-    echo "ERROR: WM crashed!" >> "$LOG_FILE"
-    cat "$LOG_FILE"
-    echo ""
-    echo "WM failed to start. Check log above."
-    kill $WESTON_PID 2>/dev/null
-    exec /bin/bash
-    exit 1
-fi
-
-# WM cria wayland-1
-if [ ! -S "$XDG_RUNTIME_DIR/wayland-1" ]; then
-    echo "ERROR: WM socket not found!" >> "$LOG_FILE"
-    cat "$LOG_FILE"
-    kill $WM_PID 2>/dev/null
-    kill $WESTON_PID 2>/dev/null
-    exec /bin/bash
-    exit 1
-fi
-
-echo "WM started successfully on wayland-1" >> "$LOG_FILE"
-
-# Aguarda mais um pouco
+# Aguarda mais um pouco para Sway estabilizar
 sleep 2
 
-# Inicia Desktop conectando ao WM (wayland-1)
-echo "Starting Genesi Desktop..." >> "$LOG_FILE"
-echo "WAYLAND_DISPLAY=wayland-1" >> "$LOG_FILE"
+# Inicia Desktop diretamente no Sway
+echo "Starting Genesi Desktop on Sway..." >> "$LOG_FILE"
+echo "WAYLAND_DISPLAY=$WAYLAND_DISPLAY" >> "$LOG_FILE"
 echo "XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR" >> "$LOG_FILE"
 
 cd /home/genesi/GenesiOS/genesi-desktop/src-tauri/target/release
@@ -196,14 +184,13 @@ cd /home/genesi/GenesiOS/genesi-desktop/src-tauri/target/release
 if [ ! -f "./genesi-desktop" ]; then
     echo "ERROR: genesi-desktop binary not found!" >> "$LOG_FILE"
     cat "$LOG_FILE"
-    kill $WM_PID 2>/dev/null
-    kill $WESTON_PID 2>/dev/null
+    kill $SWAY_PID 2>/dev/null
     exec /bin/bash
     exit 1
 fi
 
-# Roda o desktop conectando ao Genesi WM (wayland-1)
-WAYLAND_DISPLAY=wayland-1 \
+# Roda o desktop diretamente no Sway
+WAYLAND_DISPLAY=$WAYLAND_DISPLAY \
 XDG_RUNTIME_DIR=$XDG_RUNTIME_DIR \
 GDK_BACKEND=wayland \
 QT_QPA_PLATFORM=wayland \
@@ -215,7 +202,6 @@ DISPLAY="" \
 
 # Se o desktop fechar, mata tudo
 echo "Desktop closed, cleaning up..." >> "$LOG_FILE"
-kill $WM_PID 2>/dev/null
 kill $SWAY_PID 2>/dev/null
 
 # Mostra log e abre shell
