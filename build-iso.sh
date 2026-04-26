@@ -153,6 +153,8 @@ apt install -y \
 apt install -y \
     libwebkit2gtk-4.1-dev \
     libgtk-3-dev \
+    libgtk-4-1 \
+    libgtk-4-dev \
     libayatana-appindicator3-dev \
     librsvg2-dev \
     libjavascriptcoregtk-4.1-dev \
