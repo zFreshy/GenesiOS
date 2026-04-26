@@ -82,34 +82,38 @@ impl Desktop {
             let drop_target = DropTarget::new(Type::STRING, gdk4::DragAction::MOVE);
             drop_target.connect_drop(move |target, value, _x, _y| {
                 if let Ok(dragged_name) = value.get::<String>() {
-                    let parent = target.widget().parent().and_then(|p| p.parent());
-                    if let Some(flowbox_parent) = parent.and_then(|p| p.downcast::<FlowBox>().ok()) {
-                        // Find indices
-                        let mut dragged_idx = -1;
-                        let mut target_idx = -1;
-                        let mut current_idx = 0;
-                        
-                        while let Some(child) = flowbox_parent.child_at_index(current_idx) {
-                            if let Some(box_child) = child.child().and_then(|c| c.downcast::<Box>().ok()) {
-                                if let Some(lbl) = box_child.last_child().and_then(|c| c.downcast::<Label>().ok()) {
-                                    let text = lbl.text().to_string();
-                                    if text == dragged_name { dragged_idx = current_idx; }
-                                    if text == name { target_idx = current_idx; }
-                                }
-                            }
-                            current_idx += 1;
-                        }
+                    if let Some(widget) = target.widget() {
+                        if let Some(parent) = widget.parent() {
+                            if let Some(grandparent) = parent.parent() {
+                                if let Ok(flowbox_parent) = grandparent.downcast::<FlowBox>() {
+                                    // Find indices
+                                    let mut dragged_idx = -1;
+                                    let mut target_idx = -1;
+                                    let mut current_idx = 0;
+                                    
+                                    while let Some(child) = flowbox_parent.child_at_index(current_idx) {
+                                        if let Some(child_widget) = child.child() {
+                                            if let Ok(box_child) = child_widget.downcast::<Box>() {
+                                                if let Some(last_child_widget) = box_child.last_child() {
+                                                    if let Ok(lbl) = last_child_widget.downcast::<Label>() {
+                                                        let text = lbl.text().to_string();
+                                                        if text == dragged_name { dragged_idx = current_idx; }
+                                                        if text == name { target_idx = current_idx; }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        current_idx += 1;
+                                    }
 
-                        if dragged_idx != -1 && target_idx != -1 && dragged_idx != target_idx {
-                            if let Some(dragged_child) = flowbox_parent.child_at_index(dragged_idx) {
-                                // We can change the sort order dynamically, or just remove and insert.
-                                // FlowBox has no insert_child, but insert() wraps the widget in a child.
-                                // To move it, we can extract the inner widget, remove the child, and re-insert the inner widget.
-                                if let Some(inner_box) = dragged_child.child() {
-                                    // Remove the FlowBoxChild wrapper
-                                    flowbox_parent.remove(&dragged_child);
-                                    // Re-insert the inner box at the target index
-                                    flowbox_parent.insert(&inner_box, target_idx);
+                                    if dragged_idx != -1 && target_idx != -1 && dragged_idx != target_idx {
+                                        if let Some(dragged_child) = flowbox_parent.child_at_index(dragged_idx) {
+                                            if let Some(inner_box) = dragged_child.child() {
+                                                flowbox_parent.remove(&dragged_child);
+                                                flowbox_parent.insert(&inner_box, target_idx);
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
