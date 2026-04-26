@@ -16,24 +16,114 @@
 }
 
 /* ============================================
-   DESKTOP (Área Central)
+   FILE EXPLORER
    ============================================ */
+.file-explorer-window {
+    background: #1e1e1e;
+    color: #ffffff;
+}
+
+.file-explorer-sidebar {
+    background: rgba(0, 0, 0, 0.2);
+    padding: 16px;
+}
+
+.sidebar-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: #888888;
+    margin-bottom: 12px;
+    text-transform: uppercase;
+}
+
+.sidebar-btn {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    color: #e0e0e0;
+    padding: 8px 12px;
+    border-radius: 6px;
+}
+
+.sidebar-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.file-explorer-content {
+    background: transparent;
+}
+
+.file-explorer-topbar {
+    padding: 12px 20px;
+    background: rgba(0, 0, 0, 0.1);
+}
+
+.topbar-btn {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: white;
+    border-radius: 6px;
+}
+
+.path-label {
+    color: #aaaaaa;
+    font-size: 14px;
+    margin-left: 12px;
+}
+
+.file-item {
+    padding: 12px;
+    border-radius: 8px;
+    transition: all 0.2s;
+}
+
+.file-item:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.file-icon {
+    font-size: 48px;
+    margin-bottom: 8px;
+}
+
+.file-name {
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: 500;
+}
 .desktop {
     background: transparent;
 }
 
-.welcome-icon {
-    color: white;
-    font-size: 64px;
-    text-shadow: 0 4px 30px rgba(0, 0, 0, 0.6);
+.desktop-icon-item {
+    padding: 8px;
+    border-radius: 8px;
+    transition: all 0.2s ease;
 }
 
-.welcome-text {
+.desktop-icon-item:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.desktop-icon-btn {
+    background: transparent;
+    border: none;
+    font-size: 32px;
+    padding: 0;
+    box-shadow: none;
     color: white;
-    font-size: 56px;
-    font-weight: 300;
-    text-shadow: 0 4px 30px rgba(0, 0, 0, 0.6);
-    letter-spacing: -1px;
+}
+
+.desktop-icon-btn:hover {
+    background: transparent;
+    box-shadow: none;
+}
+
+.desktop-icon-label {
+    color: white;
+    font-size: 13px;
+    font-weight: 500;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
 }
 
 /* ============================================

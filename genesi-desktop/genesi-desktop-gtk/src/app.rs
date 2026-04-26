@@ -25,7 +25,7 @@ pub fn build_ui(app: &Application) {
     overlay.add_css_class("main-container");
 
     // Desktop ao fundo
-    let desktop = Desktop::new();
+    let desktop = Desktop::new(app);
     overlay.set_child(Some(&desktop.widget()));
 
     // Dock (Taskbar) flutuante
