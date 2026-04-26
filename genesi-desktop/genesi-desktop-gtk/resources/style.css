@@ -2,35 +2,17 @@
    Genesi OS - GTK4 Theme (Tauri Style Exact)
    ============================================ */
 
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+* {
+    font-family: 'Inter', -apple-system, sans-serif;
+}
+
 /* Container Principal - Wallpaper real */
 .main-container {
-    background-image: url('wallpaper.png');
+    background-image: url('wallpaper.png'); /* You can update to Unsplash if you want, but local is fine */
     background-size: cover;
     background-position: center;
-}
-
-/* ============================================
-   PANEL (Barra Superior) - Simples
-   ============================================ */
-.panel {
-    background: rgba(20, 20, 25, 0.75);
-    backdrop-filter: blur(20px);
-    -gtk-backdrop-filter: blur(20px);
-    padding: 0;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.panel-logo {
-    color: white;
-    font-size: 14px;
-    font-weight: 600;
-}
-
-.panel-clock {
-    color: rgba(255, 255, 255, 0.85);
-    font-size: 12px;
-    font-weight: 500;
-    font-family: "SF Mono", "Consolas", monospace;
 }
 
 /* ============================================
@@ -51,107 +33,109 @@
     font-size: 56px;
     font-weight: 300;
     text-shadow: 0 4px 30px rgba(0, 0, 0, 0.6);
-    font-family: "Inter", "SF Pro Display", sans-serif;
     letter-spacing: -1px;
 }
 
 /* ============================================
-   DOCK (Barra Inferior) - Estilo macOS Completo
+   TASKBAR (Barra Inferior) - Estilo Tauri
    ============================================ */
-.dock {
-    background: rgba(20, 20, 25, 0.85);
-    backdrop-filter: blur(40px);
-    -gtk-backdrop-filter: blur(40px);
-    border-radius: 16px;
-    padding: 6px 12px;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+.taskbar {
+    background: rgba(30, 30, 30, 0.4);
+    backdrop-filter: blur(25px);
+    -gtk-backdrop-filter: blur(25px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+    border-radius: 30px;
+    padding: 0 20px;
+    margin: 0 20px;
 }
 
-/* Botão G no dock */
-.dock-g-button {
-    background: rgba(255, 255, 255, 0.15);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 10px;
+/* Botão G na taskbar */
+.start-btn {
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
     color: white;
     font-size: 18px;
     font-weight: 700;
-    min-width: 44px;
-    min-height: 44px;
+    min-width: 40px;
+    min-height: 40px;
+    border-radius: 20px; /* 50% */
     padding: 0;
     transition: all 0.2s ease;
 }
 
-.dock-g-button:hover {
-    background: rgba(255, 255, 255, 0.22);
-    transform: scale(1.08);
+.start-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
 }
 
-/* Separador no dock */
-.dock-separator {
-    background: rgba(255, 255, 255, 0.18);
+/* Separador na taskbar */
+.taskbar-separator {
+    background: rgba(255, 255, 255, 0.2);
     min-width: 1px;
-    min-height: 40px;
-    margin: 0 6px;
+    min-height: 24px;
+    margin: 0 8px;
 }
 
-/* Botões de apps no dock */
-.dock-app-button {
-    background: rgba(255, 255, 255, 0.08);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+/* Botões de apps na taskbar */
+.taskbar-icon {
+    background: transparent;
+    border: none;
     color: white;
-    font-size: 32px;
-    min-width: 56px;
-    min-height: 56px;
-    border-radius: 14px;
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.dock-app-button:hover {
-    background: rgba(255, 255, 255, 0.18);
-    transform: translateY(-8px) scale(1.12);
-    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.5);
-    border: 1px solid rgba(255, 255, 255, 0.25);
-}
-
-.dock-app-button:active {
-    transform: translateY(-4px) scale(1.06);
-}
-
-/* System tray no dock */
-.dock-system-tray {
-    background: rgba(255, 255, 255, 0.1);
+    font-size: 22px;
+    min-width: 40px;
+    min-height: 40px;
     border-radius: 12px;
-    padding: 6px 12px;
-    margin-left: 8px;
+    padding: 0;
+    transition: all 0.2s ease;
 }
 
-.dock-time-box {
-    spacing: 0;
+.taskbar-icon:hover {
+    background: rgba(255, 255, 255, 0.15);
 }
 
-.dock-time-label {
-    color: rgba(255, 255, 255, 0.95);
+/* Tray System */
+.taskbar-clock-box {
+    margin-right: 12px;
+}
+
+.taskbar-time {
+    color: white;
     font-size: 11px;
     font-weight: 600;
-    font-family: "SF Mono", "Consolas", monospace;
+    text-align: right;
 }
 
-.dock-date-label {
+.taskbar-date {
     color: rgba(255, 255, 255, 0.7);
-    font-size: 9px;
-    font-family: "SF Mono", "Consolas", monospace;
-}
-
-.dock-system-icon {
-    color: white;
-    font-size: 16px;
-}
-
-.dock-locale-label {
-    color: white;
     font-size: 11px;
-    font-weight: 700;
+    text-align: right;
+}
+
+.system-tray {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    padding: 6px 12px;
+    color: white;
+    font-size: 14px;
+}
+
+.font-medium {
+    font-weight: 500;
+    font-size: 12px;
+    margin-left: 4px;
+}
+
+/* Show Desktop Separator */
+.show-desktop-separator {
+    background: rgba(255, 255, 255, 0.2);
+    min-width: 1px;
+    min-height: 24px;
+    margin-left: 12px;
+    transition: all 0.2s ease;
+}
+
+.show-desktop-separator:hover {
+    background: rgba(255, 255, 255, 0.4);
 }
 
 /* ============================================
@@ -170,22 +154,4 @@
 
 .main-container {
     animation: fadeIn 0.6s ease-out;
-}
-
-/* ============================================
-   SCROLLBARS
-   ============================================ */
-scrollbar {
-    background: transparent;
-}
-
-scrollbar slider {
-    background: rgba(255, 255, 255, 0.25);
-    border-radius: 10px;
-    min-width: 6px;
-    min-height: 6px;
-}
-
-scrollbar slider:hover {
-    background: rgba(255, 255, 255, 0.4);
 }
