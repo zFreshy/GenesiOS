@@ -93,26 +93,20 @@ impl Desktop {
         // Drag gesture para arrastar
         let drag = GestureDrag::new();
         let start_pos = Rc::new(RefCell::new((init_x, init_y)));
-        let current_pos = Rc::new(RefCell::new((init_x, init_y)));
 
         let start_pos_clone = start_pos.clone();
-        drag.connect_drag_begin(move |_, x, y| {
-            let pos = *current_pos.borrow();
-            *start_pos_clone.borrow_mut() = (pos.0 + x, pos.1 + y);
+        drag.connect_drag_begin(move |_, _, _| {
+            // Apenas marca o início do drag
         });
 
         let container_clone = container.clone();
         let item_box_clone = item_box.clone();
         let start_pos_clone2 = start_pos.clone();
-        let current_pos_clone = current_pos.clone();
         
         drag.connect_drag_update(move |_, offset_x, offset_y| {
             let start = *start_pos_clone2.borrow();
             let new_x = start.0 + offset_x;
             let new_y = start.1 + offset_y;
-            
-            // Atualiza posição temporária
-            *current_pos_clone.borrow_mut() = (new_x, new_y);
             
             // Move o widget
             container_clone.move_(&item_box_clone, new_x, new_y);
@@ -120,7 +114,6 @@ impl Desktop {
 
         let container_clone2 = container.clone();
         let item_box_clone2 = item_box.clone();
-        let current_pos_clone = current_pos.clone();
         let start_pos_clone3 = start_pos.clone();
         
         drag.connect_drag_end(move |_, offset_x, offset_y| {
@@ -136,8 +129,8 @@ impl Desktop {
             let final_x = snapped_x.max(20.0);
             let final_y = snapped_y.max(20.0);
             
-            // Atualiza posição
-            *current_pos_clone.borrow_mut() = (final_x, final_y);
+            // Atualiza posição inicial para próximo drag
+            *start_pos_clone3.borrow_mut() = (final_x, final_y);
             
             // Move para posição final (snapped)
             container_clone2.move_(&item_box_clone2, final_x, final_y);
