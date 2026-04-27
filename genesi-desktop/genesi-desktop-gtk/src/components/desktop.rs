@@ -1,5 +1,5 @@
 use gtk4::prelude::*;
-use gtk4::{Application, Box, Button, Label, Orientation, Fixed, GestureDrag, GestureClick, Image};
+use gtk4::{Application, Box, Button, Label, Orientation, Fixed, GestureClick, Image};
 use crate::utils::launch_app;
 use crate::components::file_explorer::FileExplorer;
 use std::cell::RefCell;
@@ -90,65 +90,96 @@ impl Desktop {
         });
         btn.add_controller(click);
 
-        // Drag gesture para arrastar
-        let drag = GestureDrag::new();
+        // Drag com eventos de mouse (mais preciso que GestureDrag)
+        let drag_controller = gtk4::EventControllerMotion::new();
+        let click_controller = gtk4::GestureClick::new();
+        click_controller.set_button(1); // Botão esquerdo
+        
+        let is_dragging = Rc::new(RefCell::new(false));
+        let drag_start_x = Rc::new(RefCell::new(0.0));
+        let drag_start_y = Rc::new(RefCell::new(0.0));
         let widget_start_x = Rc::new(RefCell::new(init_x));
         let widget_start_y = Rc::new(RefCell::new(init_y));
 
-        let widget_start_x_clone = widget_start_x.clone();
-        let widget_start_y_clone = widget_start_y.clone();
+        // Mouse down - inicia drag
+        let is_dragging_clone = is_dragging.clone();
+        let drag_start_x_clone = drag_start_x.clone();
+        let drag_start_y_clone = drag_start_y.clone();
         
-        drag.connect_drag_begin(move |_, _, _| {
-            // Salva posição atual do widget no início do drag
+        click_controller.connect_pressed(move |_, _, x, y| {
+            *is_dragging_clone.borrow_mut() = true;
+            *drag_start_x_clone.borrow_mut() = x;
+            *drag_start_y_clone.borrow_mut() = y;
         });
 
+        // Mouse up - termina drag
+        let is_dragging_clone2 = is_dragging.clone();
         let container_clone = container.clone();
         let item_box_clone = item_box.clone();
-        let widget_start_x_clone2 = widget_start_x.clone();
-        let widget_start_y_clone2 = widget_start_y.clone();
+        let widget_start_x_clone = widget_start_x.clone();
+        let widget_start_y_clone = widget_start_y.clone();
+        let drag_start_x_clone2 = drag_start_x.clone();
+        let drag_start_y_clone2 = drag_start_y.clone();
         
-        drag.connect_drag_update(move |_, offset_x, offset_y| {
-            let start_x = *widget_start_x_clone2.borrow();
-            let start_y = *widget_start_y_clone2.borrow();
-            
-            // Move o widget seguindo o mouse EXATAMENTE (sem snap durante o drag)
-            let new_x = start_x + offset_x;
-            let new_y = start_y + offset_y;
-            
-            container_clone.move_(&item_box_clone, new_x, new_y);
+        click_controller.connect_released(move |_, _, x, y| {
+            if *is_dragging_clone2.borrow() {
+                *is_dragging_clone2.borrow_mut() = false;
+                
+                let start_x = *widget_start_x_clone.borrow();
+                let start_y = *widget_start_y_clone.borrow();
+                let drag_x = *drag_start_x_clone2.borrow();
+                let drag_y = *drag_start_y_clone2.borrow();
+                
+                let offset_x = x - drag_x;
+                let offset_y = y - drag_y;
+                
+                let new_x = start_x + offset_x;
+                let new_y = start_y + offset_y;
+                
+                // Snap to grid
+                let snapped_x = (new_x / GRID_SIZE).round() * GRID_SIZE;
+                let snapped_y = (new_y / GRID_SIZE).round() * GRID_SIZE;
+                
+                let final_x = snapped_x.max(0.0).min(1100.0);
+                let final_y = snapped_y.max(0.0).min(600.0);
+                
+                *widget_start_x_clone.borrow_mut() = final_x;
+                *widget_start_y_clone.borrow_mut() = final_y;
+                
+                container_clone.move_(&item_box_clone, final_x, final_y);
+                
+                tracing::info!("📍 Ícone movido para: ({}, {})", final_x, final_y);
+            }
         });
 
+        // Mouse move - arrasta
+        let is_dragging_clone3 = is_dragging.clone();
         let container_clone2 = container.clone();
         let item_box_clone2 = item_box.clone();
-        let widget_start_x_clone3 = widget_start_x.clone();
-        let widget_start_y_clone3 = widget_start_y.clone();
+        let widget_start_x_clone2 = widget_start_x.clone();
+        let widget_start_y_clone2 = widget_start_y.clone();
+        let drag_start_x_clone3 = drag_start_x.clone();
+        let drag_start_y_clone3 = drag_start_y.clone();
         
-        drag.connect_drag_end(move |_, offset_x, offset_y| {
-            let start_x = *widget_start_x_clone3.borrow();
-            let start_y = *widget_start_y_clone3.borrow();
-            
-            let new_x = start_x + offset_x;
-            let new_y = start_y + offset_y;
-            
-            // Snap to grid APENAS ao soltar
-            let snapped_x = (new_x / GRID_SIZE).round() * GRID_SIZE;
-            let snapped_y = (new_y / GRID_SIZE).round() * GRID_SIZE;
-            
-            // Garante que não sai da tela
-            let final_x = snapped_x.max(0.0).min(1100.0);
-            let final_y = snapped_y.max(0.0).min(600.0);
-            
-            // Salva nova posição para próximo drag
-            *widget_start_x_clone3.borrow_mut() = final_x;
-            *widget_start_y_clone3.borrow_mut() = final_y;
-            
-            // Move para posição final (snapped)
-            container_clone2.move_(&item_box_clone2, final_x, final_y);
-            
-            tracing::info!("📍 Ícone movido para: ({}, {})", final_x, final_y);
+        drag_controller.connect_motion(move |_, x, y| {
+            if *is_dragging_clone3.borrow() {
+                let start_x = *widget_start_x_clone2.borrow();
+                let start_y = *widget_start_y_clone2.borrow();
+                let drag_x = *drag_start_x_clone3.borrow();
+                let drag_y = *drag_start_y_clone3.borrow();
+                
+                let offset_x = x - drag_x;
+                let offset_y = y - drag_y;
+                
+                let new_x = start_x + offset_x;
+                let new_y = start_y + offset_y;
+                
+                container_clone2.move_(&item_box_clone2, new_x, new_y);
+            }
         });
 
-        item_box.add_controller(drag);
+        item_box.add_controller(drag_controller);
+        item_box.add_controller(click_controller);
 
         item_box
     }
