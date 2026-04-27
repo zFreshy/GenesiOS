@@ -1,0 +1,63 @@
+* {
+    border: none;
+    border-radius: 0;
+    font-family: "Hack", "Font Awesome 6 Free";
+    font-size: 13px;
+    min-height: 0;
+}
+
+window#waybar {
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.95) 0%, rgba(118, 75, 162, 0.95) 100%);
+    color: #ffffff;
+}
+
+#custom-logo {
+    padding: 0 15px;
+    font-weight: bold;
+    font-size: 14px;
+}
+
+#workspaces button {
+    padding: 0 10px;
+    color: rgba(255, 255, 255, 0.7);
+    background: transparent;
+    border-bottom: 2px solid transparent;
+}
+
+#workspaces button.active {
+    color: #ffffff;
+    border-bottom: 2px solid #ffffff;
+}
+
+#workspaces button:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+}
+
+#window {
+    padding: 0 10px;
+    font-weight: bold;
+}
+
+#clock,
+#cpu,
+#memory,
+#network,
+#pulseaudio {
+    padding: 0 10px;
+    margin: 0 2px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 5px;
+}
+
+#clock {
+    font-weight: bold;
+}
+
+#pulseaudio.muted {
+    color: #ff6b6b;
+}
+
+#network.disconnected {
+    color: #ff6b6b;
+}

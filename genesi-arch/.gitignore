@@ -1,0 +1,13 @@
+# Build artifacts
+work/
+out/
+*.iso
+
+# Temporary files
+*.tmp
+*.log
+*~
+
+# System files
+.DS_Store
+Thumbs.db

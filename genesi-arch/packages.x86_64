@@ -1,0 +1,162 @@
+# Genesi OS Arch Edition - Package List
+
+# ===== BASE SYSTEM =====
+base
+base-devel
+linux-cachyos
+linux-cachyos-headers
+linux-firmware
+intel-ucode
+amd-ucode
+
+# ===== BOOTLOADER =====
+grub
+efibootmgr
+os-prober
+
+# ===== NETWORK =====
+networkmanager
+network-manager-applet
+nm-connection-editor
+dhclient
+iwd
+wireless_tools
+wpa_supplicant
+
+# ===== FILESYSTEM =====
+btrfs-progs
+dosfstools
+e2fsprogs
+exfatprogs
+f2fs-tools
+jfsutils
+lvm2
+mdadm
+mtools
+nilfs-utils
+ntfs-3g
+reiserfsprogs
+xfsprogs
+
+# ===== COMPRESSION =====
+p7zip
+unrar
+unzip
+zip
+gzip
+bzip2
+xz
+
+# ===== CACHYOS OPTIMIZATIONS =====
+cachyos-settings
+cachyos-kernel-manager
+cachyos-keyring
+cachyos-mirrorlist
+cachyos-v3-mirrorlist
+
+# ===== HYPRLAND DESKTOP =====
+hyprland
+xdg-desktop-portal-hyprland
+waybar
+wofi
+kitty
+swaybg
+swaylock
+swayidle
+grim
+slurp
+wl-clipboard
+mako
+polkit-gnome
+
+# ===== AUDIO =====
+pipewire
+pipewire-alsa
+pipewire-pulse
+pipewire-jack
+wireplumber
+pavucontrol
+
+# ===== VIDEO =====
+mesa
+vulkan-icd-loader
+vulkan-intel
+vulkan-radeon
+libva-mesa-driver
+mesa-vdpau
+
+# ===== FONTS =====
+ttf-dejavu
+ttf-liberation
+noto-fonts
+noto-fonts-emoji
+ttf-hack
+ttf-font-awesome
+
+# ===== GTK =====
+gtk3
+gtk4
+adwaita-icon-theme
+
+# ===== APPLICATIONS =====
+chromium
+thunar
+thunar-volman
+gvfs
+gvfs-mtp
+tumbler
+gnome-system-monitor
+gnome-calculator
+gedit
+file-roller
+
+# ===== TERMINAL TOOLS =====
+git
+wget
+curl
+vim
+nano
+htop
+btop
+neofetch
+fastfetch
+tree
+rsync
+man-db
+man-pages
+
+# ===== SYSTEM TOOLS =====
+sudo
+which
+less
+bash-completion
+reflector
+archiso
+squashfs-tools
+
+# ===== CALAMARES INSTALLER =====
+calamares
+ckbcomp
+mkinitcpio-archiso
+mkinitcpio-nfs-utils
+pv
+syslinux
+
+# ===== DEVELOPMENT (optional) =====
+# gcc
+# make
+# cmake
+# python
+# python-pip
+# nodejs
+# npm
+# rust
+# cargo
+
+# ===== GAMING (optional) =====
+# steam
+# gamemode
+# lib32-mesa
+# lib32-vulkan-icd-loader
+# lib32-vulkan-intel
+# lib32-vulkan-radeon

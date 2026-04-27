@@ -1,0 +1,13 @@
+[Unit]
+Description=Genesi Hyprland Auto-start
+After=systemd-user-sessions.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/hyprland
+Restart=always
+User=genesi
+Environment=XDG_SESSION_TYPE=wayland
+
+[Install]
+WantedBy=graphical.target

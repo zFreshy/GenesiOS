@@ -1,0 +1,22 @@
+# Build artifacts
+genesi-arch/work/
+genesi-arch/out/
+*.iso
+
+# Temporary files
+*.tmp
+*.log
+*~
+
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Local
+.verdent/
+build/
+example/
+docs/
+genesi-desktop/
+kernel_legacy/
