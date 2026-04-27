@@ -23,7 +23,7 @@ impl Desktop {
             ("system-file-manager", "Files", "genesifiles", 0.0, 100.0),
             ("preferences-system", "Settings", "gnome-control-center", 0.0, 200.0),
             ("utilities-system-monitor", "Task Manager", "gnome-system-monitor", 0.0, 300.0),
-            ("web-browser", "Browser", "google-chrome", 0.0, 400.0),
+            ("web-browser", "Browser", "firefox", 0.0, 400.0),
         ];
 
         for (icon, name, cmd, init_x, init_y) in apps {

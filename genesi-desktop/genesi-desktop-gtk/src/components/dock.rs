@@ -32,11 +32,11 @@ impl Dock {
 
         // Apps principais
         let apps = vec![
-            ("🌐", "Genesi Browser", "chromium-browser"),
+            ("🌐", "Genesi Browser", "firefox"),
             ("📁", "File Explorer", "nautilus"),
             ("⚙️", "Configurações", "gnome-control-center"),
             ("📊", "Task Manager", "gnome-system-monitor"),
-            ("🔵", "Google Chrome", "google-chrome"), // Chrome icon as blue circle or something, using emoji for now
+            ("🔵", "Google Chrome", "chromium-browser"),
         ];
 
         let apps_box = Box::new(Orientation::Horizontal, 8);
