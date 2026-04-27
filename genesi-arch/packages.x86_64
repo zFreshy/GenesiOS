@@ -1,4 +1,5 @@
 # Genesi OS Arch Edition - Package List
+# Based on CachyOS with Hyprland
 
 # ===== BASE SYSTEM =====
 base
@@ -6,6 +7,7 @@ base-devel
 linux-cachyos
 linux-cachyos-headers
 linux-firmware
+linux-firmware-marvell
 intel-ucode
 amd-ucode
 
@@ -13,15 +15,28 @@ amd-ucode
 grub
 efibootmgr
 os-prober
+syslinux
+
+# ===== CACHYOS CORE =====
+cachyos-keyring
+cachyos-mirrorlist
+cachyos-settings
+cachyos-hooks
+cachyos-rate-mirrors
+archlinux-keyring
 
 # ===== NETWORK =====
 networkmanager
 network-manager-applet
 nm-connection-editor
-dhclient
+dhcpcd
 iwd
 wireless_tools
 wpa_supplicant
+avahi
+nss-mdns
+modemmanager
+mobile-broadband-provider-info
 
 # ===== FILESYSTEM =====
 btrfs-progs
@@ -37,6 +52,8 @@ nilfs-utils
 ntfs-3g
 reiserfsprogs
 xfsprogs
+gptfdisk
+parted
 
 # ===== COMPRESSION =====
 p7zip
@@ -46,13 +63,7 @@ zip
 gzip
 bzip2
 xz
-
-# ===== CACHYOS OPTIMIZATIONS =====
-cachyos-settings
-cachyos-kernel-manager
-cachyos-keyring
-cachyos-mirrorlist
-cachyos-v3-mirrorlist
+squashfs-tools
 
 # ===== HYPRLAND DESKTOP =====
 hyprland
@@ -67,7 +78,8 @@ grim
 slurp
 wl-clipboard
 mako
-polkit-gnome
+polkit
+polkit-kde-agent
 
 # ===== AUDIO =====
 pipewire
@@ -76,6 +88,7 @@ pipewire-pulse
 pipewire-jack
 wireplumber
 pavucontrol
+alsa-utils
 
 # ===== VIDEO =====
 mesa
@@ -88,27 +101,31 @@ mesa-vdpau
 # ===== FONTS =====
 ttf-dejavu
 ttf-liberation
+ttf-bitstream-vera
+ttf-opensans
 noto-fonts
+noto-fonts-cjk
 noto-fonts-emoji
 ttf-hack
-ttf-font-awesome
+opendesktop-fonts
 
 # ===== GTK =====
 gtk3
 gtk4
 adwaita-icon-theme
+breeze-gtk
 
 # ===== APPLICATIONS =====
-chromium
+firefox
 thunar
 thunar-volman
 gvfs
 gvfs-mtp
 tumbler
-gnome-system-monitor
-gnome-calculator
-gedit
-file-roller
+kate
+kcalc
+spectacle
+partitionmanager
 
 # ===== TERMINAL TOOLS =====
 git
@@ -116,31 +133,63 @@ wget
 curl
 vim
 nano
+nano-syntax-highlighting
 htop
-btop
+inxi
 neofetch
-fastfetch
 tree
 rsync
 man-db
 man-pages
+bash-completion
+micro
 
 # ===== SYSTEM TOOLS =====
 sudo
 which
 less
-bash-completion
 reflector
-archiso
-squashfs-tools
+hwinfo
+hwdetect
+lsof
+dmidecode
+usbutils
+pciutils
 
-# ===== CALAMARES INSTALLER =====
+# ===== INSTALLER =====
 calamares
 ckbcomp
 mkinitcpio-archiso
 mkinitcpio-nfs-utils
+arch-install-scripts
 pv
-syslinux
+
+# ===== SYSTEM UTILITIES =====
+haveged
+ntp
+openssh
+rsync
+testdisk
+ddrescue
+gpart
+gparted
+clonezilla
+
+# ===== VIRTUALIZATION SUPPORT =====
+open-vm-tools
+qemu-guest-agent
+virtualbox-guest-utils
+spice-vdagent
+hyperv
+
+# ===== HARDWARE SUPPORT =====
+bolt
+bluez
+bluez-utils
+fwupd
+rtkit
+realtime-privileges
+power-profiles-daemon
 
 # ===== DEVELOPMENT (optional) =====
 # gcc
@@ -152,11 +201,3 @@ syslinux
 # npm
 # rust
 # cargo
-
-# ===== GAMING (optional) =====
-# steam
-# gamemode
-# lib32-mesa
-# lib32-vulkan-icd-loader
-# lib32-vulkan-intel
-# lib32-vulkan-radeon

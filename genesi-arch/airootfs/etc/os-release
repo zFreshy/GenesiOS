@@ -1,0 +1,11 @@
+NAME="Genesi OS"
+PRETTY_NAME="Genesi OS Arch Edition"
+ID=genesi
+ID_LIKE=arch
+BUILD_ID=rolling
+ANSI_COLOR="38;2;102;126;234"
+HOME_URL="https://github.com/genesi-os"
+DOCUMENTATION_URL="https://github.com/genesi-os/genesi-arch"
+SUPPORT_URL="https://github.com/genesi-os/genesi-arch/issues"
+BUG_REPORT_URL="https://github.com/genesi-os/genesi-arch/issues"
+LOGO=genesi
