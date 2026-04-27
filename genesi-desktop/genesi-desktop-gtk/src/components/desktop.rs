@@ -19,11 +19,11 @@ impl Desktop {
         container.set_vexpand(true);
 
         let apps = vec![
-            ("user-trash", "Recycle Bin", "", 30.0, 30.0),
-            ("system-file-manager", "Files", "genesifiles", 30.0, 150.0),
-            ("preferences-system", "Settings", "gnome-control-center", 30.0, 270.0),
-            ("utilities-system-monitor", "Task Manager", "gnome-system-monitor", 30.0, 390.0),
-            ("web-browser", "Browser", "google-chrome", 30.0, 510.0),
+            ("user-trash", "Recycle Bin", "", 0.0, 0.0),
+            ("system-file-manager", "Files", "genesifiles", 0.0, 100.0),
+            ("preferences-system", "Settings", "gnome-control-center", 0.0, 200.0),
+            ("utilities-system-monitor", "Task Manager", "gnome-system-monitor", 0.0, 300.0),
+            ("web-browser", "Browser", "google-chrome", 0.0, 400.0),
         ];
 
         for (icon, name, cmd, init_x, init_y) in apps {
@@ -92,24 +92,14 @@ impl Desktop {
 
         // Drag gesture para arrastar
         let drag = GestureDrag::new();
-        let drag_start_x = Rc::new(RefCell::new(0.0));
-        let drag_start_y = Rc::new(RefCell::new(0.0));
         let widget_start_x = Rc::new(RefCell::new(init_x));
         let widget_start_y = Rc::new(RefCell::new(init_y));
 
-        let drag_start_x_clone = drag_start_x.clone();
-        let drag_start_y_clone = drag_start_y.clone();
         let widget_start_x_clone = widget_start_x.clone();
         let widget_start_y_clone = widget_start_y.clone();
         
-        drag.connect_drag_begin(move |_, x, y| {
-            *drag_start_x_clone.borrow_mut() = x;
-            *drag_start_y_clone.borrow_mut() = y;
-            // Salva posição atual do widget
-            let current_x = *widget_start_x_clone.borrow();
-            let current_y = *widget_start_y_clone.borrow();
-            *widget_start_x_clone.borrow_mut() = current_x;
-            *widget_start_y_clone.borrow_mut() = current_y;
+        drag.connect_drag_begin(move |_, _, _| {
+            // Salva posição atual do widget no início do drag
         });
 
         let container_clone = container.clone();
@@ -121,10 +111,10 @@ impl Desktop {
             let start_x = *widget_start_x_clone2.borrow();
             let start_y = *widget_start_y_clone2.borrow();
             
+            // Move o widget seguindo o mouse EXATAMENTE (sem snap durante o drag)
             let new_x = start_x + offset_x;
             let new_y = start_y + offset_y;
             
-            // Move o widget suavemente
             container_clone.move_(&item_box_clone, new_x, new_y);
         });
 
@@ -140,15 +130,15 @@ impl Desktop {
             let new_x = start_x + offset_x;
             let new_y = start_y + offset_y;
             
-            // Snap to grid
+            // Snap to grid APENAS ao soltar
             let snapped_x = (new_x / GRID_SIZE).round() * GRID_SIZE;
             let snapped_y = (new_y / GRID_SIZE).round() * GRID_SIZE;
             
-            // Garante que não sai da tela (mínimo 20px de margem)
-            let final_x = snapped_x.max(20.0).min(1200.0);
-            let final_y = snapped_y.max(20.0).min(600.0);
+            // Garante que não sai da tela
+            let final_x = snapped_x.max(0.0).min(1100.0);
+            let final_y = snapped_y.max(0.0).min(600.0);
             
-            // Salva nova posição
+            // Salva nova posição para próximo drag
             *widget_start_x_clone3.borrow_mut() = final_x;
             *widget_start_y_clone3.borrow_mut() = final_y;
             
