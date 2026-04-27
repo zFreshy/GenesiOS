@@ -169,8 +169,18 @@ apt install -y \
     adwaita-icon-theme \
     gnome-themes-extra
 
-# Instala navegadores
-apt install -y chromium-browser firefox
+# Instala navegadores e apps
+apt install -y \
+    firefox \
+    nautilus \
+    gnome-system-monitor \
+    gnome-terminal
+
+# Instala Firefox via snap (Ubuntu 22.04 usa snap por padrão)
+snap install firefox
+
+# Instala Chromium
+apt install -y chromium-browser || snap install chromium
 
 # Instala servidor gráfico mínimo
 apt install -y \
@@ -237,6 +247,9 @@ echo "  → Compilando Desktop GTK4..."
 cargo build --release 2>&1 | tee /tmp/gtk-build.log || { echo "ERRO GTK"; exit 1; }
 echo "  → Copiando resources para o diretório do binário..."
 cp -r resources target/release/
+echo "  → Configurando wallpaper..."
+mkdir -p ~/.config/genesi
+cp resources/wallpaper.png ~/.config/genesi/ 2>/dev/null || cp resources/wallpaper1.png ~/.config/genesi/wallpaper.png 2>/dev/null || true
 ' || {
     echo ""
     echo "❌ ERRO na compilação!"

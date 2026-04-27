@@ -250,6 +250,9 @@ echo "  → Recompilando Desktop GTK4..."
 cargo build --release 2>&1 | tee /tmp/gtk-rebuild.log
 echo "  → Copiando resources para o diretório do binário..."
 cp -r resources target/release/
+echo "  → Configurando wallpaper..."
+mkdir -p ~/.config/genesi
+cp resources/wallpaper.png ~/.config/genesi/ 2>/dev/null || cp resources/wallpaper1.png ~/.config/genesi/wallpaper.png 2>/dev/null || true
 '
 
 # Verifica se a compilação foi bem-sucedida
