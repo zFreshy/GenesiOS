@@ -248,6 +248,8 @@ cargo build --release 2>&1 | tee /tmp/wm-rebuild.log
 cd ~/GenesiOS/genesi-desktop/genesi-desktop-gtk
 echo "  → Recompilando Desktop GTK4..."
 cargo build --release 2>&1 | tee /tmp/gtk-rebuild.log
+echo "  → Copiando resources para o diretório do binário..."
+cp -r resources target/release/
 '
 
 # Verifica se a compilação foi bem-sucedida

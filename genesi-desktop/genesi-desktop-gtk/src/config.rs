@@ -3,9 +3,34 @@ use gdk4::Display;
 
 pub fn load_css() {
     let provider = CssProvider::new();
-    // Em vez de embutir o arquivo, carregamos ele do disco no momento da execução
-    // Isso garante que os caminhos relativos de imagens, como `url('wallpaper1.png')`, funcionem!
-    provider.load_from_path("resources/style.css");
+    
+    // Tenta vários caminhos possíveis para o CSS
+    let possible_paths = vec![
+        "resources/style.css",
+        "../../../resources/style.css",
+        "/home/genesi/GenesiOS/genesi-desktop/genesi-desktop-gtk/resources/style.css",
+        "./style.css",
+    ];
+    
+    let mut loaded = false;
+    for path in possible_paths {
+        if std::path::Path::new(path).exists() {
+            tracing::info!("🎨 Carregando CSS de: {}", path);
+            provider.load_from_path(path);
+            loaded = true;
+            break;
+        }
+    }
+    
+    if !loaded {
+        tracing::error!("❌ CSS não encontrado! Tentei:");
+        for path in possible_paths {
+            tracing::error!("   - {}", path);
+        }
+        // Carrega CSS inline como fallback
+        provider.load_from_data(include_str!("../resources/style.css"));
+        tracing::warn!("⚠️  Usando CSS embutido (wallpaper pode não funcionar)");
+    }
 
     gtk4::style_context_add_provider_for_display(
         &Display::default().expect("Could not connect to display"),
@@ -13,7 +38,7 @@ pub fn load_css() {
         gtk4::STYLE_PROVIDER_PRIORITY_APPLICATION,
     );
 
-    tracing::info!("🎨 CSS carregado com sucesso");
+    tracing::info!("✅ CSS carregado com sucesso");
 }
 
 // Config struct (não usado por enquanto, mas pode ser útil no futuro)

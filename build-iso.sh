@@ -235,6 +235,8 @@ cargo build --release 2>&1 | tee /tmp/wm-build.log || { echo "ERRO WM"; exit 1; 
 cd ~/GenesiOS/genesi-desktop/genesi-desktop-gtk
 echo "  → Compilando Desktop GTK4..."
 cargo build --release 2>&1 | tee /tmp/gtk-build.log || { echo "ERRO GTK"; exit 1; }
+echo "  → Copiando resources para o diretório do binário..."
+cp -r resources target/release/
 ' || {
     echo ""
     echo "❌ ERRO na compilação!"
