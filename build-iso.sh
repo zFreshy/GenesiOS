@@ -171,22 +171,28 @@ apt install -y \
 
 # Instala navegadores e apps
 apt install -y \
-    firefox \
+    firefox-esr \
     nautilus \
     gnome-system-monitor \
-    gnome-terminal
+    gnome-terminal \
+    gnome-control-center
 
-# Instala Firefox via snap (Ubuntu 22.04 usa snap por padrão)
-snap install firefox
-
-# Instala Chromium
-apt install -y chromium-browser || snap install chromium
+# NÃO instala via snap (muito pesado para Live CD)
+# snap install firefox
 
 # Instala servidor gráfico mínimo
 apt install -y \
     xserver-xorg-core \
     xserver-xorg-video-all \
+    xserver-xorg-video-vmware \
+    xserver-xorg-input-all \
     xinit
+
+# Instala VirtualBox Guest Additions para resolução automática
+apt install -y \
+    virtualbox-guest-utils \
+    virtualbox-guest-x11 \
+    virtualbox-guest-dkms
 
 # Instala Node.js 20
 curl -fsSL https://deb.nodesource.com/setup_20.x | bash -

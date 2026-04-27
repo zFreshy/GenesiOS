@@ -14,7 +14,8 @@ impl Dock {
         container.add_css_class("taskbar");
         container.set_height_request(60);
         container.set_width_request(1100); // Max width from React
-
+        
+        tracing::info!("🎯 Criando Dock...");
 
         // Lado esquerdo: Botão G + Separador + Apps
         let left_box = Box::new(Orientation::Horizontal, 8);
@@ -24,6 +25,8 @@ impl Dock {
         let g_button = Button::with_label("G");
         g_button.add_css_class("start-btn");
         left_box.append(&g_button);
+        
+        tracing::info!("  ✅ Botão G criado");
 
         // Separador vertical
         let separator = Box::new(Orientation::Vertical, 0);
@@ -102,6 +105,8 @@ impl Dock {
         right_box.append(&show_desktop_sep);
 
         container.append(&right_box);
+        
+        tracing::info!("✅ Dock criado com sucesso!");
         
         // Atualiza relógio
         let time_clone = time_label.clone();
