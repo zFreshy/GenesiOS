@@ -324,13 +324,7 @@ EOF
 
 # Gera ISO (versão simplificada que funciona)
 echo "💿 Gerando ISO..."
-grub-mkrescue \
-    --output="$ISO_NAME" \
-    iso/ \
-    -- \
-    -volid "GENESI_OS" \
-    -joliet \
-    -rational-rock
+grub-mkrescue -o "$ISO_NAME" iso/
 
 # Move para diretório original
 mv "$ISO_NAME" "$GENESI_SOURCE/"
