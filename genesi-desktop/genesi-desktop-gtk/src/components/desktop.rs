@@ -58,10 +58,8 @@ impl Desktop {
         // Ícone
         let img = Image::from_icon_name(icon_name);
         img.set_pixel_size(48);
-
-        let btn = Button::builder().child(&img).build();
-        btn.add_css_class("desktop-icon-btn");
-        btn.set_size_request(60, 60);
+        img.add_css_class("desktop-icon-btn");
+        img.set_size_request(60, 60);
 
         // Label
         let label = Label::new(Some(label_text));
@@ -70,10 +68,11 @@ impl Desktop {
         label.set_justify(gtk4::Justification::Center);
         label.set_max_width_chars(10);
 
-        item_box.append(&btn);
+        item_box.append(&img);
         item_box.append(&label);
 
         // Double click para abrir
+        // Usamos GestureClick no lugar de Button para não conflitar com os eventos de arrastar
         let click = GestureClick::new();
         click.set_button(1);
         let cmd_string = command.to_string();
@@ -88,98 +87,58 @@ impl Desktop {
                 }
             }
         });
-        btn.add_controller(click);
+        item_box.add_controller(click);
 
-        // Drag com eventos de mouse (mais preciso que GestureDrag)
-        let drag_controller = gtk4::EventControllerMotion::new();
-        let click_controller = gtk4::GestureClick::new();
-        click_controller.set_button(1); // Botão esquerdo
-        
-        let is_dragging = Rc::new(RefCell::new(false));
-        let drag_start_x = Rc::new(RefCell::new(0.0));
-        let drag_start_y = Rc::new(RefCell::new(0.0));
+        // Drag com GestureDrag (a forma correta do GTK4 para arrastar sem tremer)
+        let drag_gesture = gtk4::GestureDrag::new();
+        drag_gesture.set_button(1);
+
         let widget_start_x = Rc::new(RefCell::new(init_x));
         let widget_start_y = Rc::new(RefCell::new(init_y));
 
-        // Mouse down - inicia drag
-        let is_dragging_clone = is_dragging.clone();
-        let drag_start_x_clone = drag_start_x.clone();
-        let drag_start_y_clone = drag_start_y.clone();
-        
-        click_controller.connect_pressed(move |_, _, x, y| {
-            *is_dragging_clone.borrow_mut() = true;
-            *drag_start_x_clone.borrow_mut() = x;
-            *drag_start_y_clone.borrow_mut() = y;
-        });
-
-        // Mouse up - termina drag
-        let is_dragging_clone2 = is_dragging.clone();
-        let container_clone = container.clone();
-        let item_box_clone = item_box.clone();
-        let widget_start_x_clone = widget_start_x.clone();
-        let widget_start_y_clone = widget_start_y.clone();
-        let drag_start_x_clone2 = drag_start_x.clone();
-        let drag_start_y_clone2 = drag_start_y.clone();
-        
-        click_controller.connect_released(move |_, _, x, y| {
-            if *is_dragging_clone2.borrow() {
-                *is_dragging_clone2.borrow_mut() = false;
-                
-                let start_x = *widget_start_x_clone.borrow();
-                let start_y = *widget_start_y_clone.borrow();
-                let drag_x = *drag_start_x_clone2.borrow();
-                let drag_y = *drag_start_y_clone2.borrow();
-                
-                let offset_x = x - drag_x;
-                let offset_y = y - drag_y;
-                
-                let new_x = start_x + offset_x;
-                let new_y = start_y + offset_y;
-                
-                // Snap to grid
-                let snapped_x = (new_x / GRID_SIZE).round() * GRID_SIZE;
-                let snapped_y = (new_y / GRID_SIZE).round() * GRID_SIZE;
-                
-                let final_x = snapped_x.max(0.0).min(1100.0);
-                let final_y = snapped_y.max(0.0).min(600.0);
-                
-                *widget_start_x_clone.borrow_mut() = final_x;
-                *widget_start_y_clone.borrow_mut() = final_y;
-                
-                container_clone.move_(&item_box_clone, final_x, final_y);
-                
-                tracing::info!("📍 Ícone movido para: ({}, {})", final_x, final_y);
-            }
-        });
-
-        // Mouse move - arrasta
-        let is_dragging_clone3 = is_dragging.clone();
+        // Drag Update - Move livremente acompanhando o mouse
         let container_clone2 = container.clone();
         let item_box_clone2 = item_box.clone();
         let widget_start_x_clone2 = widget_start_x.clone();
         let widget_start_y_clone2 = widget_start_y.clone();
-        let drag_start_x_clone3 = drag_start_x.clone();
-        let drag_start_y_clone3 = drag_start_y.clone();
-        
-        drag_controller.connect_motion(move |_, x, y| {
-            if *is_dragging_clone3.borrow() {
-                let start_x = *widget_start_x_clone2.borrow();
-                let start_y = *widget_start_y_clone2.borrow();
-                let drag_x = *drag_start_x_clone3.borrow();
-                let drag_y = *drag_start_y_clone3.borrow();
-                
-                let offset_x = x - drag_x;
-                let offset_y = y - drag_y;
-                
-                let new_x = start_x + offset_x;
-                let new_y = start_y + offset_y;
-                
-                container_clone2.move_(&item_box_clone2, new_x, new_y);
-            }
+
+        drag_gesture.connect_drag_update(move |_, offset_x, offset_y| {
+            let start_x = *widget_start_x_clone2.borrow();
+            let start_y = *widget_start_y_clone2.borrow();
+            
+            let new_x = start_x + offset_x;
+            let new_y = start_y + offset_y;
+            
+            container_clone2.move_(&item_box_clone2, new_x, new_y);
         });
 
-        item_box.add_controller(drag_controller);
-        item_box.add_controller(click_controller);
+        // Drag End - Snap na Grid
+        let container_clone3 = container.clone();
+        let item_box_clone3 = item_box.clone();
+        let widget_start_x_clone3 = widget_start_x.clone();
+        let widget_start_y_clone3 = widget_start_y.clone();
+
+        drag_gesture.connect_drag_end(move |_, offset_x, offset_y| {
+            let start_x = *widget_start_x_clone3.borrow();
+            let start_y = *widget_start_y_clone3.borrow();
+            
+            let new_x = start_x + offset_x;
+            let new_y = start_y + offset_y;
+            
+            // Snap to grid
+            let snapped_x = (new_x / GRID_SIZE).round() * GRID_SIZE;
+            let snapped_y = (new_y / GRID_SIZE).round() * GRID_SIZE;
+            
+            let final_x = snapped_x.max(0.0).min(1800.0);
+            let final_y = snapped_y.max(0.0).min(1000.0);
+            
+            *widget_start_x_clone3.borrow_mut() = final_x;
+            *widget_start_y_clone3.borrow_mut() = final_y;
+            
+            container_clone3.move_(&item_box_clone3, final_x, final_y);
+        });
+
+        item_box.add_controller(drag_gesture);
 
         item_box
     }
