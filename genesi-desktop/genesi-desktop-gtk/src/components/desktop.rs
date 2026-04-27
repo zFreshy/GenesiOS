@@ -19,11 +19,11 @@ impl Desktop {
         container.set_vexpand(true);
 
         let apps = vec![
-            ("user-trash", "Recycle Bin", "", 20.0, 20.0),
-            ("system-file-manager", "Files", "genesifiles", 20.0, 140.0),
-            ("preferences-system", "Settings", "gnome-control-center", 20.0, 260.0),
-            ("utilities-system-monitor", "Task Manager", "gnome-system-monitor", 20.0, 380.0),
-            ("web-browser", "Browser", "google-chrome", 20.0, 500.0),
+            ("user-trash", "Recycle Bin", "", 30.0, 30.0),
+            ("system-file-manager", "Files", "genesifiles", 30.0, 150.0),
+            ("preferences-system", "Settings", "gnome-control-center", 30.0, 270.0),
+            ("utilities-system-monitor", "Task Manager", "gnome-system-monitor", 30.0, 390.0),
+            ("web-browser", "Browser", "google-chrome", 30.0, 510.0),
         ];
 
         for (icon, name, cmd, init_x, init_y) in apps {
