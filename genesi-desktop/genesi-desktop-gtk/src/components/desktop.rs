@@ -1,137 +1,152 @@
 use gtk4::prelude::*;
-use gtk4::{Application, Box, Button, FlowBox, Label, Orientation, Align, SelectionMode, Image, DragSource, DropTarget};
+use gtk4::{Application, Box, Button, Label, Orientation, Fixed, GestureDrag, GestureClick, Image};
 use crate::utils::launch_app;
 use crate::components::file_explorer::FileExplorer;
-use glib::Type;
-use gdk4::ContentProvider;
+use std::cell::RefCell;
+use std::rc::Rc;
+
+const GRID_SIZE: f64 = 100.0; // Tamanho da grade (snap)
 
 pub struct Desktop {
-    container: Box,
+    container: Fixed,
 }
 
 impl Desktop {
     pub fn new(app: &Application) -> Self {
-        let container = Box::new(Orientation::Vertical, 0);
+        let container = Fixed::new();
         container.add_css_class("desktop");
-        container.set_vexpand(true);
         container.set_hexpand(true);
-
-        // Grade de ícones usando FlowBox
-        let flowbox = FlowBox::new();
-        flowbox.set_orientation(Orientation::Vertical);
-        flowbox.set_valign(Align::Start);
-        flowbox.set_halign(Align::Start);
-        flowbox.set_selection_mode(SelectionMode::None);
-        flowbox.set_max_children_per_line(10); // Quantidade de linhas na grade
-        flowbox.set_margin_top(20);
-        flowbox.set_margin_start(20);
-        flowbox.set_margin_end(20);
-        flowbox.set_margin_bottom(100); // Espaço para a taskbar
-        flowbox.set_column_spacing(20);
-        flowbox.set_row_spacing(20);
+        container.set_vexpand(true);
 
         let apps = vec![
-            ("user-trash", "Recycle Bin", ""),
-            ("system-file-manager", "Files", "genesifiles"),
-            ("preferences-system", "Settings", "gnome-control-center"),
-            ("utilities-system-monitor", "Task Manager", "gnome-system-monitor"),
-            ("web-browser", "Browser", "google-chrome"),
+            ("user-trash", "Recycle Bin", "", 20.0, 20.0),
+            ("system-file-manager", "Files", "genesifiles", 20.0, 140.0),
+            ("preferences-system", "Settings", "gnome-control-center", 20.0, 260.0),
+            ("utilities-system-monitor", "Task Manager", "gnome-system-monitor", 20.0, 380.0),
+            ("web-browser", "Browser", "google-chrome", 20.0, 500.0),
         ];
 
-        for (icon, name, cmd) in apps {
-            let item_box = Box::new(Orientation::Vertical, 8);
-            item_box.set_halign(Align::Center);
-            item_box.set_valign(Align::Center);
-            item_box.set_size_request(80, 100);
-            item_box.add_css_class("desktop-icon-item");
+        for (icon, name, cmd, init_x, init_y) in apps {
+            let icon_widget = Self::create_desktop_icon(
+                app,
+                icon,
+                name,
+                cmd,
+                init_x,
+                init_y,
+                &container,
+            );
+            container.put(&icon_widget, init_x, init_y);
+        }
 
-            let img = Image::from_icon_name(icon);
-            img.set_pixel_size(48);
+        Self { container }
+    }
 
-            let btn = Button::builder().child(&img).build();
-            btn.add_css_class("desktop-icon-btn");
-            btn.set_size_request(60, 60);
-            
-            let cmd_string = cmd.to_string();
-            let app_clone = app.clone();
-            btn.connect_clicked(move |_| {
+    fn create_desktop_icon(
+        app: &Application,
+        icon_name: &str,
+        label_text: &str,
+        command: &str,
+        init_x: f64,
+        init_y: f64,
+        container: &Fixed,
+    ) -> Box {
+        let item_box = Box::new(Orientation::Vertical, 8);
+        item_box.set_size_request(80, 100);
+        item_box.add_css_class("desktop-icon");
+
+        // Ícone
+        let img = Image::from_icon_name(icon_name);
+        img.set_pixel_size(48);
+
+        let btn = Button::builder().child(&img).build();
+        btn.add_css_class("desktop-icon-btn");
+        btn.set_size_request(60, 60);
+
+        // Label
+        let label = Label::new(Some(label_text));
+        label.add_css_class("desktop-icon-label");
+        label.set_wrap(true);
+        label.set_justify(gtk4::Justification::Center);
+        label.set_max_width_chars(10);
+
+        item_box.append(&btn);
+        item_box.append(&label);
+
+        // Double click para abrir
+        let click = GestureClick::new();
+        click.set_button(1);
+        let cmd_string = command.to_string();
+        let app_clone = app.clone();
+        
+        click.connect_pressed(move |_, n_press, _, _| {
+            if n_press == 2 {
                 if cmd_string == "genesifiles" {
                     FileExplorer::new(&app_clone);
                 } else if !cmd_string.is_empty() {
                     launch_app(&cmd_string);
                 }
-            });
+            }
+        });
+        btn.add_controller(click);
 
-            let label = Label::new(Some(name));
-            label.add_css_class("desktop-icon-label");
-            label.set_wrap(true);
-            label.set_justify(gtk4::Justification::Center);
+        // Drag gesture para arrastar
+        let drag = GestureDrag::new();
+        let start_pos = Rc::new(RefCell::new((init_x, init_y)));
+        let current_pos = Rc::new(RefCell::new((init_x, init_y)));
 
-            item_box.append(&btn);
-            item_box.append(&label);
+        let start_pos_clone = start_pos.clone();
+        drag.connect_drag_begin(move |_, x, y| {
+            let pos = *current_pos.borrow();
+            *start_pos_clone.borrow_mut() = (pos.0 + x, pos.1 + y);
+        });
 
-            // Drag and Drop (Source)
-            let drag_source = DragSource::new();
-            let name_str = name.to_string();
-            drag_source.connect_prepare(move |_, _, _| {
-                Some(ContentProvider::for_value(&name_str.to_value()))
-            });
-            item_box.add_controller(drag_source);
+        let container_clone = container.clone();
+        let item_box_clone = item_box.clone();
+        let start_pos_clone2 = start_pos.clone();
+        
+        drag.connect_drag_update(move |_, offset_x, offset_y| {
+            let start = *start_pos_clone2.borrow();
+            let new_x = start.0 + offset_x;
+            let new_y = start.1 + offset_y;
+            
+            // Move o widget
+            container_clone.move_(&item_box_clone, new_x, new_y);
+        });
 
-            // Drag and Drop (Target)
-            let drop_target = DropTarget::new(Type::STRING, gdk4::DragAction::MOVE);
-            drop_target.connect_drop(move |target, value, _x, _y| {
-                if let Ok(dragged_name) = value.get::<String>() {
-                    if let Some(widget) = target.widget() {
-                        if let Some(parent) = widget.parent() {
-                            if let Some(grandparent) = parent.parent() {
-                                if let Ok(flowbox_parent) = grandparent.downcast::<FlowBox>() {
-                                    // Find indices
-                                    let mut dragged_idx = -1;
-                                    let mut target_idx = -1;
-                                    let mut current_idx = 0;
-                                    
-                                    while let Some(child) = flowbox_parent.child_at_index(current_idx) {
-                                        if let Some(child_widget) = child.child() {
-                                            if let Ok(box_child) = child_widget.downcast::<Box>() {
-                                                if let Some(last_child_widget) = box_child.last_child() {
-                                                    if let Ok(lbl) = last_child_widget.downcast::<Label>() {
-                                                        let text = lbl.text().to_string();
-                                                        if text == dragged_name { dragged_idx = current_idx; }
-                                                        if text == name { target_idx = current_idx; }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                        current_idx += 1;
-                                    }
+        let container_clone2 = container.clone();
+        let item_box_clone2 = item_box.clone();
+        let current_pos_clone = current_pos.clone();
+        let start_pos_clone3 = start_pos.clone();
+        
+        drag.connect_drag_end(move |_, offset_x, offset_y| {
+            let start = *start_pos_clone3.borrow();
+            let new_x = start.0 + offset_x;
+            let new_y = start.1 + offset_y;
+            
+            // Snap to grid
+            let snapped_x = (new_x / GRID_SIZE).round() * GRID_SIZE;
+            let snapped_y = (new_y / GRID_SIZE).round() * GRID_SIZE;
+            
+            // Garante que não sai da tela
+            let final_x = snapped_x.max(20.0);
+            let final_y = snapped_y.max(20.0);
+            
+            // Atualiza posição
+            *current_pos_clone.borrow_mut() = (final_x, final_y);
+            
+            // Move para posição final (snapped)
+            container_clone2.move_(&item_box_clone2, final_x, final_y);
+            
+            tracing::info!("📍 Ícone movido para: ({}, {})", final_x, final_y);
+        });
 
-                                    if dragged_idx != -1 && target_idx != -1 && dragged_idx != target_idx {
-                                        if let Some(dragged_child) = flowbox_parent.child_at_index(dragged_idx) {
-                                            if let Some(inner_box) = dragged_child.child() {
-                                                flowbox_parent.remove(&dragged_child);
-                                                flowbox_parent.insert(&inner_box, target_idx);
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                true
-            });
-            item_box.add_controller(drop_target);
+        item_box.add_controller(drag);
 
-            flowbox.insert(&item_box, -1);
-        }
-
-        container.append(&flowbox);
-
-        Self { container }
+        item_box
     }
 
-    pub fn widget(&self) -> Box {
+    pub fn widget(&self) -> Fixed {
         self.container.clone()
     }
 }
