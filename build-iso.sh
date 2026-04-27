@@ -175,30 +175,10 @@ apt install -y \
     gnome-system-monitor \
     gnome-terminal \
     gnome-control-center \
-    wget \
-    bzip2
+    chromium-browser
 
-# Baixa e instala Firefox direto da Mozilla (sem snap)
-echo "📦 Instalando Firefox da Mozilla..."
-cd /tmp
-wget -O firefox.tar.bz2 "https://download.mozilla.org/?product=firefox-latest-ssl&os=linux64&lang=en-US" || \
-wget -O firefox.tar.bz2 "https://ftp.mozilla.org/pub/firefox/releases/latest/linux-x86_64/en-US/firefox-latest.tar.bz2" || \
-wget -O firefox.tar.bz2 "https://download-installer.cdn.mozilla.net/pub/firefox/releases/latest/linux-x86_64/en-US/firefox-latest.tar.bz2"
-
-if [ -f firefox.tar.bz2 ]; then
-    tar -xjf firefox.tar.bz2 -C /opt/ 2>/dev/null || {
-        echo "⚠️  Falha ao extrair Firefox, tentando método alternativo..."
-        bunzip2 firefox.tar.bz2
-        tar -xf firefox.tar -C /opt/
-    }
-    ln -sf /opt/firefox/firefox /usr/bin/firefox
-    rm -f firefox.tar.bz2 firefox.tar
-    echo "✅ Firefox instalado com sucesso"
-else
-    echo "⚠️  Falha ao baixar Firefox, continuando sem ele..."
-fi
-
-cd -
+# Cria alias firefox -> chromium para compatibilidade
+ln -sf /usr/bin/chromium-browser /usr/bin/firefox
 
 # Desabilita snap completamente (muito pesado para Live CD)
 systemctl disable snapd.service 2>/dev/null || true
