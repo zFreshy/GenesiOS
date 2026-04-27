@@ -50,7 +50,6 @@ mdadm
 mtools
 nilfs-utils
 ntfs-3g
-reiserfsprogs
 xfsprogs
 gptfdisk
 parted
@@ -95,7 +94,6 @@ mesa
 vulkan-icd-loader
 vulkan-intel
 vulkan-radeon
-libva-mesa-driver
 mesa-vdpau
 
 # ===== FONTS =====
@@ -148,7 +146,6 @@ micro
 sudo
 which
 less
-reflector
 hwinfo
 hwdetect
 lsof
