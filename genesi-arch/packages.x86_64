@@ -94,7 +94,6 @@ mesa
 vulkan-icd-loader
 vulkan-intel
 vulkan-radeon
-mesa-vdpau
 
 # ===== FONTS =====
 ttf-dejavu
