@@ -196,8 +196,7 @@ apt install -y \
 # Instala VirtualBox Guest Additions para resolução automática
 apt install -y \
     virtualbox-guest-utils \
-    virtualbox-guest-x11 \
-    virtualbox-guest-dkms
+    virtualbox-guest-x11
 
 # Instala Node.js 20
 curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
