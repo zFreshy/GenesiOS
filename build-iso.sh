@@ -171,11 +171,17 @@ apt install -y \
 
 # Instala navegadores e apps
 apt install -y \
-    firefox-esr \
     nautilus \
     gnome-system-monitor \
     gnome-terminal \
     gnome-control-center
+
+# Baixa e instala Firefox direto da Mozilla (sem snap)
+echo "📦 Instalando Firefox da Mozilla..."
+wget -q -O /tmp/firefox.tar.bz2 "https://download.mozilla.org/?product=firefox-latest&os=linux64&lang=en-US"
+tar -xjf /tmp/firefox.tar.bz2 -C /opt/
+ln -sf /opt/firefox/firefox /usr/bin/firefox
+rm /tmp/firefox.tar.bz2
 
 # Desabilita snap completamente (muito pesado para Live CD)
 systemctl disable snapd.service 2>/dev/null || true
