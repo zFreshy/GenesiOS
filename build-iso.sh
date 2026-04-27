@@ -203,6 +203,51 @@ chmod 440 /etc/sudoers.d/genesi-weston
 # Ativa NetworkManager para ter internet automática
 systemctl enable NetworkManager
 
+# Cria script para ativar rede automaticamente no boot
+cat > /usr/local/bin/setup-network.sh << 'NETEOF'
+#!/bin/bash
+# Ativa todas as interfaces de rede automaticamente
+
+# Aguarda um pouco para o sistema estabilizar
+sleep 3
+
+# Ativa todas as interfaces ethernet
+for iface in $(ip link show | grep -E '^[0-9]+: (eth|enp)' | cut -d: -f2 | tr -d ' '); do
+    echo "Ativando interface: $iface"
+    ip link set $iface up
+    dhclient $iface
+done
+
+# Verifica se pegou IP
+sleep 2
+if ip addr show | grep -q "inet "; then
+    echo "✅ Rede ativada com sucesso!"
+else
+    echo "⚠️  Falha ao ativar rede"
+fi
+NETEOF
+
+chmod +x /usr/local/bin/setup-network.sh
+
+# Cria serviço systemd para rodar no boot
+cat > /etc/systemd/system/genesi-network.service << 'SVCEOF'
+[Unit]
+Description=Genesi OS Network Setup
+After=network.target
+Wants=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/setup-network.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+SVCEOF
+
+# Ativa o serviço
+systemctl enable genesi-network.service
+
 # Configura autologin
 mkdir -p /etc/systemd/system/getty@tty1.service.d
 cat > /etc/systemd/system/getty@tty1.service.d/autologin.conf << EOF
