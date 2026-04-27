@@ -177,8 +177,10 @@ apt install -y \
     gnome-terminal \
     gnome-control-center
 
-# NÃO instala via snap (muito pesado para Live CD)
-# snap install firefox
+# Desabilita snap completamente (muito pesado para Live CD)
+systemctl disable snapd.service 2>/dev/null || true
+systemctl disable snapd.socket 2>/dev/null || true
+systemctl mask snapd.service 2>/dev/null || true
 
 # Instala servidor gráfico mínimo
 apt install -y \
