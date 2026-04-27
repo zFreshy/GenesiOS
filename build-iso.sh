@@ -447,7 +447,7 @@ mv filesystem.squashfs iso/live/
 
 # GRUB config com parâmetros corretos para Live CD
 cat > iso/boot/grub/grub.cfg << 'EOF'
-set timeout=5
+set timeout=10
 set default=0
 
 menuentry "Genesi OS" {
@@ -455,7 +455,7 @@ menuentry "Genesi OS" {
     initrd /boot/initrd.img
 }
 
-menuentry "Genesi OS (Safe Mode)" {
+menuentry "Genesi OS (Safe Mode - nomodeset)" {
     linux /boot/vmlinuz boot=live components nomodeset username=genesi hostname=genesi-os
     initrd /boot/initrd.img
 }
@@ -469,11 +469,22 @@ menuentry "Genesi OS (Failsafe)" {
     linux /boot/vmlinuz boot=live components nomodeset noapic noacpi nosplash username=genesi hostname=genesi-os
     initrd /boot/initrd.img
 }
+
+menuentry "Genesi OS (Text Mode)" {
+    linux /boot/vmlinuz boot=live components nomodeset noapic noacpi nosplash systemd.unit=multi-user.target username=genesi hostname=genesi-os
+    initrd /boot/initrd.img
+}
 EOF
 
-# Gera ISO
+# Gera ISO (versão simplificada que funciona)
 echo "💿 Gerando ISO..."
-grub-mkrescue -o "$ISO_NAME" iso/
+grub-mkrescue \
+    --output="$ISO_NAME" \
+    iso/ \
+    -- \
+    -volid "GENESI_OS" \
+    -joliet \
+    -rational-rock
 
 # Move para diretório original
 mv "$ISO_NAME" "$GENESI_SOURCE/"
