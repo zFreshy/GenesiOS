@@ -63,29 +63,64 @@
 
 ## 🔧 Build da ISO
 
-### Requisitos
-- Sistema Arch Linux ou derivado
-- Pacotes: `archiso mkinitcpio-archiso git squashfs-tools grub`
+### ⚠️ Requisitos IMPORTANTES
+
+**Você PRECISA de um sistema baseado em Arch Linux!**
+
+✅ **Funciona em**:
+- Arch Linux
+- Manjaro
+- EndeavourOS
+- ArcoLinux
+- Garuda Linux
+- Qualquer derivado do Arch
+
+❌ **NÃO funciona em**:
+- Ubuntu
+- Debian
+- Fedora
+- Outros sistemas não-Arch
 
 ### Instalação dos Requisitos
+
 ```bash
 sudo pacman -S archiso mkinitcpio-archiso git squashfs-tools grub --needed
 ```
 
-### Build
+### Build da ISO
+
 ```bash
 cd genesi-arch
-sudo ./build-genesi-arch.sh
+sudo mkarchiso -v -w work -o out .
 ```
 
-### Opções de Build
-- `-c` : Não limpar diretório de trabalho antes do build
-- `-r` : Buildar em RAM (requer >23GB RAM)
-- `-w` : Remover diretório de trabalho após build
-- `-v` : Output verboso
-- `-h` : Ajuda
+**Flags**:
+- `-v` = verbose (mostra detalhes)
+- `-w work` = diretório de trabalho
+- `-o out` = diretório de saída
+- `.` = usa diretório atual
 
-A ISO será gerada na pasta `out/`.
+**Tempo de build**: 20-40 minutos na primeira vez, 10-20 minutos depois.
+
+A ISO será gerada em `genesi-arch/out/genesi-*.iso`
+
+### Build em RAM (Opcional)
+
+Se você tem mais de 23GB de RAM, pode buildar em RAM para ser muito mais rápido:
+
+```bash
+sudo mkarchiso -v -w /tmp/archiso-work -o out .
+```
+
+### Limpando Build Anterior
+
+```bash
+# Remover arquivos temporários
+sudo rm -rf work/
+
+# Remover ISOs antigas
+rm -f out/*.iso
+```
 
 ## 🎨 Customização
 
