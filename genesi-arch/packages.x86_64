@@ -2,7 +2,6 @@
 alsa-utils
 amd-ucode
 arch-install-scripts
-archinstall
 b43-fwcutter
 base
 base-devel
@@ -49,7 +48,7 @@ less
 lftp
 libfido2
 libusb-compat
-linux
+linux66
 linux-atm
 linux-firmware
 linux-firmware-marvell
