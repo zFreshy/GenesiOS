@@ -1,9 +1,0 @@
-NAME="Genesi OS"
-PRETTY_NAME="Genesi OS"
-ID=arch
-BUILD_ID=rolling
-ANSI_COLOR="38;2;102;126;234"
-HOME_URL="https://github.com/zFreshy/GenesiOS"
-SUPPORT_URL="https://github.com/zFreshy/GenesiOS/issues"
-BUG_REPORT_URL="https://github.com/zFreshy/GenesiOS/issues"
-LOGO=genesi
