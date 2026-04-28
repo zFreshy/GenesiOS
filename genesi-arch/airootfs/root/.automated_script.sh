@@ -1,8 +1,4 @@
 #!/usr/bin/env bash
-#
-# Genesi OS Arch Edition - Automated Setup Script
-# Based on CachyOS automated script
-# Executed automatically on first boot
 
 script_cmdline() {
     local param
@@ -22,6 +18,9 @@ automated_script() {
     if [[ -n "${script}" && ! -x /tmp/startup_script ]]; then
         if [[ "${script}" =~ ^((http|https|ftp|tftp)://) ]]; then
             printf '%s: downloading %s\n' "$0" "${script}"
+            # there's no synchronization for network availability before executing this script; to ensure the network
+            # is online, we use a transient systemd service that depends on network-online.target to download the
+            # script rather than manually polling the target
             systemd-run --pty --quiet -p Wants=network-online.target -p After=network-online.target \
                 curl "${script}" --location --retry-connrefused --retry 10 --fail -s -o /tmp/startup_script
             rt=$?
@@ -32,55 +31,13 @@ automated_script() {
         if [[ ${rt} -eq 0 ]]; then
             chmod +x /tmp/startup_script
             printf '%s: executing automated script\n' "$0"
+            # note that script is executed when other services (like pacman-init) may be still in progress, please
+            # synchronize to "systemctl is-system-running --wait" when your script depends on other services
             /tmp/startup_script
         fi
     fi
 }
 
-# Setup Genesi OS
-setup_genesi() {
-    # Create genesi user if doesn't exist
-    if ! id -u genesi &>/dev/null; then
-        useradd -m -G wheel,audio,video,storage,optical,network -s /bin/bash genesi
-        echo "genesi:genesi" | chpasswd
-        echo "root:genesi" | chpasswd
-    fi
-
-    # Enable sudo without password for wheel group
-    echo "%wheel ALL=(ALL:ALL) NOPASSWD: ALL" > /etc/sudoers.d/g_wheel
-    chmod 440 /etc/sudoers.d/g_wheel
-
-    # Enable NetworkManager
-    systemctl enable NetworkManager
-    systemctl start NetworkManager
-
-    # Generate locales
-    locale-gen
-
-    # Setup auto-login for genesi user
-    mkdir -p /etc/systemd/system/getty@tty1.service.d
-    cat > /etc/systemd/system/getty@tty1.service.d/autologin.conf << 'EOF'
-[Service]
-ExecStart=
-ExecStart=-/sbin/agetty -o '-p -f -- \\u' --noclear --autologin genesi %I $TERM
-EOF
-
-    # Auto-start Hyprland on login (disabled for VirtualBox compatibility)
-    if [ ! -f /home/genesi/.bash_profile ]; then
-        cat > /home/genesi/.bash_profile << 'EOF'
-# Auto-start Hyprland on tty1 (disabled)
-# if [ -z "$DISPLAY" ] && [ "$XDG_VTNR" = 1 ]; then
-#     exec Hyprland
-# fi
-EOF
-        chown genesi:genesi /home/genesi/.bash_profile
-    fi
-
-    echo "Genesi OS setup complete!"
-}
-
-# Run automated script if provided
 if [[ $(tty) == "/dev/tty1" ]]; then
     automated_script
-    setup_genesi
 fi

@@ -1,15 +1,32 @@
-# Genesi Arch - Build Files
+# Genesi OS - Based on CachyOS
 
-Este diretório contém os arquivos necessários para construir a ISO do Genesi OS Arch Edition usando archiso.
+This directory contains the complete Genesi OS build system, based on CachyOS live-iso.
 
-## Build Rápido
+## Structure
+
+This is a **complete copy** of the CachyOS archiso structure with Genesi branding.
+
+- `profiledef.sh` - ISO profile definition (adapted for Genesi)
+- `pacman.conf` - Package manager configuration
+- `packages_desktop.x86_64` - Package list
+- `buildiso.sh` - Build script
+- `airootfs/` - Root filesystem overlay
+- `syslinux/` - BIOS boot configuration
+- `grub/` - UEFI boot configuration
+- `efiboot/` - EFI boot files
+
+## Build
 
 ```bash
-sudo ./build-genesi-arch.sh
+sudo ./buildiso.sh
 ```
 
-A ISO será gerada em `out/`.
+The ISO will be generated in `out/`.
 
-## Documentação Completa
+## Credits
 
-Veja o [README principal](../README.md) na raiz do repositório para documentação completa.
+Based on [CachyOS](https://cachyos.org/) - All credits to the CachyOS team for their excellent work.
+
+## License
+
+GPL-3.0-or-later (same as CachyOS)

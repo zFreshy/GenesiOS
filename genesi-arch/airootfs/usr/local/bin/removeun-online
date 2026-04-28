@@ -1,0 +1,56 @@
+#!/bin/bash
+
+_clean_packages() {
+    local _leave_these_packages="base\nbase-devel\ncachyos-keyring\ncachyos-hello\ngrub\nefibootmgr\noctopi\nca-certificates\n"
+    local _leave_these_basepackages="filesystem\ngcc-libs\nglibc\nglib2\nbash\ncoreutils\nfile\nfindutils\ngawk\ngrep\nprocps-ng\nsed\ntar\ngettext\npciutils\npsmisc\nshadow\nutil-linux\nbzip2\ngzip\nxz\nlicenses\npacman\nsystemd\nsystemd-sysvcompat\niputils\niproute2\n"
+    local _packages_to_remove=($(comm -23 <(pacman -Qq | sort) <({ pacman -Qqg base-devel; pacman -Qqg cachyos; printf $_leave_these_packages; printf $_leave_these_basepackages; } | sort -u)))
+    local xx
+    # @ does one by one to avoid errors in the entire process
+    # * can be used to treat all packages in one command
+    for xx in "${_packages_to_remove[@]}"; do pacman -Rs "$xx" --noconfirm; done
+
+    # making sure they are removed
+#    local _toberemoved_str=$'bash-completion\nxorg-xinit\nxorg-xkill\nxorg-xinput\nxorg-xrandr\nxorg-xrdb\nmkinitcpio-openswap\nalacritty\nkonsole\nkwin-scripts-forceblur\nnetworkmanager-vpnc\nnetworkmanager-qt\nnetworkmanager-openvpn\nwireguard-tools\nopenconnect\nopenvpn\nqt5-xmlpatterns\ndoxygen\ntcpdump\ndmidecode\nkparts\npolkit-qt5\nxorg-server\nxorg-apps\nqt5-tools\nzfs-utils\nlinux-cachyos-lts-zfs\nwget\nvirtualbox-guest-utils\nxf86-video-vesa\nxf86-video-amdgpu\nxf86-video-intel\nnvidia-dkms\nnvidia-utils\nlightdm\nlightdm-gtk-greeter\nlightdm-webkit2-greeter\nbase-devel\nlinux-cachyos-lts-headers\nplasma-browser-integration\nplasma-desktop\nplasma-firewall\nplasma-framework\nplasma-integration\nplasma-nm\nplasma-pa\nplasma-systemmonitor\nplasma-thunderbolt\nplasma-workspace\ndiscover\npackagekit-qt5\nxed\nparole\nristretto\ndolphin\ndolphin-plugins\ncapitaine-cursors\ngtk-engine-murrine\ngnome-themes-extra\nadwaita-icon-theme\nfile-roller\nlibwnck3\nnetwork-manager-applet\ngalculator\ncachy-browser\nkvantum-qt5\nqt5ct\nneofetch\nopen-vm-tools\nxf86-input-vmmouse\nxf86-video-vmware\ncachyos-kde-settings\ncachyos-picom-config\ncachyos-rate-mirrors\ncachyos-kernel-manager\nchwd\noctopi\nreflector-simple\nmeld\nparu\nnordic-theme-git\nlightly-git\ncachyos-nord-kde-theme-git\nchar-white'
+#    local _toberemoved_packages
+#    readarray -t _toberemoved_packages <<< "$_toberemoved_str"
+#    local xxx
+#    for xxx in "${_toberemoved_packages[@]}"; do pacman -Rs "$xxx" --noconfirm; done
+
+    rm /etc/sddm.conf || true
+    rm /etc/plasmalogin.conf || true
+}
+
+_pacman_fix() {
+
+pacman-key --init
+pacman-key --populate cachyos
+}
+
+_try_v3() {
+    /lib/ld-linux-x86-64.so.2 --help | grep "x86-64-v3 (supported, searched)" > /dev/null
+
+    local pacman_conf="/etc/pacman.conf"
+    local pacman_conf_cachyos="/etc/pacman-more.conf"
+    local pacman_conf_path_backup="/etc/pacman.conf.bak"
+
+    if [ $? -eq 0 ]; then
+        echo "x86-64-v3 is supported"
+
+        sed -i 's/Architecture = auto/#Architecture = auto/' $pacman_conf_cachyos
+        sed -i 's/#<disabled_v3>//g' $pacman_conf_cachyos
+
+        echo "backup old config"
+        mv $pacman_conf $pacman_conf_path_backup
+
+        echo "CachyOS -v3 Repo changed"
+        mv $pacman_conf_cachyos $pacman_conf
+
+    else
+        echo "x86-64-v3 is not supported"
+    fi
+
+}
+
+_clean_packages
+_try_v3
+_pacman_fix

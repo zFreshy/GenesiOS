@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2034
 
-# Genesi OS Arch Edition - Profile Definition
-# Based on CachyOS archiso
-
 iso_name="genesi"
 iso_label="GENESI_$(date --date="@${SOURCE_DATE_EPOCH:-$(date +%s)}" +%Y%m)"
-iso_publisher="Genesi OS <https://github.com/genesi-os>"
+iso_publisher="Genesi OS <https://github.com/zFreshy/GenesiOS>"
 iso_application="Genesi OS Live/Install DVD"
 iso_version="$(date --date="@${SOURCE_DATE_EPOCH:-$(date +%s)}" +%Y.%m.%d)"
 install_dir="arch"
 buildmodes=('iso')
-bootmodes=('uefi-x64.grub.esp' 'uefi-x64.grub.eltorito')
+## GRUB
+bootmodes=('bios.syslinux' 'uefi.grub')
+## systemd-boot
+#bootmodes=('bios.syslinux' 'uefi.systemd-boot')
 arch="x86_64"
 pacman_conf="pacman.conf"
 airootfs_image_type="squashfs"
@@ -25,4 +25,13 @@ file_permissions=(
   ["/etc/sudoers.d/g_wheel"]="0:0:440"
   ["/root/.automated_script.sh"]="0:0:755"
   ["/root/.gnupg"]="0:0:700"
+  ["/usr/local/bin/choose-mirror"]="0:0:755"
+  ["/usr/local/bin/dmcheck"]="0:0:755"
+  ["/usr/local/bin/calamares-online.sh"]="0:0:755"
+  ["/usr/local/bin/remove-nvidia"]="0:0:755"
+  ["/usr/local/bin/removeun"]="0:0:755"
+  ["/usr/local/bin/removeun-online"]="0:0:755"
+  ["/usr/local/bin/prepare-live-desktop.sh"]="0:0:755"
+  ["/usr/local/bin/nvidia-module-loader"]="0:0:755"
+  ["/usr/local/bin/pkexec-wrapper"]="0:0:755"
 )
