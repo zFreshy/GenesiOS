@@ -65,13 +65,13 @@ ExecStart=
 ExecStart=-/sbin/agetty -o '-p -f -- \\u' --noclear --autologin genesi %I $TERM
 EOF
 
-    # Auto-start Hyprland on login
+    # Auto-start Hyprland on login (disabled for VirtualBox compatibility)
     if [ ! -f /home/genesi/.bash_profile ]; then
         cat > /home/genesi/.bash_profile << 'EOF'
-# Auto-start Hyprland on tty1
-if [ -z "$DISPLAY" ] && [ "$XDG_VTNR" = 1 ]; then
-    exec Hyprland
-fi
+# Auto-start Hyprland on tty1 (disabled)
+# if [ -z "$DISPLAY" ] && [ "$XDG_VTNR" = 1 ]; then
+#     exec Hyprland
+# fi
 EOF
         chown genesi:genesi /home/genesi/.bash_profile
     fi
