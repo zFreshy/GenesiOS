@@ -8,8 +8,8 @@ iso_application="Genesi OS Live/Install DVD"
 iso_version="$(date --date="@${SOURCE_DATE_EPOCH:-$(date +%s)}" +%Y.%m.%d)"
 install_dir="arch"
 buildmodes=('iso')
-## GRUB
-bootmodes=('bios.syslinux' 'uefi.grub')
+## GRUB - Using working boot modes
+bootmodes=('bios.syslinux.mbr' 'uefi-x64.grub.esp' 'uefi-x64.grub.eltorito')
 ## systemd-boot
 #bootmodes=('bios.syslinux' 'uefi.systemd-boot')
 arch="x86_64"
