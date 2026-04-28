@@ -8,7 +8,7 @@ iso_application="Genesi OS Live/Install DVD"
 iso_version="$(date --date="@${SOURCE_DATE_EPOCH:-$(date +%s)}" +%Y.%m.%d)"
 install_dir="arch"
 buildmodes=('iso')
-bootmodes=('uefi-ia32.systemd-boot' 'uefi-x64.systemd-boot')
+bootmodes=('bios.syslinux.mbr' 'uefi-x64.systemd-boot.esp')
 arch="x86_64"
 pacman_conf="pacman.conf"
 airootfs_image_type="squashfs"
