@@ -141,6 +141,9 @@ prepare_profile(){
     if [ "$profile" == "desktop" ]; then
         cp ${src_dir}/archiso/packages_desktop.x86_64 ${src_dir}/archiso/packages.x86_64
         ln -sf /usr/lib/systemd/system/plasmalogin.service ${src_dir}/archiso/airootfs/etc/systemd/system/display-manager.service
+        # Fix default.target - must be a real symlink, not a text file
+        rm -f ${src_dir}/archiso/airootfs/etc/systemd/system/default.target
+        ln -sf /usr/lib/systemd/system/graphical.target ${src_dir}/archiso/airootfs/etc/systemd/system/default.target
     else
         die "Unknown profile: [%s]" "${profile}"
     fi
