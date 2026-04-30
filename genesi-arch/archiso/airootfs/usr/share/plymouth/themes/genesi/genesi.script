@@ -1,0 +1,67 @@
+// Genesi OS Plymouth Boot Splash
+// Simple centered logo with pulsing animation
+
+Window.SetBackgroundTopColor(0.016, 0.204, 0.173);    // #04342C
+Window.SetBackgroundBottomColor(0.031, 0.094, 0.078);  // #081814
+
+logo.image = Image("logo.png");
+logo.sprite = Sprite(logo.image);
+logo.sprite.SetX(Window.GetWidth() / 2 - logo.image.GetWidth() / 2);
+logo.sprite.SetY(Window.GetHeight() / 2 - logo.image.GetHeight() / 2 - 40);
+logo.sprite.SetZ(10);
+
+// Title text
+title.image = Image.Text("GENESI OS", 0.882, 0.961, 0.933, 1, "Noto Sans Bold 24");
+title.sprite = Sprite(title.image);
+title.sprite.SetX(Window.GetWidth() / 2 - title.image.GetWidth() / 2);
+title.sprite.SetY(Window.GetHeight() / 2 + logo.image.GetHeight() / 2);
+title.sprite.SetZ(10);
+
+// Subtitle
+subtitle.image = Image.Text("Loading...", 0.114, 0.620, 0.459, 1, "Noto Sans 12");
+subtitle.sprite = Sprite(subtitle.image);
+subtitle.sprite.SetX(Window.GetWidth() / 2 - subtitle.image.GetWidth() / 2);
+subtitle.sprite.SetY(Window.GetHeight() / 2 + logo.image.GetHeight() / 2 + 40);
+subtitle.sprite.SetZ(10);
+
+// Progress bar
+progress_box.image = Image("progress-bg.png");
+progress_box.sprite = Sprite(progress_box.image);
+progress_box.x = Window.GetWidth() / 2 - progress_box.image.GetWidth() / 2;
+progress_box.y = Window.GetHeight() / 2 + logo.image.GetHeight() / 2 + 80;
+progress_box.sprite.SetPosition(progress_box.x, progress_box.y, 5);
+
+progress_bar.original_image = Image("progress-bar.png");
+progress_bar.sprite = Sprite();
+progress_bar.x = progress_box.x + 2;
+progress_bar.y = progress_box.y + 2;
+progress_bar.sprite.SetPosition(progress_bar.x, progress_bar.y, 10);
+
+fun progress_callback(duration, progress) {
+    if (progress_bar.original_image.GetWidth() > 0) {
+        progress_bar.image = progress_bar.original_image.Scale(
+            progress_bar.original_image.GetWidth() * progress,
+            progress_bar.original_image.GetHeight()
+        );
+        progress_bar.sprite.SetImage(progress_bar.image);
+    }
+}
+
+Plymouth.SetBootProgressFunction(progress_callback);
+
+// Pulse animation for logo
+global.counter = 0;
+fun refresh_callback() {
+    global.counter++;
+    opacity = 0.7 + 0.3 * Math.Sin(global.counter * 0.05);
+    logo.sprite.SetOpacity(opacity);
+}
+
+Plymouth.SetRefreshFunction(refresh_callback);
+
+// Hide messages and password prompts styling
+fun message_callback(text) {
+    // Silently ignore boot messages
+}
+
+Plymouth.SetMessageFunction(message_callback);

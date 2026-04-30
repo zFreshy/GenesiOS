@@ -4,7 +4,7 @@
 - ✅ Bootable ISO based on CachyOS
 - ✅ KDE Plasma working
 - ✅ Complete build system
-- ✅ Phase 1 mostly complete (visual identity)
+- ✅ Phase 1 complete (visual identity)
 - ⬜ Phase 2-5 pending
 
 ---
@@ -14,8 +14,8 @@
 
 - [x] Custom KDE Plasma theme (colors, icons, fonts)
 - [x] Genesi OS wallpapers
-- [ ] Login screen (SDDM) with Genesi branding
-- [ ] Boot splash screen with Genesi logo
+- [x] Login screen (SDDM) with Genesi branding
+- [x] Boot splash screen with Genesi logo (Plymouth theme created, activates if plymouth is installed)
 - [x] "Genesi Welcome" app replacing "CachyOS Hello"
 - [x] Genesi OS icons and logo (hicolor 48/64/256px)
 - [x] All text and links pointing to Genesi (not CachyOS)
