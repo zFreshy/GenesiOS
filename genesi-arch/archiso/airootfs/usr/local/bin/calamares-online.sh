@@ -39,6 +39,14 @@ main() {
         # Copy cachyos branding to genesi folder, then patch
         sudo mkdir -p /usr/share/calamares/branding/genesi
         sudo cp -rf /usr/share/calamares/branding/cachyos/* /usr/share/calamares/branding/genesi/
+
+        # Copy Genesi OS custom images over CachyOS ones (if they exist in our branding dir)
+        for img in logo.png icon.png welcome.png; do
+            if [ -f /usr/share/calamares/branding/genesi/$img ]; then
+                : # Already there from airootfs
+            fi
+        done
+
         sudo sed -i \
             -e 's/productName:.*CachyOS/productName:       Genesi OS/' \
             -e 's/shortProductName:.*CachyOS/shortProductName:  Genesi OS/' \
@@ -59,6 +67,9 @@ main() {
         -e 's/branding:.*cachyos/branding: genesi/' \
         -e 's/CachyOS/Genesi OS/g' \
         {} + 2>/dev/null || true
+    # Patch all Calamares text files
+    sudo find /usr/share/calamares /etc/calamares -type f \( -name "*.conf" -o -name "*.qml" -o -name "*.yml" -o -name "*.yaml" -o -name "*.desc" \) \
+        -exec sed -i -e 's/CachyOS/Genesi OS/g' {} + 2>/dev/null || true
 
     # Get Hardware Informations
     inxi -F > "$log"

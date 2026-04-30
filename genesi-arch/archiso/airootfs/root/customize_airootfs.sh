@@ -3,8 +3,7 @@
 # Runs inside chroot AFTER packages are installed, BEFORE squashfs creation.
 # Overrides all CachyOS branding with Genesi OS.
 
-set -e
-
+# Don't use set -e - we want to continue even if some commands fail
 echo ">>> Genesi OS: Applying branding..."
 
 # ============================================================
@@ -45,11 +44,25 @@ LSB
 # ============================================================
 
 if [ -d /usr/share/genesi/skel-override ]; then
+    echo ">>> Copying skel-override to /etc/skel and /home/liveuser..."
     cp -rf /usr/share/genesi/skel-override/. /etc/skel/
+    echo ">>> Copied to /etc/skel"
     if [ -d /home/liveuser ]; then
         cp -rf /usr/share/genesi/skel-override/. /home/liveuser/
         chown -R 1000:1000 /home/liveuser/
+        echo ">>> Copied to /home/liveuser"
+    else
+        echo ">>> WARNING: /home/liveuser does not exist yet"
+        # Create liveuser home and copy
+        mkdir -p /home/liveuser
+        cp -rf /usr/share/genesi/skel-override/. /home/liveuser/
+        chown -R 1000:1000 /home/liveuser/ 2>/dev/null || true
+        echo ">>> Created /home/liveuser and copied overrides"
     fi
+    echo ">>> skel-override contents:"
+    find /usr/share/genesi/skel-override -type f
+else
+    echo ">>> WARNING: /usr/share/genesi/skel-override NOT FOUND!"
 fi
 
 # ============================================================

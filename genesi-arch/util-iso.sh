@@ -112,6 +112,36 @@ modify_mkarchiso() {
     else
         msg "mkarchiso is already patched!"
     fi
+
+    # Ensure mkarchiso actually calls _make_customize_airootfs
+    # Some versions skip it. Verify it's in the build flow.
+    local _has_customize="$(grep -c '_make_customize_airootfs' /usr/bin/mkarchiso)"
+    if [ "$_has_customize" -gt 0 ]; then
+        msg "mkarchiso has customize_airootfs support ($_has_customize references)"
+    else
+        warning "mkarchiso does NOT have customize_airootfs support!"
+    fi
+
+    # Ensure the _make_customize_airootfs function actually runs the script
+    # by checking if it's called in the main build flow
+    local _is_called="$(grep -c '_run_once _make_customize_airootfs' /usr/bin/mkarchiso)"
+    msg "customize_airootfs is called $_is_called time(s) in mkarchiso"
+}
+
+# Run customize_airootfs.sh manually inside the chroot after mkarchiso
+# installs packages. This ensures our branding overrides CachyOS packages.
+run_customize_airootfs() {
+    local _airootfs="${work_dir}/x86_64/airootfs"
+    local _script="${_airootfs}/root/customize_airootfs.sh"
+
+    if [ -f "$_script" ]; then
+        msg "Running Genesi OS customize_airootfs.sh in chroot..."
+        sudo chmod +x "$_script"
+        sudo arch-chroot "$_airootfs" /root/customize_airootfs.sh
+        msg "Genesi OS customization complete!"
+    else
+        warning "customize_airootfs.sh not found at $_script"
+    fi
 }
 
 prepare_profile(){
@@ -181,6 +211,7 @@ run_build() {
     [ -d "$outFolder/$_profile" ] || mkdir -p "$outFolder/$_profile"
     cd ${work_dir}/archiso/
     sudo mkarchiso -v -w ${work_dir} -o "$outFolder/$_profile" ${work_dir}/archiso/
+
     sudo chown $USER $outFolder
 
     cp ${work_dir}/iso/arch/pkglist.x86_64.txt "$outFolder/$_profile/$(gen_iso_fn).pkgs.txt"
