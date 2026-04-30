@@ -1,7 +1,7 @@
 [Unit]
 Description=Apply Genesi OS branding
-After=multi-user.target
 Before=display-manager.service
+After=local-fs.target
 
 [Service]
 Type=oneshot
