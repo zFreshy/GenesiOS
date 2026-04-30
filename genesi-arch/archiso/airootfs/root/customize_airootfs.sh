@@ -70,32 +70,41 @@ if [ -f /etc/cachyos-hello.conf ]; then
     sed -i 's/discuss\.cachyos\.org/github.com\/zFreshy\/GenesiOS\/issues/g' /etc/cachyos-hello.conf
 fi
 
-# Patch the cachyos-hello binary strings (replace in-place)
+# Remove cachyos-hello binary (it has hardcoded CachyOS text that can't be changed)
+# We'll replace it with our own Genesi Welcome app later
 if [ -f /usr/bin/cachyos-hello ]; then
-    # Replace visible strings in the binary
-    sed -i 's/Welcome to CachyOS/Welcome to GenesiOS/g' /usr/bin/cachyos-hello 2>/dev/null || true
-    sed -i 's/CachyOS Hello/Genesi OS Hello/g' /usr/bin/cachyos-hello 2>/dev/null || true
-    sed -i 's/CachyOS rolling/Genesi OS rolling/g' /usr/bin/cachyos-hello 2>/dev/null || true
-    sed -i 's/CachyOS Developers/Genesi OS Developers/g' /usr/bin/cachyos-hello 2>/dev/null || true
-    sed -i 's/using CachyOS/using Genesi OS/g' /usr/bin/cachyos-hello 2>/dev/null || true
+    rm -f /usr/bin/cachyos-hello
 fi
+# Remove its autostart
+rm -f /etc/xdg/autostart/cachyos-hello.desktop 2>/dev/null || true
 
 # ============================================================
 # 4. Rebrand Calamares (installed by cachyos-calamares-next)
 # ============================================================
 
-# Patch all Calamares branding files
-if [ -d /etc/calamares ]; then
-    find /etc/calamares -type f \( -name "*.conf" -o -name "*.qml" -o -name "*.yml" -o -name "*.yaml" \) -exec sed -i \
-        -e 's/CachyOS/Genesi OS/g' \
+# Patch branding.desc (this is the main branding file!)
+if [ -f /usr/share/calamares/branding/cachyos/branding.desc ]; then
+    sed -i \
+        -e 's/productName:.*CachyOS/productName:       Genesi OS/' \
+        -e 's/shortProductName:.*CachyOS/shortProductName:  Genesi OS/' \
+        -e 's/versionedName:.*CachyOS/versionedName:     Genesi OS/' \
+        -e 's/shortVersionedName:.*CachyOS/shortVersionedName: Genesi OS/' \
+        -e 's/bootLoaderEntryName:.*CachyOS/bootLoaderEntryName: Genesi OS/' \
         -e 's|https://cachyos.org|https://github.com/zFreshy/GenesiOS|g' \
         -e 's|https://discuss.cachyos.org|https://github.com/zFreshy/GenesiOS/issues|g' \
-        {} + 2>/dev/null || true
+        -e 's|https://paste.cachyos.org|https://github.com/zFreshy/GenesiOS|g' \
+        /usr/share/calamares/branding/cachyos/branding.desc
 fi
 
-# Patch Calamares shared data
+# Patch all other Calamares config files
+if [ -d /etc/calamares ]; then
+    find /etc/calamares -type f \( -name "*.conf" -o -name "*.qml" -o -name "*.yml" -o -name "*.yaml" -o -name "*.desc" \) -exec sed -i \
+        -e 's/CachyOS/Genesi OS/g' \
+        -e 's|https://cachyos.org|https://github.com/zFreshy/GenesiOS|g' \
+        {} + 2>/dev/null || true
+fi
 if [ -d /usr/share/calamares ]; then
-    find /usr/share/calamares -type f \( -name "*.conf" -o -name "*.qml" -o -name "*.yml" -o -name "*.yaml" \) -exec sed -i \
+    find /usr/share/calamares -type f \( -name "*.conf" -o -name "*.qml" -o -name "*.yml" -o -name "*.yaml" -o -name "*.desc" \) -exec sed -i \
         -e 's/CachyOS/Genesi OS/g' \
         -e 's|https://cachyos.org|https://github.com/zFreshy/GenesiOS|g' \
         {} + 2>/dev/null || true

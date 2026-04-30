@@ -35,17 +35,25 @@ main() {
     sudo pacman -Sy --noconfirm cachyos-calamares-next
 
     # Rebrand Calamares from CachyOS to Genesi OS
-    if [ -d /etc/calamares/branding ]; then
-        sudo find /etc/calamares/branding -type f \( -name "*.conf" -o -name "*.qml" \) -exec sed -i \
-            -e 's/CachyOS/Genesi OS/g' \
+    if [ -f /usr/share/calamares/branding/cachyos/branding.desc ]; then
+        sudo sed -i \
+            -e 's/productName:.*CachyOS/productName:       Genesi OS/' \
+            -e 's/shortProductName:.*CachyOS/shortProductName:  Genesi OS/' \
+            -e 's/versionedName:.*CachyOS/versionedName:     Genesi OS/' \
+            -e 's/shortVersionedName:.*CachyOS/shortVersionedName: Genesi OS/' \
+            -e 's/bootLoaderEntryName:.*CachyOS/bootLoaderEntryName: Genesi OS/' \
             -e 's|https://cachyos.org|https://github.com/zFreshy/GenesiOS|g' \
-            -e 's|https://discuss.cachyos.org|https://github.com/zFreshy/GenesiOS/issues|g' \
-            {} +
+            /usr/share/calamares/branding/cachyos/branding.desc
     fi
-    if [ -d /etc/calamares/modules ]; then
-        sudo find /etc/calamares/modules -type f -name "*.conf" -exec sed -i \
+    if [ -d /etc/calamares ]; then
+        sudo find /etc/calamares -type f \( -name "*.conf" -o -name "*.qml" -o -name "*.yml" -o -name "*.desc" \) -exec sed -i \
             -e 's/CachyOS/Genesi OS/g' \
-            {} +
+            {} + 2>/dev/null || true
+    fi
+    if [ -d /usr/share/calamares ]; then
+        sudo find /usr/share/calamares -type f \( -name "*.conf" -o -name "*.qml" -o -name "*.yml" -o -name "*.desc" \) -exec sed -i \
+            -e 's/CachyOS/Genesi OS/g' \
+            {} + 2>/dev/null || true
     fi
 
     # Get Hardware Informations
