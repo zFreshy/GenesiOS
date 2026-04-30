@@ -20,7 +20,7 @@ cachy-chroot
 cachyos-calamares-next
 cachyos-cli-installer-new
 cachyos-fish-config
-cachyos-hello
+#cachyos-hello
 cachyos-hooks
 cachyos-kde-settings
 cachyos-rate-mirrors

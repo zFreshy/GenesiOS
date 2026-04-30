@@ -34,6 +34,20 @@ main() {
 
     sudo pacman -Sy --noconfirm cachyos-calamares-next
 
+    # Rebrand Calamares from CachyOS to Genesi OS
+    if [ -d /etc/calamares/branding ]; then
+        sudo find /etc/calamares/branding -type f \( -name "*.conf" -o -name "*.qml" \) -exec sed -i \
+            -e 's/CachyOS/Genesi OS/g' \
+            -e 's|https://cachyos.org|https://github.com/zFreshy/GenesiOS|g' \
+            -e 's|https://discuss.cachyos.org|https://github.com/zFreshy/GenesiOS/issues|g' \
+            {} +
+    fi
+    if [ -d /etc/calamares/modules ]; then
+        sudo find /etc/calamares/modules -type f -name "*.conf" -exec sed -i \
+            -e 's/CachyOS/Genesi OS/g' \
+            {} +
+    fi
+
     # Get Hardware Informations
     inxi -F > "$log"
 

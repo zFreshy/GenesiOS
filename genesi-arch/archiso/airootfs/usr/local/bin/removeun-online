@@ -1,7 +1,7 @@
 #!/bin/bash
 
 _clean_packages() {
-    local _leave_these_packages="base\nbase-devel\ncachyos-keyring\ncachyos-hello\ngrub\nefibootmgr\noctopi\nca-certificates\n"
+    local _leave_these_packages="base\nbase-devel\ncachyos-keyring\ngrub\nefibootmgr\noctopi\nca-certificates\n"
     local _leave_these_basepackages="filesystem\ngcc-libs\nglibc\nglib2\nbash\ncoreutils\nfile\nfindutils\ngawk\ngrep\nprocps-ng\nsed\ntar\ngettext\npciutils\npsmisc\nshadow\nutil-linux\nbzip2\ngzip\nxz\nlicenses\npacman\nsystemd\nsystemd-sysvcompat\niputils\niproute2\n"
     local _packages_to_remove=($(comm -23 <(pacman -Qq | sort) <({ pacman -Qqg base-devel; pacman -Qqg cachyos; printf $_leave_these_packages; printf $_leave_these_basepackages; } | sort -u)))
     local xx
