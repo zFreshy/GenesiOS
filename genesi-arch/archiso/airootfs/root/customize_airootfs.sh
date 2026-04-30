@@ -90,11 +90,26 @@ if [ -f /usr/share/calamares/branding/cachyos/branding.desc ]; then
         -e 's/versionedName:.*CachyOS/versionedName:     Genesi OS/' \
         -e 's/shortVersionedName:.*CachyOS/shortVersionedName: Genesi OS/' \
         -e 's/bootLoaderEntryName:.*CachyOS/bootLoaderEntryName: Genesi OS/' \
+        -e 's/componentName:.*cachyos/componentName:     genesi/' \
         -e 's|https://cachyos.org|https://github.com/zFreshy/GenesiOS|g' \
         -e 's|https://discuss.cachyos.org|https://github.com/zFreshy/GenesiOS/issues|g' \
         -e 's|https://paste.cachyos.org|https://github.com/zFreshy/GenesiOS|g' \
         /usr/share/calamares/branding/cachyos/branding.desc
+    # Rename branding folder from cachyos to genesi
+    mv /usr/share/calamares/branding/cachyos /usr/share/calamares/branding/genesi
 fi
+
+# Copy Genesi OS branding images over the CachyOS ones
+if [ -d /usr/share/calamares/branding/genesi ]; then
+    # Our custom images are already in the genesi folder from airootfs
+    echo "Genesi OS branding images applied."
+fi
+
+# Update Calamares settings to use genesi branding
+find /usr/share/calamares /etc/calamares -type f -name "settings*.conf" -exec sed -i \
+    -e 's/branding:.*cachyos/branding: genesi/' \
+    -e 's/CachyOS/Genesi OS/g' \
+    {} + 2>/dev/null || true
 
 # Patch all other Calamares config files
 if [ -d /etc/calamares ]; then

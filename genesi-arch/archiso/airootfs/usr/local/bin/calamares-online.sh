@@ -42,16 +42,23 @@ main() {
             -e 's/versionedName:.*CachyOS/versionedName:     Genesi OS/' \
             -e 's/shortVersionedName:.*CachyOS/shortVersionedName: Genesi OS/' \
             -e 's/bootLoaderEntryName:.*CachyOS/bootLoaderEntryName: Genesi OS/' \
+            -e 's/componentName:.*cachyos/componentName:     genesi/' \
             -e 's|https://cachyos.org|https://github.com/zFreshy/GenesiOS|g' \
             /usr/share/calamares/branding/cachyos/branding.desc
+        # Rename branding folder and copy our images
+        sudo mv /usr/share/calamares/branding/cachyos /usr/share/calamares/branding/genesi
+        # Copy Genesi images if they exist
+        if [ -d /usr/share/calamares/branding/genesi-images ]; then
+            sudo cp -f /usr/share/calamares/branding/genesi-images/* /usr/share/calamares/branding/genesi/
+        fi
     fi
+    # Update settings to use genesi branding
+    sudo find /usr/share/calamares /etc/calamares -type f -name "settings*.conf" -exec sed -i \
+        -e 's/branding:.*cachyos/branding: genesi/' \
+        -e 's/CachyOS/Genesi OS/g' \
+        {} + 2>/dev/null || true
     if [ -d /etc/calamares ]; then
-        sudo find /etc/calamares -type f \( -name "*.conf" -o -name "*.qml" -o -name "*.yml" -o -name "*.desc" \) -exec sed -i \
-            -e 's/CachyOS/Genesi OS/g' \
-            {} + 2>/dev/null || true
-    fi
-    if [ -d /usr/share/calamares ]; then
-        sudo find /usr/share/calamares -type f \( -name "*.conf" -o -name "*.qml" -o -name "*.yml" -o -name "*.desc" \) -exec sed -i \
+        sudo find /etc/calamares -type f \( -name "*.conf" -o -name "*.desc" \) -exec sed -i \
             -e 's/CachyOS/Genesi OS/g' \
             {} + 2>/dev/null || true
     fi
