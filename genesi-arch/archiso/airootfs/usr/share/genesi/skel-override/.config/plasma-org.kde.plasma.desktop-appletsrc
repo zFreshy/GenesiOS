@@ -93,27 +93,11 @@ panelOpacity=2
 panelLengthMode=1
 
 [Containments][2][General]
-AppletOrder=3;4;5;6;7;9;10
+AppletOrder=30;4;5;6;7;9;10
 
-[Containments][2][Configuration]
-PreloadWeight=0
-
-[Containments][2][ConfigDialog]
-DialogHeight=84
-DialogWidth=1920
-
-[Containments][2][Applets][3]
+[Containments][2][Applets][30]
 immutability=1
-plugin=org.kde.plasma.kickoff
-
-[Containments][2][Applets][3][Configuration]
-PreloadWeight=100
-
-[Containments][2][Applets][3][Configuration][General]
-icon=genesi
-favoritesPortedToKAstats=true
-systemFavorites=suspend\\,hibernate\\,reboot\\,shutdown
-favorites=preferred://browser,org.kde.konsole.desktop,org.kde.dolphin.desktop,org.kde.kate.desktop,systemsettings.desktop
+plugin=org.genesi.logo
 
 [Containments][2][Applets][4]
 immutability=1
@@ -124,7 +108,7 @@ immutability=1
 plugin=org.kde.plasma.icontasks
 
 [Containments][2][Applets][5][Configuration][General]
-launchers=applications:org.kde.dolphin.desktop,preferred://browser,applications:org.kde.konsole.desktop,applications:systemsettings.desktop,applications:org.kde.kate.desktop
+launchers=applications:org.kde.dolphin.desktop,preferred://browser,applications:org.kde.konsole.desktop,applications:systemsettings.desktop,applications:org.kde.kate.desktop,applications:org.kde.discover.desktop
 
 [Containments][2][Applets][6]
 immutability=1

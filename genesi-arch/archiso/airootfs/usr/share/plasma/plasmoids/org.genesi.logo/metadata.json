@@ -1,0 +1,20 @@
+{
+    "KPlugin": {
+        "Id": "org.genesi.logo",
+        "Name": "Genesi OS Logo",
+        "Description": "Shows the Genesi OS logo and name in the panel",
+        "Icon": "genesi",
+        "Authors": [
+            {
+                "Name": "Genesi OS Team",
+                "Email": "contact@genesios.dev"
+            }
+        ],
+        "Category": "Utilities",
+        "License": "GPL-3.0",
+        "Version": "1.0.0",
+        "Website": "https://github.com/zFreshy/GenesiOS"
+    },
+    "X-Plasma-API-Minimum-Version": "6.0",
+    "KPackageStructure": "Plasma/Applet"
+}
