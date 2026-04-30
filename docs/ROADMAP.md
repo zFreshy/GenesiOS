@@ -4,20 +4,34 @@
 - ✅ Bootable ISO based on CachyOS
 - ✅ KDE Plasma working
 - ✅ Complete build system
-- ⬜ Everything below
+- ✅ Phase 1 mostly complete (visual identity)
+- ⬜ Phase 2-5 pending
 
 ---
 
 ## PHASE 1: Visual Identity (High Priority)
 > Give Genesi OS its own look and feel
 
-- [ ] Custom KDE Plasma theme (colors, icons, fonts)
-- [ ] Genesi OS wallpapers
+- [x] Custom KDE Plasma theme (colors, icons, fonts)
+- [x] Genesi OS wallpapers
 - [ ] Login screen (SDDM) with Genesi branding
 - [ ] Boot splash screen with Genesi logo
-- [ ] "Genesi Hello" replacing "CachyOS Hello"
-- [ ] Genesi OS icons and logo
-- [ ] All text and links pointing to Genesi (not CachyOS)
+- [x] "Genesi Welcome" app replacing "CachyOS Hello"
+- [x] Genesi OS icons and logo (hicolor 48/64/256px)
+- [x] All text and links pointing to Genesi (not CachyOS)
+- [x] Custom color scheme (GenesiOS.colors) - dark green/teal palette
+- [x] Konsole theme with Genesi colors
+- [x] Desktop icons (This PC, Home, Settings, Trash, Terminal, Install)
+- [x] Desktop widgets (clock, CPU monitor, RAM monitor, notes)
+- [x] Custom GenesiOS logo Plasmoid widget in taskbar
+- [x] Wallpaper applied automatically on boot
+- [x] Hostname, os-release, lsb-release all branded "Genesi OS"
+- [x] Boot message (MOTD) shows "Welcome to Genesi OS"
+- [x] GRUB/Syslinux/EFI boot menus show "Genesi OS"
+- [x] Calamares installer rebranded to "Instalador Genesi OS"
+- [x] KWin blur and translucency enabled (glassmorphism)
+- [x] Floating panel with app icons
+- [ ] Rounded window corners (needs Klassy or kwin-effect-rounded-corners - Phase 5)
 
 ---
 
@@ -119,7 +133,7 @@ closes everything, and next time the AI remembers the context. No other OS offer
 
 ## PHASE 4: Polish and Distribution
 
-- [ ] Custom Calamares installer with Genesi branding
+- [ ] Custom Calamares installer with Genesi branding (images, slideshow, icon)
 - [ ] Official Genesi OS website
 - [ ] Complete documentation
 - [ ] Download page with ISOs
