@@ -2,6 +2,24 @@
 # Genesi OS Branding Script
 # Runs on live boot to replace CachyOS branding with Genesi OS
 
+# Apply Genesi OS desktop config overrides to liveuser
+OVERRIDE_DIR="/usr/share/genesi/skel-override"
+LIVEUSER_HOME="/home/liveuser"
+if [ -d "$OVERRIDE_DIR" ] && [ -d "$LIVEUSER_HOME" ]; then
+    cp -rf "$OVERRIDE_DIR"/. "$LIVEUSER_HOME"/
+    chown -R liveuser:liveuser "$LIVEUSER_HOME"
+fi
+
+# Also apply to /etc/skel for installed system
+if [ -d "$OVERRIDE_DIR" ]; then
+    cp -rf "$OVERRIDE_DIR"/. /etc/skel/
+fi
+
+# Install Genesi OS color scheme system-wide
+if [ -f /usr/share/color-schemes/GenesiOS.colors ]; then
+    chmod 644 /usr/share/color-schemes/GenesiOS.colors
+fi
+
 # Replace CachyOS Hello window title and text
 if [ -f /usr/bin/cachyos-hello ]; then
     # Create a wrapper that patches the window title
