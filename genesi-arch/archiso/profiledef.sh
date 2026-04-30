@@ -34,4 +34,5 @@ file_permissions=(
   ["/usr/local/bin/prepare-live-desktop.sh"]="0:0:755"
   ["/usr/local/bin/nvidia-module-loader"]="0:0:755"
   ["/usr/local/bin/pkexec-wrapper"]="0:0:755"
+  ["/usr/local/bin/genesi-branding.sh"]="0:0:755"
 )

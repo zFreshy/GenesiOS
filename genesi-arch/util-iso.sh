@@ -52,30 +52,20 @@ trap_exit() {
     error "$@"
     umount_fs
     trap -- "$sig"
-    kill "-$sig" "$$"
+    kill "-$sig" "$"
 }
 
 generate_motd() {
     cat << 'EOF' > ${src_dir}/archiso/airootfs/etc/motd
-This ISO is based on ArchLinux ISO modified to provide Installation Environment for [38;2;23;147;209mCachyOS[0m.
-https://cachyos.org
+This ISO is based on Arch Linux and CachyOS technologies, built for [38;2;29;158;117mGenesi OS[0m.
+https://github.com/zFreshy/GenesiOS
 
-CachyOS Archiso Sources:
-https://github.com/cachyos/cachyos-live-iso
+[38;2;29;158;117mGenesi OS[0m uses CachyOS optimized packages and kernel.
+Calamares is used as GUI installer.
 
-ArchLinux ISO Source:
-https://gitlab.archlinux.org/archlinux/archiso
+Live environment will start now and let you install [38;2;29;158;117mGenesi OS[0m to disk.
 
-Calamares is used as GUI installer:
-https://github.com/calamares/calamares
-
-Live environment will start now and let you install [38;2;23;147;209mCachyOS[0m to disk.
-
-Getting help at the forum: https://discuss.cachyos.org
-
-Welcome to your [38;2;23;147;209mCachyOS[0m!
-
-[41m [41m [41m [40m [44m [40m [41m [46m [45m [41m [46m [43m [41m [44m [45m [40m [44m [40m [41m [44m [41m [41m [46m [42m [41m [44m [43m [41m [45m [40m [40m [44m [40m [41m [44m [42m [41m [46m [44m [41m [46m [47m [0m
+Welcome to [38;2;29;158;117mGenesi OS[0m!
 EOF
 }
 
@@ -88,7 +78,7 @@ fetch_cachyos_mirrorlist() {
 
 change_grub_version() {
     local _version="$1"
-    sed -i "s/CACHYOS_VERSION=\".*\"/CACHYOS_VERSION=\"${_version}\"/" ${src_dir}/archiso/grub/grub.cfg
+    sed -i "s/GENESI_VERSION=\".*\"/GENESI_VERSION=\"${_version}\"/" ${src_dir}/archiso/grub/grub.cfg
 }
 
 generate_environment() {
@@ -144,6 +134,9 @@ prepare_profile(){
         # Fix default.target - must be a real symlink, not a text file
         rm -f ${src_dir}/archiso/airootfs/etc/systemd/system/default.target
         ln -sf /usr/lib/systemd/system/graphical.target ${src_dir}/archiso/airootfs/etc/systemd/system/default.target
+        # Enable Genesi OS branding service
+        mkdir -p ${src_dir}/archiso/airootfs/etc/systemd/system/multi-user.target.wants
+        ln -sf /etc/systemd/system/genesi-branding.service ${src_dir}/archiso/airootfs/etc/systemd/system/multi-user.target.wants/genesi-branding.service
     else
         die "Unknown profile: [%s]" "${profile}"
     fi
@@ -191,7 +184,7 @@ run_build() {
     sudo chown $USER $outFolder
 
     cp ${work_dir}/iso/arch/pkglist.x86_64.txt "$outFolder/$_profile/$(gen_iso_fn).pkgs.txt"
-    mv "$outFolder/$_profile/cachyos-$(date --date="@${SOURCE_DATE_EPOCH:-$(date +%s)}" +%Y.%m.%d)-x86_64.iso" "$outFolder/$_profile/${iso_file}"
+    mv "$outFolder/$_profile/genesi-$(date --date="@${SOURCE_DATE_EPOCH:-$(date +%s)}" +%Y.%m.%d)-x86_64.iso" "$outFolder/$_profile/${iso_file}"
 
     msg "Done [Build ISO] ${iso_file}"
     msg "Finished building [%s]" "${_profile}"
@@ -229,7 +222,7 @@ run_build() {
 
 gen_iso_fn(){
     local vars=() name
-    vars+=("cachyos")
+    vars+=("genesi")
     [[ -n ${profile} ]] && vars+=("${profile}")
 
     vars+=("linux")
