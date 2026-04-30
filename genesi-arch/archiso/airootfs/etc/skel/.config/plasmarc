@@ -1,0 +1,11 @@
+[Theme]
+name=breeze-dark
+
+[Wallpapers]
+usersWallpapers=
+
+[PlasmaViews][Panel 2][Defaults]
+thickness=44
+
+[PlasmaViews][Panel 2][Horizontal1920]
+thickness=44
