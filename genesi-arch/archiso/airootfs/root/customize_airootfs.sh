@@ -82,8 +82,11 @@ rm -f /etc/xdg/autostart/cachyos-hello.desktop 2>/dev/null || true
 # 4. Rebrand Calamares (installed by cachyos-calamares-next)
 # ============================================================
 
-# Patch branding.desc (this is the main branding file!)
+# Patch branding.desc and copy to genesi folder
 if [ -f /usr/share/calamares/branding/cachyos/branding.desc ]; then
+    # Copy the entire cachyos branding to genesi folder
+    cp -rf /usr/share/calamares/branding/cachyos/* /usr/share/calamares/branding/genesi/ 2>/dev/null || true
+    # Now patch the genesi copy
     sed -i \
         -e 's/productName:.*CachyOS/productName:       Genesi OS/' \
         -e 's/shortProductName:.*CachyOS/shortProductName:  Genesi OS/' \
@@ -94,15 +97,13 @@ if [ -f /usr/share/calamares/branding/cachyos/branding.desc ]; then
         -e 's|https://cachyos.org|https://github.com/zFreshy/GenesiOS|g' \
         -e 's|https://discuss.cachyos.org|https://github.com/zFreshy/GenesiOS/issues|g' \
         -e 's|https://paste.cachyos.org|https://github.com/zFreshy/GenesiOS|g' \
-        /usr/share/calamares/branding/cachyos/branding.desc
-    # Rename branding folder from cachyos to genesi
-    mv /usr/share/calamares/branding/cachyos /usr/share/calamares/branding/genesi
+        /usr/share/calamares/branding/genesi/branding.desc
 fi
 
-# Copy Genesi OS branding images over the CachyOS ones
-if [ -d /usr/share/calamares/branding/genesi ]; then
-    # Our custom images are already in the genesi folder from airootfs
-    echo "Genesi OS branding images applied."
+# Also copy to /etc/calamares/branding/genesi if that path is used
+mkdir -p /etc/calamares/branding/genesi
+if [ -f /usr/share/calamares/branding/genesi/branding.desc ]; then
+    cp -rf /usr/share/calamares/branding/genesi/* /etc/calamares/branding/genesi/
 fi
 
 # Update Calamares settings to use genesi branding

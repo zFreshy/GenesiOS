@@ -35,8 +35,10 @@ main() {
     sudo pacman -Sy --noconfirm cachyos-calamares-next
 
     # Rebrand Calamares from CachyOS to Genesi OS
-    # Check if branding folder is still named cachyos (not yet renamed by customize_airootfs.sh)
     if [ -d /usr/share/calamares/branding/cachyos ]; then
+        # Copy cachyos branding to genesi folder, then patch
+        sudo mkdir -p /usr/share/calamares/branding/genesi
+        sudo cp -rf /usr/share/calamares/branding/cachyos/* /usr/share/calamares/branding/genesi/
         sudo sed -i \
             -e 's/productName:.*CachyOS/productName:       Genesi OS/' \
             -e 's/shortProductName:.*CachyOS/shortProductName:  Genesi OS/' \
@@ -45,14 +47,12 @@ main() {
             -e 's/bootLoaderEntryName:.*CachyOS/bootLoaderEntryName: Genesi OS/' \
             -e 's/componentName:.*cachyos/componentName:     genesi/' \
             -e 's|https://cachyos.org|https://github.com/zFreshy/GenesiOS|g' \
-            /usr/share/calamares/branding/cachyos/branding.desc
-        sudo mv /usr/share/calamares/branding/cachyos /usr/share/calamares/branding/genesi
-    elif [ -d /usr/share/calamares/branding/genesi ]; then
-        # Already renamed, just patch the desc
-        sudo sed -i \
-            -e 's/CachyOS/Genesi OS/g' \
-            -e 's|https://cachyos.org|https://github.com/zFreshy/GenesiOS|g' \
-            /usr/share/calamares/branding/genesi/branding.desc 2>/dev/null || true
+            /usr/share/calamares/branding/genesi/branding.desc
+    fi
+    # Also copy to /etc path
+    sudo mkdir -p /etc/calamares/branding/genesi
+    if [ -f /usr/share/calamares/branding/genesi/branding.desc ]; then
+        sudo cp -rf /usr/share/calamares/branding/genesi/* /etc/calamares/branding/genesi/
     fi
     # Update settings to use genesi branding
     sudo find /usr/share/calamares /etc/calamares -type f -name "settings*.conf" -exec sed -i \
