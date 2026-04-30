@@ -145,6 +145,9 @@ This works but has limitations:
 - [ ] `genesi-settings` - System settings (hostname, os-release, etc.)
 - [ ] `klassy` - Compile from AUR for configurable window corner radius (12px+)
 - [ ] `kwin-effect-rounded-corners` - Compile from AUR for rounded corners on all windows
+- [ ] Custom taskbar icon selection style - rounded pill-shaped highlight instead of ugly square, smooth hover animation with Genesi green accent
+- [ ] Centered taskbar icons (Windows 11 style) - icons grouped in the center of the panel with logo on the left and systray on the right
+- [ ] Custom app launcher (Kickoff replacement) - glassmorphic popup matching the mockup design with: search bar at top, pinned apps grid with rounded icons, recent files section, user profile at bottom, "Ver mais" links, all with Genesi green accent colors and blur background
 - [ ] Own package repository hosted on GitHub/server
 - [ ] Remove dependency on `customize_airootfs.sh` for branding
 
