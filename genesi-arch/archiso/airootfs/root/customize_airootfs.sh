@@ -49,6 +49,7 @@ if [ -d /usr/share/genesi/skel-override ]; then
     echo ">>> Copied to /etc/skel"
     if [ -d /home/liveuser ]; then
         cp -rf /usr/share/genesi/skel-override/. /home/liveuser/
+        chmod +x /home/liveuser/Desktop/*.desktop 2>/dev/null || true
         chown -R 1000:1000 /home/liveuser/
         echo ">>> Copied to /home/liveuser"
     else
@@ -56,6 +57,7 @@ if [ -d /usr/share/genesi/skel-override ]; then
         # Create liveuser home and copy
         mkdir -p /home/liveuser
         cp -rf /usr/share/genesi/skel-override/. /home/liveuser/
+        chmod +x /home/liveuser/Desktop/*.desktop 2>/dev/null || true
         chown -R 1000:1000 /home/liveuser/ 2>/dev/null || true
         echo ">>> Created /home/liveuser and copied overrides"
     fi

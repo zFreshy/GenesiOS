@@ -51,6 +51,7 @@ f2fs-tools
 fakeroot
 fatresize
 firefox
+python-pyqt5
 gcc
 gpart
 gparted

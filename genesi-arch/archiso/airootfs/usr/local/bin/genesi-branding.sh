@@ -13,10 +13,13 @@ if [ -d "$OVERRIDE_DIR" ]; then
     # Apply to liveuser home
     if [ -d /home/liveuser ]; then
         cp -rf "$OVERRIDE_DIR"/. /home/liveuser/
+        # Make desktop shortcuts executable
+        chmod +x /home/liveuser/Desktop/*.desktop 2>/dev/null || true
         chown -R liveuser:liveuser /home/liveuser/ 2>/dev/null || true
     fi
     # Apply to /etc/skel for new users (installed system)
     cp -rf "$OVERRIDE_DIR"/. /etc/skel/
+    chmod +x /etc/skel/Desktop/*.desktop 2>/dev/null || true
 fi
 
 # ============================================================

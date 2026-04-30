@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Genesi OS Welcome
+Name[pt_BR]=Bem-vindo ao Genesi OS
+Comment=Welcome to Genesi OS
+Comment[pt_BR]=Bem-vindo ao Genesi OS
+Exec=genesi-welcome
+Icon=genesi
+Terminal=false
+Categories=System;
+StartupNotify=true

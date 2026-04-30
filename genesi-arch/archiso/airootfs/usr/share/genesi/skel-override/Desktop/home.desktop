@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Home Folder
+Name[pt_BR]=Pasta Pessoal
+Icon=user-home
+Exec=dolphin ~
+Terminal=false
+Categories=System;FileManager;

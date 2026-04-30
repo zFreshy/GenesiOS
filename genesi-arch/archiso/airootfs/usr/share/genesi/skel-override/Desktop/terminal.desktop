@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Terminal
+Icon=utilities-terminal
+Exec=konsole
+Terminal=false
+Categories=System;TerminalEmulator;

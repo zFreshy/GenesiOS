@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Genesi OS Welcome
+Exec=genesi-welcome
+Hidden=false
+NoDisplay=false
+X-KDE-autostart-after=panel
+X-GNOME-Autostart-enabled=true
