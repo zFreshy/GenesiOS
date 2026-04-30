@@ -143,6 +143,8 @@ This works but has limitations:
 - [ ] `genesi-calamares` - Forked Calamares with native Genesi OS branding
 - [ ] `genesi-kde-settings` - KDE configs with Genesi OS theme built-in
 - [ ] `genesi-settings` - System settings (hostname, os-release, etc.)
+- [ ] `klassy` - Compile from AUR for configurable window corner radius (12px+)
+- [ ] `kwin-effect-rounded-corners` - Compile from AUR for rounded corners on all windows
 - [ ] Own package repository hosted on GitHub/server
 - [ ] Remove dependency on `customize_airootfs.sh` for branding
 
