@@ -3,8 +3,8 @@ BorderSize=None
 BorderSizeAuto=false
 ButtonsOnLeft=XIA
 ButtonsOnRight=
-library=org.kde.klassy
-theme=Klassy
+library=org.kde.breeze
+theme=Breeze
 
 [Compositing]
 Backend=OpenGL
