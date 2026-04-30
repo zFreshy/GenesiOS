@@ -1,204 +1,154 @@
-# Genesi OS - Arch Edition
+# Genesi OS
 
-**Genesi OS Arch Edition** é uma distribuição Linux baseada em Arch Linux, utilizando tecnologias do CachyOS para máxima performance e otimização.
+**Genesi OS** is a Linux distribution based on Arch Linux, built on top of CachyOS technologies for maximum performance and optimization. Designed for developers, with native local AI optimizations.
 
-## 🚀 Características
+## 🚀 Features
 
-### Base do Sistema
-- **Distribuição Base**: Arch Linux (rolling release)
-- **Kernel**: CachyOS optimized kernel com schedulers BORE/EEVL
-- **Gerenciador de Pacotes**: pacman
+### System Base
+- **Base Distribution**: Arch Linux (rolling release)
+- **Kernel**: CachyOS optimized kernel with BORE/EEVL schedulers
+- **Package Manager**: pacman
 - **Init System**: systemd
-- **Otimizações**: CachyOS settings para máxima performance
+- **Optimizations**: CachyOS settings for maximum performance
 
 ### Desktop Environment
-- **Compositor**: Hyprland (Wayland compositor moderno e performático)
-- **Barra**: Waybar (altamente customizável)
-- **Launcher**: Wofi (leve e rápido)
-- **Terminal**: Kitty (GPU-accelerated)
-- **File Manager**: Thunar (leve e funcional)
-- **Tema**: Genesi custom theme com gradiente roxo/azul
+- **Desktop**: KDE Plasma (Wayland)
+- **Display Manager**: plasma-login-manager (auto-login for live session)
+- **Terminal**: Konsole
+- **File Manager**: Dolphin
+- **Browser**: Firefox
 
-### Instalador
-- **Calamares**: Instalador gráfico profissional
-- **Particionamento**: Automático e manual
-- **Suporte**: UEFI e BIOS Legacy
+### Installer
+- **Calamares**: Professional graphical installer
+- **Partitioning**: Automatic and manual
+- **Support**: UEFI and BIOS Legacy
 
-### Otimizações CachyOS
-- **Kernel Otimizado**: Schedulers BORE/EEVL para melhor responsividade
-- **Sysctl Tuning**: Parâmetros otimizados de memória e I/O
-- **I/O Schedulers**: BFQ para HDDs, mq-deadline para SSDs SATA, none para NVMe
-- **Audio**: Configurações otimizadas para evitar crackling
-- **Network**: NetworkManager com configurações otimizadas
+### CachyOS Optimizations
+- **Optimized Kernel**: BORE/EEVL schedulers for better responsiveness
+- **Sysctl Tuning**: Optimized memory and I/O parameters
+- **I/O Schedulers**: BFQ for HDDs, mq-deadline for SATA SSDs, none for NVMe
+- **Audio**: Optimized settings to avoid crackling
+- **Network**: NetworkManager with optimized settings
 
-## 📦 Pacotes Incluídos
+## 🔧 Building the ISO
 
-### Sistema Base
-- linux-cachyos (kernel otimizado)
-- base, base-devel
-- networkmanager
-- grub, efibootmgr
-- cachyos-settings (otimizações do sistema)
+### ⚠️ Important Requirements
 
-### Desktop Hyprland
-- hyprland (compositor Wayland)
-- waybar (barra de status)
-- wofi (launcher de aplicativos)
-- kitty (terminal)
-- thunar (gerenciador de arquivos)
-- swaybg (wallpaper)
+**You MUST build on CachyOS!** (recommended) or another Arch-based system.
 
-### Aplicativos
-- firefox (navegador)
-- kate (editor de texto)
-- kcalc (calculadora)
-- spectacle (screenshots)
-- partitionmanager (gerenciador de partições)
-
-### Ferramentas
-- git, wget, curl
-- vim, nano
-- htop, inxi, neofetch
-- cachyos-rate-mirrors
-
-## 🔧 Build da ISO
-
-### ⚠️ Requisitos IMPORTANTES
-
-**Você PRECISA de um sistema baseado em Arch Linux!**
-
-✅ **Funciona em**:
+✅ **Works on**:
+- CachyOS (recommended)
 - Arch Linux
-- Manjaro
+- Manjaro (partial - some packages may fail)
 - EndeavourOS
-- ArcoLinux
-- Garuda Linux
-- Qualquer derivado do Arch
 
-❌ **NÃO funciona em**:
-- Ubuntu
-- Debian
+❌ **Does NOT work on**:
+- Ubuntu / Debian
 - Fedora
-- Outros sistemas não-Arch
+- Windows / macOS
 
-### Instalação dos Requisitos
+### Install Dependencies
 
 ```bash
-sudo pacman -S archiso mkinitcpio-archiso git squashfs-tools grub --needed
+sudo pacman -S archiso git --needed
 ```
 
-### Build da ISO
+### Clone and Build
 
 ```bash
+git clone https://github.com/zFreshy/GenesiOS.git
+cd GenesiOS
+git checkout arch-base
 cd genesi-arch
-sudo mkarchiso -v -w work -o out .
+chmod +x buildiso.sh util*.sh
+sudo ./buildiso.sh -p desktop
 ```
 
-**Flags**:
-- `-v` = verbose (mostra detalhes)
-- `-w work` = diretório de trabalho
-- `-o out` = diretório de saída
-- `.` = usa diretório atual
+The ISO will be generated in `genesi-arch/out/desktop/`
 
-**Tempo de build**: 20-40 minutos na primeira vez, 10-20 minutos depois.
+### Build Options
+- `-c` : Don't clean work directory before build
+- `-v` : Verbose output
+- `-r` : Build in RAM (requires >23GB RAM, much faster)
+- `-w` : Remove build directory after ISO is built
 
-A ISO será gerada em `genesi-arch/out/genesi-*.iso`
-
-### Build em RAM (Opcional)
-
-Se você tem mais de 23GB de RAM, pode buildar em RAM para ser muito mais rápido:
+### Cleaning Previous Build
 
 ```bash
-sudo mkarchiso -v -w /tmp/archiso-work -o out .
+sudo rm -rf build/ out/
 ```
 
-### Limpando Build Anterior
-
-```bash
-# Remover arquivos temporários
-sudo rm -rf work/
-
-# Remover ISOs antigas
-rm -f out/*.iso
-```
-
-## 🎨 Customização
-
-### Hyprland
-Configurações em: `genesi-arch/airootfs/etc/skel/.config/hypr/hyprland.conf`
-
-**Atalhos principais:**
-- `SUPER + RETURN` : Abrir terminal
-- `SUPER + B` : Abrir navegador
-- `SUPER + E` : Abrir gerenciador de arquivos
-- `SUPER + D` : Abrir launcher
-- `SUPER + Q` : Fechar janela
-- `SUPER + F` : Fullscreen
-
-### Waybar
-Configurações em: `genesi-arch/airootfs/etc/skel/.config/waybar/`
-
-### Tema
-- Wallpaper: `genesi-arch/airootfs/usr/share/backgrounds/genesi/wallpaper.png`
-- Cores: Gradiente roxo/azul (#667eea → #764ba2)
-
-## 📚 Estrutura do Projeto
+## 📚 Project Structure
 
 ```
 genesi-arch/
-├── airootfs/              # Sistema de arquivos da ISO
-│   ├── etc/              # Configurações do sistema
-│   ├── usr/              # Binários e recursos
-│   └── root/             # Home do root
-├── profiledef.sh         # Definição do perfil archiso
-├── packages.x86_64       # Lista de pacotes
-├── pacman.conf           # Configuração do pacman
-└── build-genesi-arch.sh  # Script de build
+├── archiso/                   # ISO profile (CachyOS-based)
+│   ├── airootfs/              # Filesystem overlay
+│   │   ├── etc/               # System configuration
+│   │   ├── usr/               # Binaries and resources
+│   │   └── root/              # Root home
+│   ├── efiboot/               # EFI boot configuration
+│   ├── grub/                  # GRUB configuration
+│   ├── syslinux/              # Syslinux configuration
+│   ├── packages_desktop.x86_64  # Package list
+│   ├── pacman.conf            # Pacman configuration
+│   └── profiledef.sh          # Archiso profile definition
+├── buildiso.sh                # Main build script
+├── util-iso.sh                # ISO build utilities
+├── util-iso-mount.sh          # Mount utilities
+├── util-msg.sh                # Message utilities
+└── util.sh                    # General utilities
 ```
 
-## 🖥️ Testando a ISO
+## 🖥️ Testing the ISO
 
 ### VirtualBox
-1. Crie uma nova VM com:
-   - Tipo: Linux
-   - Versão: Arch Linux (64-bit)
-   - RAM: 4GB mínimo
-   - Disco: 20GB mínimo
-2. Configurações:
-   - Sistema → Habilitar EFI
-   - Display → 128MB de vídeo
-   - Armazenamento → Adicionar a ISO
-3. Inicie a VM
+1. Create a new VM:
+   - Type: Other / Other 64-bit
+   - RAM: 4GB minimum
+   - Disk: 20GB minimum
+2. Settings:
+   - Display → Video Memory: 128MB
+   - Storage → Add the ISO as optical disk
+3. Start the VM
 
-### USB Bootável
+### Bootable USB
 ```bash
-# Substitua /dev/sdX pelo seu dispositivo USB
-sudo dd if=genesi-arch/out/genesi-*.iso of=/dev/sdX bs=4M status=progress oflag=sync
+# Replace /dev/sdX with your USB device
+sudo dd if=genesi-arch/out/desktop/genesi-*.iso of=/dev/sdX bs=4M status=progress oflag=sync
 ```
 
-## 🔗 Tecnologias Utilizadas
+## 📝 Default Credentials (Live Session)
+
+- **User**: liveuser
+- **Password**: (empty)
+
+## 🗺️ Roadmap
+
+See [docs/ROADMAP.md](docs/ROADMAP.md) for the full feature roadmap, including:
+- Phase 1: Visual Identity (custom theme, branding)
+- Phase 2: AI Mode (local AI optimizations, MemPalace integration)
+- Phase 3: Dev Tools (IDE, containers, sandboxes)
+- Phase 4: Polish and Distribution
+
+## 🔗 Technologies
 
 - [Arch Linux](https://archlinux.org/)
 - [CachyOS](https://cachyos.org/)
-- [Hyprland](https://hyprland.org/)
+- [KDE Plasma](https://kde.org/plasma-desktop/)
 - [Calamares](https://calamares.io/)
 - [archiso](https://wiki.archlinux.org/title/Archiso)
 
-## 📝 Credenciais Padrão
+## 🤝 Contributing
 
-- **Usuário**: genesi
-- **Senha**: genesi
-- **Root**: genesi
+Contributions are welcome! Open an issue or PR.
 
-## 🤝 Contribuindo
+## 📧 Support
 
-Contribuições são bem-vindas! Abra uma issue ou PR.
+- Issues: [GitHub Issues](https://github.com/zFreshy/GenesiOS/issues)
 
-## 📧 Suporte
-
-- Issues: [GitHub Issues](https://github.com/genesi-os/genesi-arch/issues)
-- Documentação: [GitHub Wiki](https://github.com/genesi-os/genesi-arch/wiki)
-
-## 📄 Licença
+## 📄 License
 
 GPL-3.0-or-later
+
+Based on [CachyOS](https://cachyos.org/) - credit to the CachyOS team for the excellent base system.
