@@ -1,3 +1,11 @@
+[org.kde.kdecoration2]
+BorderSize=None
+BorderSizeAuto=false
+ButtonsOnLeft=XIA
+ButtonsOnRight=
+library=org.kde.breeze
+theme=Breeze
+
 [Compositing]
 Backend=OpenGL
 Enabled=true
@@ -9,54 +17,36 @@ OpenGLIsUnsafe=false
 WindowsBlockCompositing=true
 AnimationSpeed=3
 
-[Desktops]
-Id_1=default
-Name_1=Desktop 1
-Number=1
-Rows=1
-
 [Effect-blur]
-BlurStrength=8
+BlurStrength=12
 NoiseStrength=2
 
-[Effect-overview]
-BorderActivate=9
+[Effect-slide]
+Duration=200
+HorizontalGap=0
+VerticalGap=0
+
+[Effect-fadingpopups]
+FadeDuration=100
 
 [Effect-translucency]
 Inactive=90
+MoveResize=80
 
 [Plugins]
 blurEnabled=true
 contrastEnabled=true
-dimscreenEnabled=true
-kwin4_effect_fadeEnabled=true
-kwin4_effect_squashEnabled=true
-magiclampEnabled=true
-overviewEnabled=true
 slideEnabled=true
-slidingpopupsEnabled=true
-wobblywindowsEnabled=false
-zoomEnabled=true
+fadingpopupsEnabled=true
+translucencyEnabled=true
+dimscreenEnabled=true
+
+[Windows]
+Placement=Centered
+FocusPolicy=ClickToFocus
+AutoRaise=false
+DelayFocusInterval=300
+RollOverDesktops=true
 
 [TabBox]
 LayoutName=thumbnail_grid
-
-[Windows]
-BorderlessMaximizedWindows=false
-ElectricBorderCooldown=350
-ElectricBorderCornerRatio=0.25
-ElectricBorderDelay=150
-ElectricBorderMaximize=true
-ElectricBorderTiling=true
-ElectricBorders=0
-Placement=Centered
-RollOverDesktops=true
-
-[org.kde.kdecoration2]
-BorderSize=Normal
-BorderSizeAuto=false
-ButtonsOnLeft=XIA
-ButtonsOnRight=
-CloseOnDoubleClickOnMenu=false
-library=org.kde.breeze
-theme=Breeze
