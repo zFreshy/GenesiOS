@@ -128,6 +128,26 @@ closes everything, and next time the AI remembers the context. No other OS offer
 
 ---
 
+## PHASE 5: Own Packages and Repository (Future)
+
+Currently, Genesi OS uses CachyOS packages (`cachyos-calamares-next`, `cachyos-kde-settings`,
+`cachyos-settings`, etc.) and rebrands them at build time via `customize_airootfs.sh`.
+This works but has limitations:
+
+- The `cachyos-hello` app has hardcoded text in the binary (can't rebrand without forking)
+- Calamares branding is patched via sed after package install (fragile, may break on updates)
+- Some CachyOS text may appear briefly or in edge cases
+
+**Future solution**: Create a Genesi OS package repository with forked/custom packages:
+- [ ] `genesi-welcome` - Custom welcome app replacing `cachyos-hello`
+- [ ] `genesi-calamares` - Forked Calamares with native Genesi OS branding
+- [ ] `genesi-kde-settings` - KDE configs with Genesi OS theme built-in
+- [ ] `genesi-settings` - System settings (hostname, os-release, etc.)
+- [ ] Own package repository hosted on GitHub/server
+- [ ] Remove dependency on `customize_airootfs.sh` for branding
+
+---
+
 ## How to Download and Test Local AI on Genesi OS
 
 ### Method 1: Ollama (easiest)
