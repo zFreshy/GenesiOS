@@ -1,0 +1,8 @@
+[Plymouth Theme]
+Name=Genesi OS
+Description=Genesi OS boot splash
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/genesi
+ScriptFile=/usr/share/plymouth/themes/genesi/genesi.script

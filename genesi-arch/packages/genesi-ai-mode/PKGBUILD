@@ -8,12 +8,15 @@ arch=('any')
 url='https://github.com/zFreshy/GenesiOS'
 license=('GPL-3.0-or-later')
 depends=('python' 'python-psutil' 'plasma-workspace')
+install="$pkgname.install"
 source=('genesi-aid'
         'genesi-aid.service'
         '99-genesi-ai.conf'
         'genesi-add-aimode-widget.sh'
-        'genesi-add-aimode-widget.desktop')
+        'genesi-add-aimode-widget.desktop'
+        'plasmoid-aimode')
 sha256sums=('SKIP'
+            'SKIP'
             'SKIP'
             'SKIP'
             'SKIP'
@@ -33,6 +36,7 @@ package() {
     install -Dm755 "$srcdir/genesi-add-aimode-widget.sh" "$pkgdir/usr/local/bin/genesi-add-aimode-widget.sh"
     install -Dm644 "$srcdir/genesi-add-aimode-widget.desktop" "$pkgdir/etc/xdg/autostart/genesi-add-aimode-widget.desktop"
     
-    # Install Plasma widget (will be added separately)
+    # Install Plasma widget
     install -dm755 "$pkgdir/usr/share/plasma/plasmoids/org.genesi.aimode"
+    cp -r "$srcdir/plasmoid-aimode/"* "$pkgdir/usr/share/plasma/plasmoids/org.genesi.aimode/"
 }

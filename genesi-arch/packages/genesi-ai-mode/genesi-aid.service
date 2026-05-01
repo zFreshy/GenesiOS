@@ -1,0 +1,21 @@
+[Unit]
+Description=Genesi AI Daemon - Automatic AI Optimizations
+Documentation=https://github.com/zFreshy/GenesiOS
+After=multi-user.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/genesi-aid
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+# Security hardening
+NoNewPrivileges=false
+PrivateTmp=true
+ProtectSystem=false
+ProtectHome=false
+
+[Install]
+WantedBy=multi-user.target

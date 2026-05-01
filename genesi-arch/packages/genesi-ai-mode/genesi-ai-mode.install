@@ -1,0 +1,17 @@
+post_install() {
+    echo "==> Enabling genesi-aid service..."
+    systemctl enable genesi-aid.service 2>/dev/null || true
+    echo "==> AI Mode will start automatically on next boot"
+    echo "==> To start now: sudo systemctl start genesi-aid"
+}
+
+post_upgrade() {
+    echo "==> Restarting genesi-aid service..."
+    systemctl restart genesi-aid.service 2>/dev/null || true
+}
+
+pre_remove() {
+    echo "==> Stopping and disabling genesi-aid service..."
+    systemctl stop genesi-aid.service 2>/dev/null || true
+    systemctl disable genesi-aid.service 2>/dev/null || true
+}

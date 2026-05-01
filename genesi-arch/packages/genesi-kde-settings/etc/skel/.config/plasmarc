@@ -1,0 +1,8 @@
+[Theme]
+name=breeze-dark
+
+[PlasmaViews][Panel 2][Defaults]
+thickness=48
+
+[PlasmaViews][Panel 2][Horizontal1920]
+thickness=48

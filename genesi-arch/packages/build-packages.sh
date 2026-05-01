@@ -12,11 +12,16 @@ echo ""
 # Create repo directory
 mkdir -p "$REPO_DIR"
 
+# Prepare sources for genesi-kde-settings
+echo ">>> Preparing sources..."
+bash "$SCRIPT_DIR/prepare-sources.sh"
+echo ""
+
 # List of packages to build
 PACKAGES=(
     "genesi-settings"
-    "genesi-ai-mode"
     "genesi-kde-settings"
+    "genesi-ai-mode"
 )
 
 # Build each package

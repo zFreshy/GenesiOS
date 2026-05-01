@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Trash
+Name[pt_BR]=Lixeira
+Icon=user-trash
+Exec=dolphin trash:/
+Terminal=false
+Categories=System;
