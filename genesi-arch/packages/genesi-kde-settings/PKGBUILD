@@ -1,0 +1,49 @@
+# Maintainer: Genesi OS Team <dev@genesios.org>
+# Based on cachyos-kde-settings by CachyOS team
+
+pkgname=genesi-kde-settings
+pkgver=1.0.0
+pkgrel=1
+pkgdesc='Genesi OS KDE Plasma settings and theme'
+arch=('any')
+url='https://github.com/zFreshy/GenesiOS'
+license=('GPL-3.0-or-later')
+depends=('plasma-desktop' 'breeze' 'breeze-gtk')
+optdepends=('klassy: Rounded window corners and better decorations')
+conflicts=('cachyos-kde-settings')
+provides=('cachyos-kde-settings')
+source=()
+sha256sums=()
+
+package() {
+    # Install color scheme
+    install -Dm644 "$srcdir/GenesiOS.colors" "$pkgdir/usr/share/color-schemes/GenesiOS.colors"
+    
+    # Install wallpapers
+    install -dm755 "$pkgdir/usr/share/wallpapers/genesi"
+    install -Dm644 "$srcdir/wallpaper.png" "$pkgdir/usr/share/wallpapers/genesi/wallpaper.png"
+    install -Dm644 "$srcdir/wallpaper-dark.png" "$pkgdir/usr/share/wallpapers/genesi/wallpaper-dark.png"
+    
+    # Install Konsole theme
+    install -Dm644 "$srcdir/Genesi.colorscheme" "$pkgdir/usr/share/konsole/Genesi.colorscheme"
+    
+    # Install SDDM theme
+    install -dm755 "$pkgdir/usr/share/sddm/themes/genesi"
+    cp -r "$srcdir/sddm-theme/"* "$pkgdir/usr/share/sddm/themes/genesi/"
+    
+    # Install Plymouth theme
+    install -dm755 "$pkgdir/usr/share/plymouth/themes/genesi"
+    cp -r "$srcdir/plymouth-theme/"* "$pkgdir/usr/share/plymouth/themes/genesi/"
+    
+    # Install Genesi logo plasmoid
+    install -dm755 "$pkgdir/usr/share/plasma/plasmoids/org.genesi.logo"
+    cp -r "$srcdir/plasmoid-logo/"* "$pkgdir/usr/share/plasma/plasmoids/org.genesi.logo/"
+    
+    # Install default KDE configs (skel)
+    install -dm755 "$pkgdir/etc/skel/.config"
+    cp -r "$srcdir/skel-config/"* "$pkgdir/etc/skel/.config/"
+    
+    # Install desktop icons
+    install -dm755 "$pkgdir/etc/skel/Desktop"
+    cp "$srcdir/desktop-icons/"*.desktop "$pkgdir/etc/skel/Desktop/"
+}

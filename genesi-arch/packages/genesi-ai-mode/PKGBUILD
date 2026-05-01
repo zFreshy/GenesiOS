@@ -1,0 +1,38 @@
+# Maintainer: Genesi OS Team <dev@genesios.org>
+
+pkgname=genesi-ai-mode
+pkgver=1.0.0
+pkgrel=1
+pkgdesc='Genesi OS AI Mode - Automatic AI optimization daemon and Plasma widget'
+arch=('any')
+url='https://github.com/zFreshy/GenesiOS'
+license=('GPL-3.0-or-later')
+depends=('python' 'python-psutil' 'plasma-workspace')
+source=('genesi-aid'
+        'genesi-aid.service'
+        '99-genesi-ai.conf'
+        'genesi-add-aimode-widget.sh'
+        'genesi-add-aimode-widget.desktop')
+sha256sums=('SKIP'
+            'SKIP'
+            'SKIP'
+            'SKIP'
+            'SKIP')
+
+package() {
+    # Install daemon
+    install -Dm755 "$srcdir/genesi-aid" "$pkgdir/usr/local/bin/genesi-aid"
+    
+    # Install systemd service
+    install -Dm644 "$srcdir/genesi-aid.service" "$pkgdir/usr/lib/systemd/system/genesi-aid.service"
+    
+    # Install sysctl config
+    install -Dm644 "$srcdir/99-genesi-ai.conf" "$pkgdir/etc/sysctl.d/99-genesi-ai.conf"
+    
+    # Install widget auto-add script
+    install -Dm755 "$srcdir/genesi-add-aimode-widget.sh" "$pkgdir/usr/local/bin/genesi-add-aimode-widget.sh"
+    install -Dm644 "$srcdir/genesi-add-aimode-widget.desktop" "$pkgdir/etc/xdg/autostart/genesi-add-aimode-widget.desktop"
+    
+    # Install Plasma widget (will be added separately)
+    install -dm755 "$pkgdir/usr/share/plasma/plasmoids/org.genesi.aimode"
+}
