@@ -21,7 +21,7 @@ PACKAGES=(
     "genesi-kde-settings"
     "genesi-ai-mode"
     "genesi-updater"
-    # "genesi-calamares"  # TODO: Adicionar quando estiver pronto
+    "genesi-calamares-branding"
 )
 
 # Build each package

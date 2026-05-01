@@ -1,0 +1,25 @@
+# Maintainer: Genesi OS Team
+pkgname=genesi-calamares-branding
+pkgver=1.0.0
+pkgrel=1
+pkgdesc="Genesi OS branding for Calamares installer"
+arch=('any')
+url="https://github.com/zFreshy/GenesiOS"
+license=('GPL3')
+depends=('calamares')
+conflicts=('cachyos-calamares-branding')
+provides=('calamares-branding')
+source=()
+sha256sums=()
+
+package() {
+    # Copy Genesi branding from genesi-calamares repo
+    install -dm755 "${pkgdir}/usr/share/calamares/branding/genesi"
+    
+    # Copy all branding files
+    cp -r "${startdir}/../../../genesi-calamares/src/branding/genesi/"* \
+          "${pkgdir}/usr/share/calamares/branding/genesi/"
+    
+    # Update Calamares settings to use Genesi branding
+    install -Dm644 "${startdir}/settings.conf" "${pkgdir}/etc/calamares/settings.conf"
+}
