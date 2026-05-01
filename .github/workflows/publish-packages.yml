@@ -45,8 +45,6 @@ jobs:
       
       - name: Build packages
         run: |
-          cd genesi-arch/packages
-          
           # Create build user (makepkg can't run as root)
           useradd -m -G wheel builder
           echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
@@ -55,7 +53,8 @@ jobs:
           chown -R builder:builder /github/workspace
           
           # Build all packages as builder user
-          su builder -c "cd /github/workspace/genesi-arch/packages && bash build-packages.sh"
+          cd /github/workspace/genesi-arch/packages
+          sudo -u builder bash build-packages.sh
       
       - name: List built packages
         run: |
