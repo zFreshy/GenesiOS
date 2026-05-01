@@ -3,7 +3,7 @@
 
 pkgname=genesi-kde-settings
 pkgver=1.0.0
-pkgrel=1
+pkgrel=2
 pkgdesc='Genesi OS KDE Plasma settings and theme'
 arch=('any')
 url='https://github.com/zFreshy/GenesiOS'
