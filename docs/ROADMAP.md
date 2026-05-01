@@ -5,7 +5,18 @@
 - ✅ KDE Plasma working
 - ✅ Complete build system
 - ✅ Phase 1 complete (visual identity)
-- ⬜ Phase 2-5 pending
+- ✅ Phase 2 core complete (AI Mode - 90%)
+- ⬜ Phase 3-5 pending
+
+---
+
+## Phase Order (Updated)
+
+1. **Phase 1**: Visual Identity ✅ COMPLETE
+2. **Phase 2**: AI Mode (Local AI Optimizations) ✅ 90% COMPLETE
+3. **Phase 3**: Own Packages and Repository (Infrastructure) ⬜ NEXT
+4. **Phase 4**: IDE and Dev Tools ⬜ PENDING
+5. **Phase 5**: Polish and Distribution ⬜ PENDING
 
 ---
 
@@ -97,7 +108,37 @@ closes everything, and next time the AI remembers the context. No other OS offer
 
 ---
 
-## PHASE 3: IDE and Dev Tools (Secondary Differentiator)
+## PHASE 3: Own Packages and Repository (Infrastructure)
+> Create Genesi OS package repository and custom packages
+
+Currently, Genesi OS uses CachyOS packages (`cachyos-calamares-next`, `cachyos-kde-settings`,
+`cachyos-settings`, etc.) and rebrands them at build time via `customize_airootfs.sh`.
+This works but has limitations:
+
+- The `cachyos-hello` app has hardcoded text in the binary (can't rebrand without forking)
+- Calamares branding is patched via sed after package install (fragile, may break on updates)
+- Some CachyOS text may appear briefly or in edge cases
+- **Branding doesn't persist after installing to disk** (reverts to CachyOS)
+
+**Solution**: Create a Genesi OS package repository with forked/custom packages:
+- [ ] `genesi-welcome` - Custom welcome app replacing `cachyos-hello`
+- [ ] `genesi-calamares` - Forked Calamares with native Genesi OS branding
+- [ ] `genesi-kde-settings` - KDE configs with Genesi OS theme built-in
+- [ ] `genesi-settings` - System settings (hostname, os-release, etc.)
+- [ ] `genesi-ai-mode` - AI Mode daemon, service, and widget
+- [ ] `klassy` - Compile from AUR for configurable window corner radius (12px+)
+- [ ] `kwin-effect-rounded-corners` - Compile from AUR for rounded corners on all windows
+- [ ] Custom taskbar icon selection style - rounded pill-shaped highlight instead of ugly square, smooth hover animation with Genesi green accent
+- [ ] Centered taskbar icons (Windows 11 style) - icons grouped in the center of the panel with logo on the left and systray on the right
+- [ ] Custom app launcher (Kickoff replacement) - glassmorphic popup matching the mockup design with: search bar at top, pinned apps grid with rounded icons, recent files section, user profile at bottom, "Ver mais" links, all with Genesi green accent colors and blur background
+- [ ] Own package repository hosted on GitHub/server
+- [ ] Remove dependency on `customize_airootfs.sh` for branding
+- [ ] Branding persists after installation to disk
+
+---
+
+## PHASE 4: IDE and Dev Tools (Secondary Differentiator)
+> Developer-focused tools and integrations
 
 ### 3.1 Genesi IDE (based on VS Code or Zed)
 - [ ] Fork of VS Code or Zed with Genesi branding
@@ -135,7 +176,8 @@ closes everything, and next time the AI remembers the context. No other OS offer
 
 ---
 
-## PHASE 4: Polish and Distribution
+## PHASE 5: Polish and Distribution
+> Final polish and public release
 
 - [ ] Custom Calamares installer with Genesi branding (images, slideshow, icon)
 - [ ] Official Genesi OS website
@@ -146,28 +188,41 @@ closes everything, and next time the AI remembers the context. No other OS offer
 
 ---
 
-## PHASE 5: Own Packages and Repository (Future)
+## PHASE 3: IDE and Dev Tools (Secondary Differentiator)
 
-Currently, Genesi OS uses CachyOS packages (`cachyos-calamares-next`, `cachyos-kde-settings`,
-`cachyos-settings`, etc.) and rebrands them at build time via `customize_airootfs.sh`.
-This works but has limitations:
+### 3.1 Genesi IDE (based on VS Code or Zed)
+- [ ] Fork of VS Code or Zed with Genesi branding
+- [ ] Pre-installed Genesi theme
+- [ ] Pre-configured extensions (Git, Docker, AI, popular languages)
+- [ ] Native integration with local AI daemon
+- [ ] Integration with MemPalace (project context)
+- [ ] Desktop and menu shortcut
 
-- The `cachyos-hello` app has hardcoded text in the binary (can't rebrand without forking)
-- Calamares branding is patched via sed after package install (fragile, may break on updates)
-- Some CachyOS text may appear briefly or in edge cases
+### 3.2 Container Widget in Plasma
+- [ ] Taskbar widget showing running Docker containers
+- [ ] Start/Stop/Restart with one click
+- [ ] View container logs
+- [ ] View mapped ports
+- [ ] CPU/RAM usage status per container
 
-**Future solution**: Create a Genesi OS package repository with forked/custom packages:
-- [ ] `genesi-welcome` - Custom welcome app replacing `cachyos-hello`
-- [ ] `genesi-calamares` - Forked Calamares with native Genesi OS branding
-- [ ] `genesi-kde-settings` - KDE configs with Genesi OS theme built-in
-- [ ] `genesi-settings` - System settings (hostname, os-release, etc.)
-- [ ] `klassy` - Compile from AUR for configurable window corner radius (12px+)
-- [ ] `kwin-effect-rounded-corners` - Compile from AUR for rounded corners on all windows
-- [ ] Custom taskbar icon selection style - rounded pill-shaped highlight instead of ugly square, smooth hover animation with Genesi green accent
-- [ ] Centered taskbar icons (Windows 11 style) - icons grouped in the center of the panel with logo on the left and systray on the right
-- [ ] Custom app launcher (Kickoff replacement) - glassmorphic popup matching the mockup design with: search bar at top, pinned apps grid with rounded icons, recent files section, user profile at bottom, "Ver mais" links, all with Genesi green accent colors and blur background
-- [ ] Own package repository hosted on GitHub/server
-- [ ] Remove dependency on `customize_airootfs.sh` for branding
+### 3.3 Project Sandboxes (Isolated Workspaces)
+- [ ] Based on Distrobox/Toolbox
+- [ ] GUI to create/manage workspaces
+- [ ] Templates: "Java + Spring Boot", "React + Vite", "Python + FastAPI", etc.
+- [ ] Each workspace has its own isolated dependencies
+- [ ] Integration with Genesi IDE
+
+### 3.4 Network Inspection
+- [ ] mitmproxy pre-installed and configured
+- [ ] Simple GUI to intercept HTTP/HTTPS requests
+- [ ] Quick shortcut to enable/disable debug proxy
+- [ ] Integration with container widget (view traffic per container)
+
+### 3.5 Database Explorer
+- [ ] Beekeeper Studio or DBeaver pre-installed
+- [ ] Dolphin (file manager) plugin to connect to databases
+- [ ] Support for PostgreSQL, MySQL, SQLite, MongoDB
+- [ ] Quick table and data visualization
 
 ---
 
