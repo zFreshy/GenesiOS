@@ -7,7 +7,15 @@
 echo ">>> Genesi OS: Applying branding..."
 
 # ============================================================
-# 0. Generate Plymouth progress bar images (if convert is available)
+# 0. Install Genesi packages
+# ============================================================
+if [ -f /root/customize_airootfs_genesi.sh ]; then
+    echo ">>> Installing Genesi packages..."
+    bash /root/customize_airootfs_genesi.sh
+fi
+
+# ============================================================
+# 1. Generate Plymouth progress bar images (if convert is available)
 # ============================================================
 if command -v convert &>/dev/null; then
     echo ">>> Generating Plymouth progress bar images..."
