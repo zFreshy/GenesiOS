@@ -62,6 +62,10 @@ cd "$REPO_DIR"
 rm -f genesi.db* genesi.files*
 repo-add genesi.db.tar.gz *.pkg.tar.zst
 
+# Create symlinks for pacman (it looks for .db not .db.tar.gz)
+ln -sf genesi.db.tar.gz genesi.db
+ln -sf genesi.files.tar.gz genesi.files
+
 echo ""
 echo "✅ All packages built successfully!"
 ls -lh "$REPO_DIR"

@@ -69,6 +69,10 @@ rm -f genesi.db* genesi.files*
 # Create new database
 repo-add genesi.db.tar.gz *.pkg.tar.zst
 
+# Create symlinks for pacman (it looks for .db not .db.tar.gz)
+ln -sf genesi.db.tar.gz genesi.db
+ln -sf genesi.files.tar.gz genesi.files
+
 echo ""
 echo "✅ Repository database created!"
 echo ""
@@ -76,7 +80,7 @@ echo "=== Built Packages ==="
 ls -lh "$REPO_DIR"/*.pkg.tar.zst
 echo ""
 echo "=== Repository Files ==="
-ls -lh "$REPO_DIR"/genesi.{db,files}.tar.gz
+ls -lh "$REPO_DIR"/genesi.*
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "✅ All packages built successfully!"
