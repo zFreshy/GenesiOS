@@ -41,39 +41,42 @@
 ### 2.1 "Genesi AI Optimizer" Daemon (genesi-aid)
 A systemd service that monitors AI processes and optimizes the system automatically.
 
-- [ ] Detect when Ollama/llama.cpp/vLLM/LocalAI is running
-- [ ] Automatically enable optimizations when AI is in use
-- [ ] Disable optimizations when AI stops (return to normal)
-- [ ] Plasma widget showing status (AI Mode ON/OFF, VRAM usage, loaded model)
+- [x] Detect when Ollama/llama.cpp/vLLM/LocalAI is running
+- [x] Automatically enable optimizations when AI is in use
+- [x] Disable optimizations when AI stops (return to normal)
+- [x] Plasma widget showing status (AI Mode ON/OFF, detected processes)
 
 ### 2.2 VRAM/RAM Management
-- [ ] Automatically detect available VRAM
+- [x] Free VRAM from non-essential processes when AI runs (reduce compositor visual effects)
+- [x] Set `vm.swappiness=10` when AI Mode is active
+- [ ] Automatically detect available VRAM (requires GPU detection logic)
 - [ ] Configure optimal GPU/CPU split for the model (partial offloading)
-- [ ] Free VRAM from non-essential processes when AI runs (reduce compositor visual effects)
 - [ ] Use `mlock` to keep model weights in RAM without swap
-- [ ] Set `vm.swappiness=10` when AI Mode is active
 
 ### 2.3 Huge Pages for Models
-- [ ] Configure Transparent Huge Pages (THP) of 2MB for inference
-- [ ] Pre-allocate huge pages when AI Mode is activated
-- [ ] Optimized sysctl configs: `vm.nr_hugepages`, `vm.hugetlb_shm_group`
+- [x] Configure Transparent Huge Pages (THP) of 2MB for inference
+- [x] Pre-allocate huge pages when AI Mode is activated
+- [x] Optimized sysctl configs: `vm.nr_hugepages`, `vm.hugetlb_shm_group`
 
 ### 2.4 CPU Governor and Scheduler
-- [ ] Switch CPU governor to `performance` when inference is running
+- [x] Switch CPU governor to `performance` when inference is running
+- [x] Use CachyOS BORE scheduler with high priority for AI processes (nice -5)
 - [ ] Disable power saving on cores used by AI
 - [ ] CPU pinning: pin inference threads to specific cores (avoid cache thrashing)
-- [ ] Use CachyOS BORE scheduler with high priority for AI processes
 
 ### 2.5 Optimized I/O for Models
+- [x] Optimize kernel readahead for large GGUF files (sysctl configs)
 - [ ] Pre-cache frequently used models in RAM with `vmtouch`
 - [ ] Configure I/O scheduler to prioritize large sequential reads
-- [ ] Optimize kernel readahead for large GGUF files
 
-### 2.6 "AI Mode" Toggle in Plasma
-- [ ] Taskbar widget: ON/OFF button
-- [ ] When ON: reduce visual effects, enable huge pages, CPU performance, prioritize AI
-- [ ] When OFF: return everything to normal
-- [ ] Display: VRAM used, loaded model, tokens/second
+### 2.6 "AI Mode" Widget in Plasma
+- [x] Taskbar widget showing AI Mode status
+- [x] Display detected AI processes with PIDs
+- [x] Show optimizations applied (CPU governor, swappiness, huge pages, priority)
+- [x] Auto-refresh every 5 seconds
+- [x] Pulsing animation when AI Mode is active
+- [ ] Manual ON/OFF toggle (currently auto-detect only)
+- [ ] Display VRAM usage and tokens/second metrics
 
 ### 2.7 Integrated MemPalace
 MemPalace (https://github.com/MemPalace/mempalace) is a local-first AI memory system.

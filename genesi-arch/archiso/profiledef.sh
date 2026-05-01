@@ -37,4 +37,5 @@ file_permissions=(
   ["/usr/local/bin/pkexec-wrapper"]="0:0:755"
   ["/usr/local/bin/genesi-branding.sh"]="0:0:755"
   ["/usr/local/bin/genesi-welcome"]="0:0:755"
+  ["/usr/local/bin/genesi-aid"]="0:0:755"
 )

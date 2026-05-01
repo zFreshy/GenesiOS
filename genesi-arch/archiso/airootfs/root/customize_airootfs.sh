@@ -173,6 +173,12 @@ if [ -f /etc/systemd/system/genesi-branding.service ]; then
     ln -sf /etc/systemd/system/genesi-branding.service /etc/systemd/system/multi-user.target.wants/genesi-branding.service
 fi
 
+# Genesi AI Daemon
+if [ -f /usr/lib/systemd/system/genesi-aid.service ]; then
+    ln -sf /usr/lib/systemd/system/genesi-aid.service /etc/systemd/system/multi-user.target.wants/genesi-aid.service
+    echo ">>> Enabled genesi-aid.service"
+fi
+
 # Bluetooth
 mkdir -p /etc/systemd/system/bluetooth.target.wants
 ln -sf /usr/lib/systemd/system/bluetooth.service /etc/systemd/system/bluetooth.target.wants/bluetooth.service

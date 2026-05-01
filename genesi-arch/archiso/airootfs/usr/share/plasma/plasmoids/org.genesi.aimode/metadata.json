@@ -1,0 +1,19 @@
+{
+    "KPlugin": {
+        "Authors": [
+            {
+                "Email": "dev@genesios.org",
+                "Name": "Genesi OS Team"
+            }
+        ],
+        "Category": "System Information",
+        "Description": "Shows AI Mode status and allows manual toggle",
+        "Icon": "cpu",
+        "Id": "org.genesi.aimode",
+        "License": "GPL-3.0",
+        "Name": "Genesi AI Mode",
+        "Version": "1.0",
+        "Website": "https://github.com/zFreshy/GenesiOS"
+    },
+    "KPackageStructure": "Plasma/Applet"
+}

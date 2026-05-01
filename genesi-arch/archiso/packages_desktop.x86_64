@@ -52,6 +52,7 @@ fakeroot
 fatresize
 firefox
 python-pyqt5
+python-psutil
 gcc
 gpart
 gparted
