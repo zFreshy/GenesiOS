@@ -9,34 +9,24 @@ url='https://github.com/zFreshy/GenesiOS'
 license=('GPL-3.0-or-later')
 depends=('python' 'python-psutil' 'plasma-workspace')
 install="$pkgname.install"
-source=('genesi-aid'
-        'genesi-aid.service'
-        '99-genesi-ai.conf'
-        'genesi-add-aimode-widget.sh'
-        'genesi-add-aimode-widget.desktop'
-        'plasmoid-aimode')
-sha256sums=('SKIP'
-            'SKIP'
-            'SKIP'
-            'SKIP'
-            'SKIP'
-            'SKIP')
+source=()
+sha256sums=()
 
 package() {
     # Install daemon
-    install -Dm755 "$srcdir/genesi-aid" "$pkgdir/usr/local/bin/genesi-aid"
+    install -Dm755 "${startdir}/genesi-aid" "$pkgdir/usr/local/bin/genesi-aid"
     
     # Install systemd service
-    install -Dm644 "$srcdir/genesi-aid.service" "$pkgdir/usr/lib/systemd/system/genesi-aid.service"
+    install -Dm644 "${startdir}/genesi-aid.service" "$pkgdir/usr/lib/systemd/system/genesi-aid.service"
     
     # Install sysctl config
-    install -Dm644 "$srcdir/99-genesi-ai.conf" "$pkgdir/etc/sysctl.d/99-genesi-ai.conf"
+    install -Dm644 "${startdir}/99-genesi-ai.conf" "$pkgdir/etc/sysctl.d/99-genesi-ai.conf"
     
     # Install widget auto-add script
-    install -Dm755 "$srcdir/genesi-add-aimode-widget.sh" "$pkgdir/usr/local/bin/genesi-add-aimode-widget.sh"
-    install -Dm644 "$srcdir/genesi-add-aimode-widget.desktop" "$pkgdir/etc/xdg/autostart/genesi-add-aimode-widget.desktop"
+    install -Dm755 "${startdir}/genesi-add-aimode-widget.sh" "$pkgdir/usr/local/bin/genesi-add-aimode-widget.sh"
+    install -Dm644 "${startdir}/genesi-add-aimode-widget.desktop" "$pkgdir/etc/xdg/autostart/genesi-add-aimode-widget.desktop"
     
     # Install Plasma widget
     install -dm755 "$pkgdir/usr/share/plasma/plasmoids/org.genesi.aimode"
-    cp -r "$srcdir/plasmoid-aimode/"* "$pkgdir/usr/share/plasma/plasmoids/org.genesi.aimode/"
+    cp -r "${startdir}/plasmoid-aimode/"* "$pkgdir/usr/share/plasma/plasmoids/org.genesi.aimode/"
 }

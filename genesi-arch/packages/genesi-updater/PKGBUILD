@@ -27,24 +27,24 @@ sha256sums=()
 
 package() {
     # Install update daemon
-    install -Dm755 "genesi-updater" "${pkgdir}/usr/local/bin/genesi-updater"
+    install -Dm755 "${startdir}/genesi-updater" "${pkgdir}/usr/local/bin/genesi-updater"
     
     # Install systemd service and timer
-    install -Dm644 "genesi-updater.service" "${pkgdir}/usr/lib/systemd/system/genesi-updater.service"
-    install -Dm644 "genesi-updater.timer" "${pkgdir}/usr/lib/systemd/system/genesi-updater.timer"
+    install -Dm644 "${startdir}/genesi-updater.service" "${pkgdir}/usr/lib/systemd/system/genesi-updater.service"
+    install -Dm644 "${startdir}/genesi-updater.timer" "${pkgdir}/usr/lib/systemd/system/genesi-updater.timer"
     
     # Install configuration
-    install -Dm644 "genesi-updater.conf" "${pkgdir}/etc/genesi-updater.conf"
+    install -Dm644 "${startdir}/genesi-updater.conf" "${pkgdir}/etc/genesi-updater.conf"
     
     # Install Plasma widget
     install -dm755 "${pkgdir}/usr/share/plasma/plasmoids/org.genesi.updater"
-    cp -r plasmoid/* "${pkgdir}/usr/share/plasma/plasmoids/org.genesi.updater/"
+    cp -r "${startdir}/plasmoid/"* "${pkgdir}/usr/share/plasma/plasmoids/org.genesi.updater/"
     
     # Install desktop notification handler
-    install -Dm755 "genesi-update-notifier" "${pkgdir}/usr/local/bin/genesi-update-notifier"
+    install -Dm755 "${startdir}/genesi-update-notifier" "${pkgdir}/usr/local/bin/genesi-update-notifier"
     
     # Install autostart for notification daemon
-    install -Dm644 "genesi-update-notifier.desktop" "${pkgdir}/etc/xdg/autostart/genesi-update-notifier.desktop"
+    install -Dm644 "${startdir}/genesi-update-notifier.desktop" "${pkgdir}/etc/xdg/autostart/genesi-update-notifier.desktop"
     
     # Create state directory
     install -dm755 "${pkgdir}/var/lib/genesi-updater"

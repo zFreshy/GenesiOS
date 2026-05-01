@@ -12,13 +12,13 @@ depends=('plasma-desktop' 'breeze' 'breeze-gtk')
 optdepends=('klassy: Rounded window corners and better decorations')
 conflicts=('cachyos-kde-settings' 'cachyos-desktop-settings')
 provides=('cachyos-kde-settings' 'cachyos-desktop-settings')
-source=('etc' 'usr')
-sha256sums=('SKIP' 'SKIP')
+source=()
+sha256sums=()
 
 package() {
-    # Install all files
-    cp -r "$srcdir/etc" "$pkgdir/"
-    cp -r "$srcdir/usr" "$pkgdir/"
+    # Copy files from package directory (not srcdir)
+    cp -r "${startdir}/etc" "$pkgdir/"
+    cp -r "${startdir}/usr" "$pkgdir/"
     
     # Make desktop icons executable
     chmod +x "$pkgdir/etc/skel/Desktop/"*.desktop 2>/dev/null || true
