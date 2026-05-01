@@ -1,0 +1,18 @@
+# Documentação interna (não pública)
+docs/internal/
+
+# Scripts de teste/verificação
+test-*.sh
+verify-*.sh
+
+# Build artifacts
+build/
+out/
+work/
+*.iso
+*.log
+
+# Temporary files
+*.tmp
+*.swp
+*~

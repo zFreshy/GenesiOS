@@ -44,7 +44,22 @@ See `docs/PHASE2-AI-MODE.md` for testing guide.
 
 See `docs/AUTO-UPDATE-SYSTEM.md` for complete documentation.
 
-## Structure
+## Documentation
+
+### User Documentation
+- `README.md` - Main documentation (you are here)
+- `docs/TESTING-IN-VM.md` - How to test in a VM
+- `docs/REPOSITORY-SETUP.md` - Repository configuration
+
+### Feature Documentation
+- `docs/PHASE2-AI-MODE.md` - AI Mode feature and testing
+- `docs/AUTO-UPDATE-SYSTEM.md` - Auto-update system documentation
+- `docs/AUTO-UPDATE-ARCHITECTURE.md` - System architecture
+
+### Developer Documentation
+- `docs/PHASE3-PACKAGES.md` - Package building
+- `docs/WORKFLOW-AUTO-UPDATE-SUMMARY.md` - Update workflow summary
+- `docs/TEST-AUTO-UPDATE.md` - Testing guide for updates
 
 This is a **complete copy** of the CachyOS archiso structure with Genesi branding.
 
