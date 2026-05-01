@@ -4,11 +4,15 @@
 pkgname=genesi-settings
 pkgver=1.0.0
 pkgrel=1
+epoch=1
+groups=(genesi)
 pkgdesc='Genesi OS system settings and branding'
 arch=('any')
 url='https://github.com/zFreshy/GenesiOS'
 license=('GPL-3.0-or-later')
 depends=('bash')
+provides=('cachyos-settings')
+conflicts=('cachyos-settings')
 source=('os-release'
         'lsb-release'
         'issue'
@@ -24,8 +28,4 @@ package() {
     install -Dm644 "$srcdir/lsb-release" "$pkgdir/etc/lsb-release"
     install -Dm644 "$srcdir/issue" "$pkgdir/etc/issue"
     install -Dm644 "$srcdir/hostname" "$pkgdir/etc/hostname"
-    
-    # Create Genesi OS logo symlink
-    install -dm755 "$pkgdir/usr/share/pixmaps"
-    ln -sf /usr/share/icons/hicolor/256x256/apps/genesi.png "$pkgdir/usr/share/pixmaps/genesi.png"
 }
