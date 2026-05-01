@@ -18,14 +18,12 @@ else
     echo "✅ Packages already built"
 fi
 
-# Step 2: Copy packages to airootfs for installation during build
+# Step 2: Copy packages to airootfs (will be included in the ISO)
 echo ""
 echo "📋 Copying packages to airootfs..."
-sudo mkdir -p "$SCRIPT_DIR/archiso/airootfs/root/genesi-packages"
-sudo cp "$SCRIPT_DIR/local-repo/"*.pkg.tar.zst "$SCRIPT_DIR/archiso/airootfs/root/genesi-packages/"
-sudo chmod +x "$SCRIPT_DIR/archiso/airootfs/root/customize_airootfs_genesi.sh"
+cp "$SCRIPT_DIR/local-repo/"*.pkg.tar.zst "$SCRIPT_DIR/archiso/airootfs/opt/genesi-packages/"
 
-echo "✅ Packages copied"
+echo "✅ Packages copied to airootfs/opt/genesi-packages/"
 echo ""
 
 # Step 3: Build ISO

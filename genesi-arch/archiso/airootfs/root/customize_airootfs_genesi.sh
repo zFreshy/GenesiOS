@@ -7,25 +7,35 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 echo "🎨 Installing Genesi OS packages..."
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-GENESI_PACKAGES=(
-    "/root/genesi-packages/genesi-settings-1.0.0-1-any.pkg.tar.zst"
-    "/root/genesi-packages/genesi-kde-settings-1.0.0-2-any.pkg.tar.zst"
-    "/root/genesi-packages/genesi-ai-mode-1.0.0-1-any.pkg.tar.zst"
-    "/root/genesi-packages/genesi-updater-1.0.0-1-any.pkg.tar.zst"
-)
+# Packages are in /opt/genesi-packages/ (part of airootfs)
+GENESI_PKG_DIR="/opt/genesi-packages"
 
-# Install each package
-for pkg in "${GENESI_PACKAGES[@]}"; do
-    if [ -f "$pkg" ]; then
-        echo "📦 Installing: $(basename $pkg)"
-        pacman -U --noconfirm "$pkg"
-    else
-        echo "⚠️  Package not found: $pkg"
-    fi
-done
+if [ ! -d "$GENESI_PKG_DIR" ]; then
+    echo "❌ Genesi packages directory not found: $GENESI_PKG_DIR"
+    echo "❌ Skipping Genesi package installation"
+    exit 0
+fi
+
+echo "📁 Found packages in: $GENESI_PKG_DIR"
+ls -lh "$GENESI_PKG_DIR"/*.pkg.tar.zst 2>/dev/null || {
+    echo "❌ No packages found in $GENESI_PKG_DIR"
+    exit 0
+}
+
+# Install all packages
+echo ""
+echo "📦 Installing Genesi packages..."
+pacman -U --noconfirm "$GENESI_PKG_DIR"/*.pkg.tar.zst || {
+    echo "⚠️  Some packages failed to install, continuing..."
+}
 
 # Remove CachyOS branding packages that conflict
-echo "🗑️  Removing CachyOS branding..."
+echo ""
+echo "🗑️  Removing CachyOS branding packages..."
 pacman -Rdd --noconfirm cachyos-settings cachyos-kde-settings cachyos-hello 2>/dev/null || true
 
-echo "✅ Genesi packages installed!"
+echo ""
+echo "✅ Genesi packages installation complete!"
+echo ""
+echo "Installed Genesi packages:"
+pacman -Q | grep genesi || echo "⚠️  No Genesi packages found"
