@@ -52,7 +52,7 @@ trap_exit() {
     error "$@"
     umount_fs
     trap -- "$sig"
-    kill "-$sig" "$"
+    kill "-$sig" "$$"
 }
 
 generate_motd() {
