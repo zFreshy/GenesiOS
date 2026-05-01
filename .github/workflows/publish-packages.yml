@@ -52,9 +52,56 @@ jobs:
           # Give ownership to builder
           chown -R builder:builder /github/workspace
           
-          # Build all packages as builder user
+          # Build each package
           cd /github/workspace/genesi-arch/packages
-          sudo -u builder bash build-packages.sh
+          
+          PACKAGES=(
+            "genesi-settings"
+            "genesi-kde-settings"
+            "genesi-ai-mode"
+            "genesi-updater"
+          )
+          
+          mkdir -p repo
+          
+          for pkg in "${PACKAGES[@]}"; do
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "Building: $pkg"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            
+            if [ ! -d "$pkg" ]; then
+              echo "❌ Package directory not found: $pkg"
+              exit 1
+            fi
+            
+            cd "$pkg"
+            
+            # Clean previous builds
+            rm -f *.pkg.tar.zst
+            
+            # Build package as builder user
+            sudo -u builder makepkg -sf --noconfirm
+            
+            if [ $? -eq 0 ]; then
+              echo "✅ Built: $pkg"
+              # Move to repo
+              mv *.pkg.tar.zst ../repo/
+            else
+              echo "❌ Failed to build: $pkg"
+              exit 1
+            fi
+            
+            cd ..
+          done
+          
+          # Create repository database
+          cd repo
+          rm -f genesi.db* genesi.files*
+          repo-add genesi.db.tar.gz *.pkg.tar.zst
+          
+          echo ""
+          echo "✅ All packages built successfully!"
+          ls -lh *.pkg.tar.zst
       
       - name: List built packages
         run: |
