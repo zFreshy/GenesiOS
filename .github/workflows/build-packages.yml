@@ -1,0 +1,75 @@
+name: Build and Publish Packages
+
+on:
+  push:
+    branches:
+      - main
+      - arch-base
+    paths:
+      - 'genesi-arch/packages/**'
+      - 'genesi-arch/archiso/airootfs/**'
+  workflow_dispatch:
+
+jobs:
+  build-packages:
+    runs-on: ubuntu-latest
+    container:
+      image: cachyos/cachyos-v3:latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Install dependencies
+        run: |
+          pacman -Syu --noconfirm base-devel git
+      
+      - name: Build packages
+        run: |
+          cd genesi-arch/packages
+          bash build-packages.sh
+      
+      - name: List built packages
+        run: |
+          ls -lh genesi-arch/packages/repo/
+      
+      - name: Create release tag
+        id: create_tag
+        run: |
+          TAG="packages-$(date +%Y%m%d-%H%M%S)"
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+      
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.create_tag.outputs.tag }}
+          name: "Genesi OS Packages - $(date +%Y-%m-%d)"
+          body: |
+            ## Genesi OS Package Repository
+            
+            Automatically built packages from commit ${{ github.sha }}
+            
+            ### Packages included:
+            - genesi-settings
+            - genesi-kde-settings
+            - genesi-ai-mode
+            
+            ### Installation:
+            Add to `/etc/pacman.conf`:
+            ```ini
+            [genesi]
+            SigLevel = Optional TrustAll
+            Server = https://github.com/zFreshy/GenesiOS/releases/download/${{ steps.create_tag.outputs.tag }}
+            ```
+            
+            Then run:
+            ```bash
+            sudo pacman -Sy
+            sudo pacman -S genesi-settings genesi-kde-settings genesi-ai-mode
+            ```
+          files: |
+            genesi-arch/packages/repo/*.pkg.tar.zst
+            genesi-arch/packages/repo/genesi.db.tar.gz
+            genesi-arch/packages/repo/genesi.files.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
