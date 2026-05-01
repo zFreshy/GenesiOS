@@ -20,6 +20,7 @@ Phase 2 (AI Mode) core features have been successfully implemented! Genesi OS no
 - Disables optimizations when AI stops
 - Saves state to `/var/run/genesi-aid.state` for widget
 - Logs to `/var/log/genesi-aid.log` and journald
+- **NEW**: CPU pinning to performance cores (basic heuristic)
 
 ### 2. Systemd Service
 - **Location**: `/usr/lib/systemd/system/genesi-aid.service`
@@ -57,6 +58,8 @@ When AI Mode is active:
   - Shows applied optimizations
   - Auto-refreshes every 5 seconds
   - Click to expand full details
+  - **NEW**: Auto-adds to panel on first boot
+  - **NEW**: Manual toggle button (force AI Mode ON/OFF)
 
 ### 6. Documentation
 - `docs/PHASE2-AI-MODE.md` - Complete testing guide

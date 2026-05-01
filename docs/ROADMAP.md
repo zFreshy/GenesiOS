@@ -61,8 +61,8 @@ A systemd service that monitors AI processes and optimizes the system automatica
 ### 2.4 CPU Governor and Scheduler
 - [x] Switch CPU governor to `performance` when inference is running
 - [x] Use CachyOS BORE scheduler with high priority for AI processes (nice -5)
-- [ ] Disable power saving on cores used by AI
-- [ ] CPU pinning: pin inference threads to specific cores (avoid cache thrashing)
+- [x] CPU pinning: pin inference threads to performance cores (basic heuristic)
+- [ ] Disable power saving on cores used by AI (requires deeper kernel integration)
 
 ### 2.5 Optimized I/O for Models
 - [x] Optimize kernel readahead for large GGUF files (sysctl configs)
@@ -75,8 +75,9 @@ A systemd service that monitors AI processes and optimizes the system automatica
 - [x] Show optimizations applied (CPU governor, swappiness, huge pages, priority)
 - [x] Auto-refresh every 5 seconds
 - [x] Pulsing animation when AI Mode is active
-- [ ] Manual ON/OFF toggle (currently auto-detect only)
-- [ ] Display VRAM usage and tokens/second metrics
+- [x] Auto-add widget to panel on first boot
+- [x] Manual ON/OFF toggle (force AI Mode)
+- [ ] Display VRAM usage and tokens/second metrics (requires GPU integration)
 
 ### 2.7 Integrated MemPalace
 MemPalace (https://github.com/MemPalace/mempalace) is a local-first AI memory system.

@@ -8,6 +8,7 @@ Item {
     id: root
     
     property bool aiModeActive: false
+    property bool manualOverride: false
     property var aiProcesses: []
     property string statusText: "AI Mode: OFF"
     property color statusColor: "#888888"
@@ -252,6 +253,18 @@ Item {
                 text: "Refresh Status"
                 icon.name: "view-refresh"
                 onClicked: updateStatus()
+            }
+            
+            // Manual toggle button
+            PlasmaComponents3.Button {
+                Layout.fillWidth: true
+                text: manualOverride ? "Disable Manual Override" : "Force AI Mode ON"
+                icon.name: manualOverride ? "dialog-cancel" : "run-build"
+                onClicked: {
+                    manualOverride = !manualOverride
+                    // TODO: Send command to daemon via dbus or file
+                    // For now, just toggle the flag
+                }
             }
         }
     }

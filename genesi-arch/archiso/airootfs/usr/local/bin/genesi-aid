@@ -183,11 +183,25 @@ class AIOptimizer:
             logger.debug(f"Could not restore compositor effects: {e}")
     
     def _prioritize_ai_processes(self):
-        """Set high priority (nice value) for AI processes."""
+        """Set high priority (nice value) for AI processes and try CPU pinning."""
         for proc in self.ai_processes:
             try:
-                proc.nice(-5)  # Higher priority
+                # Set high priority
+                proc.nice(-5)
                 logger.info(f"Prioritized process: {proc.name()} (PID {proc.pid})")
+                
+                # Try to pin to performance cores (first half of CPUs)
+                # This is a simple heuristic - real CPU pinning would need topology detection
+                cpu_count = psutil.cpu_count()
+                if cpu_count and cpu_count > 2:
+                    # Pin to first half of CPUs (usually performance cores on hybrid CPUs)
+                    perf_cores = list(range(cpu_count // 2))
+                    try:
+                        proc.cpu_affinity(perf_cores)
+                        logger.info(f"Pinned {proc.name()} to CPUs: {perf_cores}")
+                    except (psutil.AccessDenied, AttributeError):
+                        logger.debug(f"Could not set CPU affinity for {proc.pid}")
+                        
             except (psutil.NoSuchProcess, psutil.AccessDenied) as e:
                 logger.debug(f"Could not prioritize {proc.pid}: {e}")
     

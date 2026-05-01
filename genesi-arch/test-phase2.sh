@@ -45,6 +45,21 @@ else
     ERRORS=$((ERRORS + 1))
 fi
 
+# Check widget auto-add script
+if [ -f "archiso/airootfs/usr/local/bin/genesi-add-aimode-widget.sh" ]; then
+    echo "✅ AI Mode widget auto-add script found"
+else
+    echo "❌ AI Mode widget auto-add script NOT FOUND"
+    ERRORS=$((ERRORS + 1))
+fi
+
+if [ -f "archiso/airootfs/etc/xdg/autostart/genesi-add-aimode-widget.desktop" ]; then
+    echo "✅ AI Mode widget autostart found"
+else
+    echo "❌ AI Mode widget autostart NOT FOUND"
+    ERRORS=$((ERRORS + 1))
+fi
+
 # Check profiledef.sh has genesi-aid permission
 if grep -q "genesi-aid" "archiso/profiledef.sh"; then
     echo "✅ genesi-aid permission in profiledef.sh"
