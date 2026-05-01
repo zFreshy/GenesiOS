@@ -1,11 +1,10 @@
-name: Build Genesi OS ISO
+name: Build Genesi OS ISO (DISABLED)
+
+# Workflow desabilitado - projeto migrado para genesi-arch
+# Para buildar ISO, use: cd genesi-arch && sudo ./buildiso.sh -p desktop
 
 on:
-  push:
-    branches: [ main, master, develop ]
-  pull_request:
-    branches: [ main, master ]
-  workflow_dispatch:  # Permite executar manualmente
+  workflow_dispatch:  # Apenas manual
 
 jobs:
   build-iso:

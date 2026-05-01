@@ -1,8 +1,9 @@
-name: PR Validation
+name: PR Validation (DISABLED)
+
+# Workflow desabilitado - projeto migrado para genesi-arch
 
 on:
-  pull_request:
-    branches: [ main, master ]
+  workflow_dispatch:  # Apenas manual
 
 jobs:
   validate:

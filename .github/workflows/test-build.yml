@@ -1,13 +1,9 @@
-name: Test Build Components
+name: Test Build Components (DISABLED)
+
+# Workflow desabilitado - projeto migrado para genesi-arch
 
 on:
-  push:
-    branches: [ main, master, develop ]
-    paths:
-      - 'genesi-desktop/**'
-      - '.github/workflows/test-build.yml'
-  pull_request:
-    branches: [ main, master ]
+  workflow_dispatch:  # Apenas manual
 
 jobs:
   test-rust-components:
