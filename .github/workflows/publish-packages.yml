@@ -1,0 +1,156 @@
+name: Build and Publish Packages
+
+on:
+  push:
+    branches:
+      - main  # ← Branch main!
+      - arch-base
+    paths:
+      - 'genesi-arch/packages/**'
+      - '.github/workflows/publish-packages.yml'
+  workflow_dispatch:
+    inputs:
+      force_rebuild:
+        description: 'Force rebuild all packages'
+        required: false
+        default: 'false'
+
+jobs:
+  build-packages:
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux:latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Setup Arch Linux environment
+        run: |
+          # Update system
+          pacman -Syu --noconfirm
+          
+          # Install build dependencies
+          pacman -S --noconfirm \
+            base-devel \
+            git \
+            python \
+            python-requests \
+            python-packaging \
+            pacman-contrib \
+            libnotify \
+            plasma-workspace
+      
+      - name: Build packages
+        run: |
+          cd genesi-arch/packages
+          
+          # Create build user (makepkg can't run as root)
+          useradd -m builder
+          chown -R builder:builder .
+          
+          # Build all packages
+          su - builder -c "cd $(pwd) && bash build-packages.sh"
+      
+      - name: List built packages
+        run: |
+          echo "=== Built Packages ==="
+          ls -lh genesi-arch/packages/repo/
+          
+          echo ""
+          echo "=== Package Info ==="
+          for pkg in genesi-arch/packages/repo/*.pkg.tar.zst; do
+            echo "Package: $(basename $pkg)"
+            pacman -Qip "$pkg" | grep -E "^(Name|Version|Description)"
+            echo ""
+          done
+      
+      - name: Create release tag
+        id: create_tag
+        run: |
+          # Generate tag name with timestamp
+          TAG_NAME="packages-$(date +%Y%m%d-%H%M%S)"
+          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+          echo "Generated tag: $TAG_NAME"
+      
+      - name: Upload packages to GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.create_tag.outputs.tag_name }}
+          name: "Genesi OS Packages - ${{ steps.create_tag.outputs.tag_name }}"
+          body: |
+            ## 📦 Genesi OS Package Repository
+            
+            **Build Date**: ${{ github.event.head_commit.timestamp }}
+            **Commit**: ${{ github.sha }}
+            
+            ### Packages Included
+            - `genesi-settings` - System branding and configuration
+            - `genesi-kde-settings` - KDE Plasma theme and settings
+            - `genesi-ai-mode` - Automatic AI optimization daemon
+            - `genesi-updater` - Automatic update system
+            
+            ### Installation
+            
+            Add to `/etc/pacman.conf`:
+            ```ini
+            [genesi]
+            SigLevel = Optional TrustAll
+            Server = https://github.com/${{ github.repository }}/releases/download/${{ steps.create_tag.outputs.tag_name }}
+            ```
+            
+            Then run:
+            ```bash
+            sudo pacman -Sy
+            sudo pacman -S genesi-settings genesi-kde-settings genesi-ai-mode genesi-updater
+            ```
+            
+            ### Changelog
+            ${{ github.event.head_commit.message }}
+          files: |
+            genesi-arch/packages/repo/*.pkg.tar.zst
+            genesi-arch/packages/repo/genesi.db.tar.gz
+            genesi-arch/packages/repo/genesi.files.tar.gz
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Update latest release pointer
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: packages-latest
+          name: "Genesi OS Packages - Latest"
+          body: |
+            ## 📦 Latest Genesi OS Packages
+            
+            This release always points to the latest packages.
+            
+            **Last Updated**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+            **Latest Build**: ${{ steps.create_tag.outputs.tag_name }}
+            
+            ### Quick Setup
+            
+            Add to `/etc/pacman.conf`:
+            ```ini
+            [genesi]
+            SigLevel = Optional TrustAll
+            Server = https://github.com/${{ github.repository }}/releases/download/packages-latest
+            ```
+          files: |
+            genesi-arch/packages/repo/*.pkg.tar.zst
+            genesi-arch/packages/repo/genesi.db.tar.gz
+            genesi-arch/packages/repo/genesi.files.tar.gz
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Notify success
+        if: success()
+        run: |
+          echo "✅ Packages built and published successfully!"
+          echo "📦 Release: ${{ steps.create_tag.outputs.tag_name }}"
+          echo "🔗 URL: https://github.com/${{ github.repository }}/releases/tag/${{ steps.create_tag.outputs.tag_name }}"

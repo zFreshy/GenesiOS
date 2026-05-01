@@ -1,0 +1,97 @@
+name: Test Build Components
+
+on:
+  push:
+    branches: [ main, master, develop ]
+    paths:
+      - 'genesi-desktop/**'
+      - '.github/workflows/test-build.yml'
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  test-rust-components:
+    runs-on: ubuntu-22.04
+    
+    steps:
+    - name: 📥 Checkout
+      uses: actions/checkout@v4
+      
+    - name: 🦀 Instalar Rust
+      uses: dtolnay/rust-toolchain@stable
+      
+    - name: 📦 Instalar dependências
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          libwayland-dev \
+          libxkbcommon-dev \
+          libegl1-mesa-dev \
+          libgles2-mesa-dev \
+          libgbm-dev \
+          libinput-dev \
+          libsystemd-dev \
+          libdrm-dev \
+          libudev-dev \
+          libdbus-1-dev \
+          libseat-dev \
+          libwebkit2gtk-4.1-dev \
+          libgtk-3-dev \
+          libgtk-4-dev \
+          libayatana-appindicator3-dev \
+          librsvg2-dev \
+          libjavascriptcoregtk-4.1-dev \
+          libsoup-3.0-dev \
+          patchelf
+          
+    - name: 📦 Cache Cargo
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/bin/
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          genesi-desktop/genesi-wm/target/
+          genesi-desktop/genesi-desktop-gtk/target/
+        key: ${{ runner.os }}-cargo-test-${{ hashFiles('**/Cargo.lock') }}
+        
+    - name: 🔍 Check Window Manager
+      run: |
+        cd genesi-desktop/genesi-wm
+        cargo check --release
+        
+    - name: 🔍 Check Desktop GTK4
+      run: |
+        cd genesi-desktop/genesi-desktop-gtk
+        cargo check --release
+        
+    - name: 🧪 Test Window Manager
+      run: |
+        cd genesi-desktop/genesi-wm
+        cargo test --release
+        
+    - name: 🧪 Test Desktop GTK4
+      run: |
+        cd genesi-desktop/genesi-desktop-gtk
+        cargo test --release
+        
+    - name: 🔨 Build Window Manager
+      run: |
+        cd genesi-desktop/genesi-wm
+        cargo build --release
+        ls -lh target/release/genesi-wm
+        
+    - name: 🔨 Build Desktop GTK4
+      run: |
+        cd genesi-desktop/genesi-desktop-gtk
+        cargo build --release
+        ls -lh target/release/genesi-desktop-gtk
+        
+    - name: ✅ Verificar binários
+      run: |
+        echo "✅ Window Manager:"
+        file genesi-desktop/genesi-wm/target/release/genesi-wm
+        echo ""
+        echo "✅ Desktop GTK4:"
+        file genesi-desktop/genesi-desktop-gtk/target/release/genesi-desktop-gtk

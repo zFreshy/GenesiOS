@@ -1,0 +1,73 @@
+name: PR Validation
+
+on:
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  validate:
+    runs-on: ubuntu-22.04
+    
+    steps:
+    - name: 📥 Checkout
+      uses: actions/checkout@v4
+      
+    - name: 🦀 Instalar Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        components: rustfmt, clippy
+        
+    - name: 📦 Instalar dependências mínimas
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          libwayland-dev \
+          libxkbcommon-dev \
+          libegl1-mesa-dev \
+          libgtk-4-dev \
+          libwebkit2gtk-4.1-dev
+          
+    - name: 🎨 Verificar formatação (rustfmt)
+      run: |
+        cd genesi-desktop/genesi-wm
+        cargo fmt -- --check
+        cd ../genesi-desktop-gtk
+        cargo fmt -- --check
+        
+    - name: 📋 Verificar linting (clippy)
+      run: |
+        cd genesi-desktop/genesi-wm
+        cargo clippy -- -D warnings
+        cd ../genesi-desktop-gtk
+        cargo clippy -- -D warnings
+        
+    - name: ✅ Verificar compilação
+      run: |
+        cd genesi-desktop/genesi-wm
+        cargo check
+        cd ../genesi-desktop-gtk
+        cargo check
+        
+    - name: 📝 Verificar scripts shell
+      run: |
+        # Verifica sintaxe dos scripts
+        bash -n build-iso.sh
+        bash -n build-iso-simple.sh
+        bash -n diagnostico.sh || true
+        bash -n check-gui.sh || true
+        
+    - name: 📊 Estatísticas do código
+      run: |
+        echo "## 📊 Estatísticas do Código" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Window Manager" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        cd genesi-desktop/genesi-wm
+        cargo tree --depth 1 >> $GITHUB_STEP_SUMMARY || true
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Desktop GTK4" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        cd ../genesi-desktop-gtk
+        cargo tree --depth 1 >> $GITHUB_STEP_SUMMARY || true
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY

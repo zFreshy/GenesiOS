@@ -1,0 +1,51 @@
+# Maintainer: Genesi OS Team
+pkgname=genesi-updater
+pkgver=1.0.0
+pkgrel=1
+pkgdesc="Genesi OS automatic update system with notifications"
+arch=('any')
+url="https://github.com/zFreshy/GenesiOS"
+license=('GPL3')
+depends=(
+    'python'
+    'python-requests'
+    'python-packaging'
+    'pacman-contrib'  # for checkupdates
+    'libnotify'       # for desktop notifications
+    'plasma-workspace' # for KDE integration
+)
+optdepends=(
+    'discover: GUI package manager'
+    'octopi: Alternative GUI package manager'
+)
+backup=(
+    'etc/genesi-updater.conf'
+)
+install=genesi-updater.install
+source=()
+sha256sums=()
+
+package() {
+    # Install update daemon
+    install -Dm755 "genesi-updater" "${pkgdir}/usr/local/bin/genesi-updater"
+    
+    # Install systemd service and timer
+    install -Dm644 "genesi-updater.service" "${pkgdir}/usr/lib/systemd/system/genesi-updater.service"
+    install -Dm644 "genesi-updater.timer" "${pkgdir}/usr/lib/systemd/system/genesi-updater.timer"
+    
+    # Install configuration
+    install -Dm644 "genesi-updater.conf" "${pkgdir}/etc/genesi-updater.conf"
+    
+    # Install Plasma widget
+    install -dm755 "${pkgdir}/usr/share/plasma/plasmoids/org.genesi.updater"
+    cp -r plasmoid/* "${pkgdir}/usr/share/plasma/plasmoids/org.genesi.updater/"
+    
+    # Install desktop notification handler
+    install -Dm755 "genesi-update-notifier" "${pkgdir}/usr/local/bin/genesi-update-notifier"
+    
+    # Install autostart for notification daemon
+    install -Dm644 "genesi-update-notifier.desktop" "${pkgdir}/etc/xdg/autostart/genesi-update-notifier.desktop"
+    
+    # Create state directory
+    install -dm755 "${pkgdir}/var/lib/genesi-updater"
+}

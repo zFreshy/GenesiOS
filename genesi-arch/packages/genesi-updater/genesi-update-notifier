@@ -1,0 +1,52 @@
+#!/bin/bash
+# Genesi OS Update Notifier - User-space notification daemon
+# Monitors for updates and shows notifications
+
+STATE_FILE="/var/lib/genesi-updater/state.json"
+FLAG_FILE="/tmp/genesi-updates-available"
+LAST_NOTIFIED="/tmp/genesi-last-notified"
+
+# Wait for desktop to be ready
+sleep 10
+
+while true; do
+    # Check if updates are available
+    if [ -f "$FLAG_FILE" ]; then
+        UPDATE_COUNT=$(cat "$FLAG_FILE")
+        
+        # Check if we already notified about this count
+        LAST_COUNT=0
+        if [ -f "$LAST_NOTIFIED" ]; then
+            LAST_COUNT=$(cat "$LAST_NOTIFIED")
+        fi
+        
+        # Only notify if count changed
+        if [ "$UPDATE_COUNT" != "$LAST_COUNT" ]; then
+            # Show notification
+            if [ "$UPDATE_COUNT" -eq 1 ]; then
+                notify-send \
+                    -a "Genesi Updater" \
+                    -i "system-software-update" \
+                    -u normal \
+                    "🔄 1 Update Available" \
+                    "Click the update icon in the taskbar to install."
+            else
+                notify-send \
+                    -a "Genesi Updater" \
+                    -i "system-software-update" \
+                    -u normal \
+                    "🔄 $UPDATE_COUNT Updates Available" \
+                    "Click the update icon in the taskbar to install."
+            fi
+            
+            # Remember we notified
+            echo "$UPDATE_COUNT" > "$LAST_NOTIFIED"
+        fi
+    else
+        # No updates, clear notification state
+        rm -f "$LAST_NOTIFIED"
+    fi
+    
+    # Check every 5 minutes
+    sleep 300
+done

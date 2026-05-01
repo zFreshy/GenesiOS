@@ -1,0 +1,59 @@
+post_install() {
+    echo "==> Enabling Genesi Updater..."
+    
+    # Enable and start timer
+    systemctl enable genesi-updater.timer
+    systemctl start genesi-updater.timer
+    
+    # Create state directory
+    mkdir -p /var/lib/genesi-updater
+    
+    # Run initial check
+    /usr/local/bin/genesi-updater || true
+    
+    echo "==> Genesi Updater installed successfully!"
+    echo "    - Updates will be checked every hour"
+    echo "    - Notifications will appear when updates are available"
+    echo "    - Look for the update icon in your taskbar"
+    echo ""
+    echo "    Configuration: /etc/genesi-updater.conf"
+    echo "    Logs: /var/log/genesi-updater.log"
+    echo ""
+}
+
+post_upgrade() {
+    echo "==> Restarting Genesi Updater..."
+    
+    # Restart timer
+    systemctl daemon-reload
+    systemctl restart genesi-updater.timer
+    
+    # Run check
+    /usr/local/bin/genesi-updater || true
+    
+    echo "==> Genesi Updater upgraded successfully!"
+}
+
+pre_remove() {
+    echo "==> Stopping Genesi Updater..."
+    
+    # Stop and disable timer
+    systemctl stop genesi-updater.timer
+    systemctl disable genesi-updater.timer
+    
+    # Kill notifier if running
+    killall genesi-update-notifier 2>/dev/null || true
+    
+    echo "==> Genesi Updater stopped"
+}
+
+post_remove() {
+    echo "==> Cleaning up Genesi Updater..."
+    
+    # Remove state files
+    rm -rf /var/lib/genesi-updater
+    rm -f /tmp/genesi-updates-available
+    rm -f /tmp/genesi-last-notified
+    
+    echo "==> Genesi Updater removed"
+}

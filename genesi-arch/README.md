@@ -33,6 +33,17 @@ Genesi OS is the **first Linux distribution optimized for local AI development**
 
 See `docs/PHASE2-AI-MODE.md` for testing guide.
 
+### Phase 3: Auto-Update System ✅ COMPLETE
+- Automatic update checking every hour
+- Desktop notifications when updates available
+- Plasma widget with visual update counter
+- Integration with KDE Discover (GUI updates)
+- GitHub Actions for automatic package publishing
+- Zero configuration - works out of the box
+- Repository hosted on GitHub Releases (free, fast CDN)
+
+See `docs/AUTO-UPDATE-SYSTEM.md` for complete documentation.
+
 ## Structure
 
 This is a **complete copy** of the CachyOS archiso structure with Genesi branding.

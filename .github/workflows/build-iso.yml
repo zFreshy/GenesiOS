@@ -1,0 +1,121 @@
+name: Build Genesi OS ISO
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:  # Permite executar manualmente
+
+jobs:
+  build-iso:
+    runs-on: ubuntu-22.04
+    
+    steps:
+    - name: 📥 Checkout código
+      uses: actions/checkout@v4
+      
+    - name: 💾 Liberar espaço em disco
+      run: |
+        echo "Espaço antes:"
+        df -h
+        sudo rm -rf /usr/share/dotnet
+        sudo rm -rf /opt/ghc
+        sudo rm -rf /usr/local/share/boost
+        sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+        echo "Espaço depois:"
+        df -h
+        
+    - name: 📦 Instalar dependências do sistema
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          debootstrap \
+          squashfs-tools \
+          xorriso \
+          isolinux \
+          syslinux-efi \
+          grub-pc-bin \
+          grub-efi-amd64-bin \
+          mtools
+          
+    - name: 🦀 Instalar Rust
+      uses: dtolnay/rust-toolchain@stable
+      
+    - name: 📦 Cache Cargo
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/bin/
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          genesi-desktop/genesi-wm/target/
+          genesi-desktop/genesi-desktop-gtk/target/
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-
+          
+    - name: 🔨 Compilar componentes Rust
+      run: |
+        echo "Compilando Window Manager..."
+        cd genesi-desktop/genesi-wm
+        cargo build --release
+        cd ../..
+        
+        echo "Compilando Desktop GTK4..."
+        cd genesi-desktop/genesi-desktop-gtk
+        cargo build --release
+        cd ../..
+        
+    - name: 🏗️ Build ISO
+      run: |
+        sudo ./build-iso.sh
+      env:
+        DEBIAN_FRONTEND: noninteractive
+        
+    - name: 📊 Informações da ISO
+      run: |
+        ISO_FILE=$(ls GenesiOS-*.iso | head -n 1)
+        echo "📍 ISO criada: $ISO_FILE"
+        echo "📊 Tamanho: $(du -h $ISO_FILE | cut -f1)"
+        echo "🔐 SHA256: $(sha256sum $ISO_FILE | cut -d' ' -f1)"
+        
+    - name: 📤 Upload ISO como artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: genesi-os-iso
+        path: GenesiOS-*.iso
+        retention-days: 30
+        
+    - name: 📝 Criar release (apenas em tags)
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v1
+      with:
+        files: GenesiOS-*.iso
+        body: |
+          ## Genesi OS - Build Automático
+          
+          ### 🚀 Como usar:
+          1. Baixe o arquivo `.iso`
+          2. Crie uma VM no VirtualBox/VMware com:
+             - 4GB RAM mínimo
+             - 20GB disco
+             - Habilitar virtualização (VT-x/AMD-V)
+          3. Monte a ISO e inicie a VM
+          
+          ### 📋 Credenciais padrão:
+          - Usuário: `genesi`
+          - Senha: `genesi`
+          
+          ### 🔧 Componentes incluídos:
+          - Kernel Linux (Ubuntu 22.04 base)
+          - Sway (Wayland compositor)
+          - Genesi Window Manager (Rust)
+          - Genesi Desktop (GTK4)
+          - Chromium Browser
+          - NetworkManager
+          
+          **SHA256:** `${{ hashFiles('GenesiOS-*.iso') }}`
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

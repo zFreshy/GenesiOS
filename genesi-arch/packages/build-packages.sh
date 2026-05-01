@@ -1,60 +1,83 @@
-#!/usr/bin/env bash
-# Build all Genesi OS packages
+#!/bin/bash
+# Build all Genesi OS packages and create repository database
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$SCRIPT_DIR/repo"
 
-echo "=== Building Genesi OS Packages ==="
+echo "=== Genesi OS Package Builder ==="
 echo ""
 
 # Create repo directory
 mkdir -p "$REPO_DIR"
-
-# Prepare sources for genesi-kde-settings
-echo ">>> Preparing sources..."
-bash "$SCRIPT_DIR/prepare-sources.sh"
-echo ""
 
 # List of packages to build
 PACKAGES=(
     "genesi-settings"
     "genesi-kde-settings"
     "genesi-ai-mode"
+    "genesi-updater"
 )
 
 # Build each package
 for pkg in "${PACKAGES[@]}"; do
-    echo ">>> Building $pkg..."
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "Building: $pkg"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    
+    if [ ! -d "$SCRIPT_DIR/$pkg" ]; then
+        echo "❌ Package directory not found: $pkg"
+        continue
+    fi
+    
     cd "$SCRIPT_DIR/$pkg"
     
     # Clean previous builds
     rm -f *.pkg.tar.zst
     
     # Build package
-    makepkg -sf --noconfirm
+    if makepkg -sf --noconfirm; then
+        echo "✅ Built: $pkg"
+        
+        # Move to repo
+        mv *.pkg.tar.zst "$REPO_DIR/"
+    else
+        echo "❌ Failed to build: $pkg"
+        exit 1
+    fi
     
-    # Move to repo
-    mv *.pkg.tar.zst "$REPO_DIR/"
-    
-    echo "✓ $pkg built successfully"
     echo ""
 done
 
 # Create repository database
-echo ">>> Creating repository database..."
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "Creating repository database..."
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
 cd "$REPO_DIR"
+
+# Remove old database
+rm -f genesi.db* genesi.files*
+
+# Create new database
 repo-add genesi.db.tar.gz *.pkg.tar.zst
 
 echo ""
-echo "=== Build Complete ==="
-echo "Packages location: $REPO_DIR"
-echo "Repository database: $REPO_DIR/genesi.db.tar.gz"
+echo "✅ Repository database created!"
 echo ""
-echo "To use this repository, add to /etc/pacman.conf:"
+echo "=== Built Packages ==="
+ls -lh "$REPO_DIR"/*.pkg.tar.zst
 echo ""
-echo "[genesi]"
-echo "SigLevel = Optional TrustAll"
-echo "Server = file://$REPO_DIR"
+echo "=== Repository Files ==="
+ls -lh "$REPO_DIR"/genesi.{db,files}.tar.gz
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "✅ All packages built successfully!"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+echo "Next steps:"
+echo "1. Upload packages to GitHub Releases"
+echo "2. Update pacman.conf with repository URL"
+echo "3. Run 'sudo pacman -Sy' to sync database"
 echo ""

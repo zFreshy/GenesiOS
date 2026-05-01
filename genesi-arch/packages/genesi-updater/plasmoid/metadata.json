@@ -1,0 +1,24 @@
+{
+    "KPlugin": {
+        "Authors": [
+            {
+                "Email": "dev@genesios.org",
+                "Name": "Genesi OS Team"
+            }
+        ],
+        "Category": "System Information",
+        "Description": "Shows available system updates",
+        "Icon": "system-software-update",
+        "Id": "org.genesi.updater",
+        "License": "GPL-3.0-or-later",
+        "Name": "Genesi Updater",
+        "Version": "1.0.0",
+        "Website": "https://github.com/zFreshy/GenesiOS"
+    },
+    "KPackageStructure": "Plasma/Applet",
+    "X-Plasma-API": "declarativeappletscript",
+    "X-Plasma-MainScript": "ui/main.qml",
+    "X-Plasma-Provides": [
+        "org.kde.plasma.updates"
+    ]
+}
