@@ -49,11 +49,11 @@ jobs:
           useradd -m -G wheel builder
           echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
           
-          # Give ownership to builder
-          chown -R builder:builder /github/workspace
+          # Give ownership to builder (use GITHUB_WORKSPACE env var)
+          chown -R builder:builder "$GITHUB_WORKSPACE"
           
           # Build each package
-          cd /github/workspace/genesi-arch/packages
+          cd "$GITHUB_WORKSPACE/genesi-arch/packages"
           
           PACKAGES=(
             "genesi-settings"
