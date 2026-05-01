@@ -1,0 +1,57 @@
+# SPDX-FileCopyrightText: 2026 Genesi OS Team
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# Genesi OS branding for Calamares installer
+---
+componentName: genesi
+
+### WELCOME / OVERALL WORDING
+welcomeStyleCalamares: false
+welcomeExpandingLogo: true
+
+### WINDOW CONFIGURATION
+windowExpanding: normal
+windowSize: 900px,600px
+windowPlacement: center
+
+### PANELS CONFIGURATION
+sidebar: widget
+navigation: widget
+
+### STRINGS, IMAGES AND COLORS
+strings:
+    productName:         "Genesi OS"
+    shortProductName:    "Genesi"
+    version:             "1.0.0"
+    shortVersion:        "1.0"
+    versionedName:       "Genesi OS 1.0.0"
+    shortVersionedName:  "Genesi 1.0"
+    bootloaderEntryName: "Genesi OS"
+    productUrl:          "https://github.com/zFreshy/GenesiOS"
+    supportUrl:          "https://github.com/zFreshy/GenesiOS/issues"
+    knownIssuesUrl:      "https://github.com/zFreshy/GenesiOS/issues"
+    releaseNotesUrl:     "https://github.com/zFreshy/GenesiOS/releases"
+    donateUrl:           ""
+
+images:
+    productIcon:         "logo.png"
+    productLogo:         "logo.png"
+    productWelcome:      "welcome.png"
+    productWallpaper:    "background.png"
+
+# Genesi OS color scheme - Dark green/teal theme
+style:
+   SidebarBackground:        "#0a0f0d"
+   SidebarText:              "#00ff9f"
+   SidebarTextCurrent:       "#0a0f0d"
+   SidebarBackgroundCurrent: "#00ff9f"
+
+### SLIDESHOW
+slideshow: "show.qml"
+slideshowAPI: 2
+
+### UPLOAD SERVER
+uploadServer:
+    type: "none"
+    url: ""
+    sizeLimit: -1
