@@ -18,13 +18,14 @@ else
     echo "✅ Packages already built"
 fi
 
-# Step 2: Copy repository to archiso directory
+# Step 2: Copy packages to airootfs for installation during build
 echo ""
-echo "📋 Copying repository to archiso..."
-sudo mkdir -p "$SCRIPT_DIR/archiso/airootfs/etc/pacman.d/genesi-repo"
-sudo cp -r "$SCRIPT_DIR/local-repo/"* "$SCRIPT_DIR/archiso/airootfs/etc/pacman.d/genesi-repo/"
+echo "📋 Copying packages to airootfs..."
+sudo mkdir -p "$SCRIPT_DIR/archiso/airootfs/root/genesi-packages"
+sudo cp "$SCRIPT_DIR/local-repo/"*.pkg.tar.zst "$SCRIPT_DIR/archiso/airootfs/root/genesi-packages/"
+sudo chmod +x "$SCRIPT_DIR/archiso/airootfs/root/customize_airootfs_genesi.sh"
 
-echo "✅ Repository copied"
+echo "✅ Packages copied"
 echo ""
 
 # Step 3: Build ISO

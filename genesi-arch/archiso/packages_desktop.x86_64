@@ -20,20 +20,14 @@ cachy-chroot
 cachyos-calamares-next
 cachyos-cli-installer-new
 cachyos-fish-config
-#cachyos-hello
+cachyos-hello
 cachyos-hooks
-#cachyos-kde-settings
+cachyos-kde-settings
 cachyos-rate-mirrors
-#cachyos-settings
+cachyos-settings
 cachyos-v3-mirrorlist
 cachyos-v4-mirrorlist
-# Genesi OS packages
-genesi-settings
-genesi-kde-settings
-genesi-ai-mode
-genesi-updater
-# Installer - Using CachyOS Calamares for now
-cachyos-calamares-next
+# Genesi packages will be installed post-build via customize script
 chwd
 ckbcomp
 clonezilla
