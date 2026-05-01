@@ -1,19 +1,11 @@
-name: Build and Publish Packages
+name: Build and Publish Packages (DISABLED)
+
+# Workflow temporariamente desabilitado
+# Build packages manualmente na VM por enquanto:
+# cd genesi-arch/packages && bash build-packages.sh
 
 on:
-  push:
-    branches:
-      - main  # ← Branch main!
-      - arch-base
-    paths:
-      - 'genesi-arch/packages/**'
-      - '.github/workflows/publish-packages.yml'
-  workflow_dispatch:
-    inputs:
-      force_rebuild:
-        description: 'Force rebuild all packages'
-        required: false
-        default: 'false'
+  workflow_dispatch:  # Apenas manual
 
 jobs:
   build-packages:
