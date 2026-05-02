@@ -23,6 +23,8 @@ cachyos-hooks
 cachyos-rate-mirrors
 cachyos-v3-mirrorlist
 cachyos-v4-mirrorlist
+# Calamares installer
+calamares
 # Genesi packages will be installed post-build via customize script
 chwd
 ckbcomp
