@@ -146,6 +146,13 @@ if [ -f /usr/share/calamares/branding/genesi/branding.desc ]; then
     cp -rf /usr/share/calamares/branding/genesi/* /etc/calamares/branding/genesi/
 fi
 
+# Force copy our packages.conf (overwrite any existing one)
+if [ -f /etc/calamares/modules/packages.conf.genesi ]; then
+    echo ">>> Copying Genesi packages.conf to Calamares..."
+    cp -f /etc/calamares/modules/packages.conf.genesi /etc/calamares/modules/packages.conf
+    echo ">>> Genesi packages.conf installed"
+fi
+
 # Update Calamares settings to use genesi branding
 find /usr/share/calamares /etc/calamares -type f -name "settings*.conf" -exec sed -i \
     -e 's/branding:.*cachyos/branding: genesi/' \

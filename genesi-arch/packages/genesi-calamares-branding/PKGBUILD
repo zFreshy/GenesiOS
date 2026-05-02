@@ -1,7 +1,7 @@
 # Maintainer: Genesi OS Team
 pkgname=genesi-calamares-branding
 pkgver=1.0.0
-pkgrel=2
+pkgrel=3
 pkgdesc="Genesi OS branding for Calamares installer"
 arch=('any')
 url="https://github.com/zFreshy/GenesiOS"
@@ -9,10 +9,7 @@ license=('GPL3')
 depends=('calamares')
 conflicts=('cachyos-calamares-branding')
 provides=('calamares-branding')
-backup=(
-    'etc/calamares/settings.conf'
-    'etc/calamares/modules/packages.conf'
-)
+backup=('etc/calamares/settings.conf')
 source=()
 sha256sums=()
 
@@ -27,7 +24,6 @@ package() {
     # Update Calamares settings to use Genesi branding
     install -Dm644 "${startdir}/settings.conf" "${pkgdir}/etc/calamares/settings.conf"
     
-    # Install packages.conf (will be backed up if it exists)
-    install -Dm644 "${startdir}/../../../genesi-arch/archiso/airootfs/etc/calamares/modules/packages.conf" \
-                   "${pkgdir}/etc/calamares/modules/packages.conf"
+    # NOTE: packages.conf is NOT installed by this package to avoid conflicts
+    # It will be copied by customize_airootfs.sh script during ISO build
 }
