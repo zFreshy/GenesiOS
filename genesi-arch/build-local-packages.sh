@@ -12,8 +12,9 @@ echo "🔨 Building Genesi OS Packages Locally"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
-# Create repo directory
+# Create repo directory with proper permissions
 mkdir -p "$REPO_DIR"
+chmod 755 "$REPO_DIR"
 
 # List of packages to build
 PACKAGES=(
@@ -51,8 +52,12 @@ for pkg in "${PACKAGES[@]}"; do
     
     if [ $? -eq 0 ]; then
         echo "✅ Built: $pkg"
-        # Move to repo
-        mv *.pkg.tar.zst "$REPO_DIR/"
+        # Move to repo (copy first, then remove to avoid permission issues)
+        cp *.pkg.tar.zst "$REPO_DIR/" || {
+            echo "❌ Failed to copy package to repo"
+            exit 1
+        }
+        rm -f *.pkg.tar.zst
     else
         echo "❌ Failed to build: $pkg"
         exit 1
