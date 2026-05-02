@@ -23,7 +23,6 @@ PACKAGES=(
     "genesi-updater"
     "genesi-calamares-branding"
 )
-)
 
 # Build each package
 for pkg in "${PACKAGES[@]}"; do
