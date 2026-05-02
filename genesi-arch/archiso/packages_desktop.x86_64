@@ -17,14 +17,10 @@ breeze-gtk
 brltty
 btrfs-progs
 cachy-chroot
-cachyos-calamares-next
 cachyos-cli-installer-new
 cachyos-fish-config
-cachyos-hello
 cachyos-hooks
-cachyos-kde-settings
 cachyos-rate-mirrors
-cachyos-settings
 cachyos-v3-mirrorlist
 cachyos-v4-mirrorlist
 # Genesi packages will be installed post-build via customize script

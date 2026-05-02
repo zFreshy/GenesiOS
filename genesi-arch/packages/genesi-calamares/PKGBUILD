@@ -1,0 +1,61 @@
+# Maintainer: Genesi OS Team
+pkgname=genesi-calamares
+pkgver=3.3.0
+pkgrel=1
+pkgdesc="Genesi OS installer based on Calamares"
+arch=('x86_64')
+url="https://github.com/zFreshy/GenesiOS"
+license=('GPL3')
+depends=('kpmcore' 'yaml-cpp' 'polkit-qt6' 'libpwquality' 'python' 'solid'
+         'squashfs-tools' 'rsync' 'parted' 'gptfdisk' 'hwinfo' 'ckbcomp'
+         'upower' 'os-prober' 'systemd' 'btrfs-progs' 'xfsprogs'
+         'networkmanager' 'qt6-svg' 'qt6-declarative' 'qt6-webengine' 'kparts'
+         'kiconthemes' 'kcoreaddons' 'kcrash' 'plasma-framework')
+makedepends=('cmake' 'extra-cmake-modules' 'ninja' 'boost' 'git')
+conflicts=('calamares' 'cachyos-calamares-next')
+provides=('calamares' 'cachyos-calamares-next')
+source=()
+sha256sums=()
+
+prepare() {
+    # Copy from parent directory
+    rm -rf "$srcdir/genesi-calamares"
+    cp -r "$startdir/../../../genesi-calamares" "$srcdir/genesi-calamares"
+}
+
+build() {
+    cd "$srcdir/genesi-calamares"
+    
+    cmake -B build -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_INSTALL_LIBDIR=lib \
+        -DCMAKE_INSTALL_SYSCONFDIR=/etc \
+        -DWITH_PYTHON=ON \
+        -DWITH_PYTHONQT=OFF \
+        -DWEBENGINE=ON \
+        -DBUILD_TESTING=OFF
+        
+    cmake --build build
+}
+
+package() {
+    cd "$srcdir/genesi-calamares"
+    DESTDIR="$pkgdir" cmake --install build
+    
+    # Install Calamares configuration files
+    install -dm755 "$pkgdir/etc/calamares"
+    install -dm755 "$pkgdir/etc/calamares/modules"
+    
+    install -Dm644 settings.conf "$pkgdir/etc/calamares/settings.conf"
+    install -Dm644 settings_online.conf "$pkgdir/etc/calamares/settings_online.conf"
+    install -Dm644 settings_offline.conf "$pkgdir/etc/calamares/settings_offline.conf"
+    
+    install -Dm644 src/modules/packages/packages_online.conf "$pkgdir/etc/calamares/modules/"
+    install -Dm644 src/modules/packages/packages_offline.conf "$pkgdir/etc/calamares/modules/"
+    
+    # We should probably copy all the configuration files to /etc/calamares just in case
+    # This is typical for calamares packages
+    find src/modules -name "*.conf" -exec cp {} "$pkgdir/etc/calamares/modules/" \;
+    find src/modules -name "*.yaml" -exec cp {} "$pkgdir/etc/calamares/modules/" \;
+}

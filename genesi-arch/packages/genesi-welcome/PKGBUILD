@@ -1,0 +1,24 @@
+# Maintainer: Genesi OS Team
+pkgname=genesi-welcome
+pkgver=1.0.0
+pkgrel=1
+pkgdesc="Welcome application for Genesi OS"
+arch=('any')
+url="https://github.com/zFreshy/GenesiOS"
+license=('GPL3')
+depends=('python' 'python-pyqt5')
+conflicts=('cachyos-hello')
+provides=('cachyos-hello')
+source=('genesi-welcome.py'
+        'genesi-welcome.desktop')
+sha256sums=('SKIP'
+            'SKIP')
+
+package() {
+    install -Dm755 genesi-welcome.py "$pkgdir/usr/bin/genesi-welcome"
+    install -Dm644 genesi-welcome.desktop "$pkgdir/usr/share/applications/genesi-welcome.desktop"
+    install -Dm644 genesi-welcome.desktop "$pkgdir/etc/skel/Desktop/genesi-welcome.desktop"
+    
+    # Auto-start for live ISO
+    install -Dm644 genesi-welcome.desktop "$pkgdir/etc/xdg/autostart/genesi-welcome.desktop"
+}

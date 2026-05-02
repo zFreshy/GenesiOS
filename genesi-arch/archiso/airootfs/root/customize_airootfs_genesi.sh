@@ -32,7 +32,7 @@ pacman -U --noconfirm "$GENESI_PKG_DIR"/*.pkg.tar.zst || {
 # Remove CachyOS branding packages that conflict
 echo ""
 echo "🗑️  Removing CachyOS branding packages..."
-pacman -Rdd --noconfirm cachyos-settings cachyos-kde-settings cachyos-hello 2>/dev/null || true
+pacman -Rdd --noconfirm cachyos-calamares-next cachyos-settings cachyos-kde-settings cachyos-hello 2>/dev/null || true
 
 echo ""
 echo "✅ Genesi packages installation complete!"

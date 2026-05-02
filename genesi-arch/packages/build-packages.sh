@@ -18,6 +18,8 @@ PACKAGES=(
     "genesi-kde-settings"
     "genesi-ai-mode"
     "genesi-updater"
+    "genesi-calamares"
+    "genesi-welcome"
 )
 
 # Build each package

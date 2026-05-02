@@ -18,19 +18,13 @@ PlasmoidItem {
         Layout.preferredWidth: logoRow.implicitWidth + Kirigami.Units.smallSpacing * 4
 
         onClicked: {
-            // Open the app launcher
-            var launcher = null
-            var containment = Plasmoid.containment
-            if (containment) {
-                var applets = containment.applets
-                for (var i = 0; i < applets.length; i++) {
-                    if (applets[i].pluginName === "org.kde.plasma.kickoff" ||
-                        applets[i].pluginName === "org.kde.plasma.kicker") {
-                        applets[i].activated()
-                        return
-                    }
-                }
-            }
+            // Open the app launcher using DBus
+            var executable = "/usr/bin/qdbus"
+            var args = ["org.kde.plasmashell", "/PlasmaShell", "activateLauncherMenu"]
+            var p = Qt.createQmlObject('import QtQuick 2.0; QtObject { function run() { var process = Qt.createQmlObject("import org.kde.plasma.core 2.0 as PlasmaCore; PlasmaCore.DataSource { engine: \\"executable\\"; connectedSources: [\\"qdbus org.kde.plasmashell /PlasmaShell activateLauncherMenu\\"] }", parent, "dynamic_dbus"); } }', parent, "dynamic_dbus_call")
+            // Wait, using executable data source is better
+            var dataSource = Qt.createQmlObject('import org.kde.plasma.core 2.0 as PlasmaCore; PlasmaCore.DataSource { id: executable; engine: "executable"; connectedSources: []; onNewData: function(sourceName, data) { disconnectSource(sourceName); } }', root, "dynamicExec")
+            dataSource.connectSource("qdbus org.kde.plasmashell /PlasmaShell activateLauncherMenu")
         }
 
         Row {

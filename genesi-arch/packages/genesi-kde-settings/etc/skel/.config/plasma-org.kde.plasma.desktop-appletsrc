@@ -91,13 +91,24 @@ location=4
 plugin=org.kde.panel
 panelOpacity=2
 panelLengthMode=1
+floating=1
 
 [Containments][2][General]
-AppletOrder=30;4;5;6;7;9;10
+AppletOrder=30;31;4;5;6;7;9;10
 
 [Containments][2][Applets][30]
 immutability=1
 plugin=org.genesi.logo
+
+[Containments][2][Applets][31]
+immutability=1
+plugin=org.kde.plasma.kickoff
+
+[Containments][2][Applets][31][Configuration]
+PreloadWeight=100
+
+[Containments][2][Applets][31][Configuration][General]
+icon=genesi
 
 [Containments][2][Applets][4]
 immutability=1
