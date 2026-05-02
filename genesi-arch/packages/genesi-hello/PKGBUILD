@@ -1,0 +1,78 @@
+# Maintainer: Genesi OS Team <dev@genesios.org>
+# Based on cachyos-hello by CachyOS team
+
+pkgname=genesi-hello
+pkgver=1.0.0
+pkgrel=1
+pkgdesc='Welcome screen for Genesi OS'
+arch=('x86_64')
+groups=('genesi')
+license=('GPL-3.0-or-later')
+url='https://github.com/zFreshy/GenesiOS'
+depends=(
+  glib2
+  gtk3
+  pciutils
+  procps-ng
+  'libusb-1.0.so'
+)
+makedepends=(
+  cargo
+  clang
+  git
+  lld
+  llvm
+  meson
+)
+provides=('cachyos-hello')
+conflicts=('cachyos-hello')
+source=("cachyos-welcome::git+https://github.com/cachyos/cachyos-welcome.git#tag=v0.24.0")
+sha512sums=('SKIP')
+
+prepare() {
+  cd "${srcdir}/cachyos-welcome"
+  
+  # Replace CachyOS branding with Genesi
+  find . -type f -exec sed -i 's/CachyOS/Genesi OS/g' {} + 2>/dev/null || true
+  find . -type f -exec sed -i 's/cachyos/genesi/g' {} + 2>/dev/null || true
+  
+  # Rename desktop file
+  if [ -f "cachyos-hello.desktop" ]; then
+    mv cachyos-hello.desktop genesi-hello.desktop
+  fi
+}
+
+build() {
+  cd "${srcdir}/cachyos-welcome"
+
+  # Compile with clang
+  export AR=llvm-ar
+  export CC=clang
+  export CXX=clang++
+  export NM=llvm-nm
+  export RANLIB=llvm-ranlib
+
+  export RUSTFLAGS="-Cembed-bitcode -C opt-level=3 -Ccodegen-units=1 -Clinker=clang -C link-arg=-flto -Clink-arg=-fuse-ld=/usr/bin/ld.lld"
+
+  meson setup --buildtype=release --prefix=/usr build
+  meson compile -C build
+}
+
+package() {
+  cd "${srcdir}/cachyos-welcome/build"
+
+  # Compile with clang
+  export AR=llvm-ar
+  export CC=clang
+  export CXX=clang++
+  export NM=llvm-nm
+  export RANLIB=llvm-ranlib
+
+  export RUSTFLAGS="-Cembed-bitcode -C opt-level=3 -Ccodegen-units=1 -Clinker=clang -C link-arg=-flto -Clink-arg=-fuse-ld=/usr/bin/ld.lld"
+  
+  DESTDIR="${pkgdir}" meson install
+
+  # Install autostart
+  install -Dm644 ../genesi-hello.desktop \
+    "$pkgdir/etc/skel/.config/autostart/genesi-hello.desktop"
+}

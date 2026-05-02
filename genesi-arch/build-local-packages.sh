@@ -23,6 +23,7 @@ PACKAGES=(
     "genesi-ai-mode"
     "genesi-updater"
     "genesi-calamares-branding"
+    "genesi-hello"
 )
 
 # Build each package
