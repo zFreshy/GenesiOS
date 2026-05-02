@@ -33,8 +33,13 @@ fi
 # Step 2: Copy packages to airootfs (will be included in the ISO)
 echo ""
 echo "📋 Copying packages to airootfs..."
-mkdir -p "$SCRIPT_DIR/archiso/airootfs/opt/genesi-packages/"
-cp "$SCRIPT_DIR/local-repo/"*.pkg.tar.zst "$SCRIPT_DIR/archiso/airootfs/opt/genesi-packages/"
+
+# Create directory if it doesn't exist and set permissions
+sudo mkdir -p "$SCRIPT_DIR/archiso/airootfs/opt/genesi-packages/"
+sudo chmod 755 "$SCRIPT_DIR/archiso/airootfs/opt/genesi-packages/"
+
+# Copy packages with sudo
+sudo cp "$SCRIPT_DIR/local-repo/"*.pkg.tar.zst "$SCRIPT_DIR/archiso/airootfs/opt/genesi-packages/"
 
 echo "✅ Packages copied to airootfs/opt/genesi-packages/"
 echo ""
