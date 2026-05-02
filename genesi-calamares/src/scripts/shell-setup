@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+user="$1"
+for shell in 'fish' 'zsh'; do
+    if [ -e "/bin/$shell" ]; then
+        chsh -s "/bin/${shell}" "$user" && break
+    fi
+done
