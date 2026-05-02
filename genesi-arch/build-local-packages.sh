@@ -40,7 +40,13 @@ for pkg in "${PACKAGES[@]}"; do
     # Clean previous builds
     rm -f *.pkg.tar.zst
     
-    # Build package
+    # Build package (makepkg cannot run as root)
+    if [ "$EUID" -eq 0 ]; then
+        echo "❌ ERROR: This script cannot be run as root (makepkg restriction)"
+        echo "Please run without sudo: bash build-local-packages.sh"
+        exit 1
+    fi
+    
     makepkg -sf --noconfirm
     
     if [ $? -eq 0 ]; then
