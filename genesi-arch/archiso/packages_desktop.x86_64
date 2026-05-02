@@ -23,9 +23,15 @@ cachyos-hooks
 cachyos-rate-mirrors
 cachyos-v3-mirrorlist
 cachyos-v4-mirrorlist
-# Calamares installer
+# Calamares installer (will be rebranded by genesi-calamares-branding package)
 calamares
 # Genesi packages will be installed post-build via customize script
+# These packages are in /opt/genesi-packages/ and installed by customize_airootfs_genesi.sh:
+# - genesi-settings
+# - genesi-kde-settings  
+# - genesi-ai-mode
+# - genesi-updater
+# - genesi-calamares-branding (rebrands Calamares)
 chwd
 ckbcomp
 clonezilla
