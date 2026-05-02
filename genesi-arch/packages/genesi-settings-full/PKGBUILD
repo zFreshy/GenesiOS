@@ -1,0 +1,31 @@
+# Maintainer: Genesi OS Team <dev@genesios.org>
+# Based on cachyos-settings by CachyOS team
+
+pkgname=genesi-settings
+pkgver=1.0.0
+pkgrel=1
+epoch=1
+groups=(genesi)
+pkgdesc='Genesi OS system settings and branding'
+arch=('any')
+url='https://github.com/zFreshy/GenesiOS'
+license=('GPL-3.0-or-later')
+depends=('bash')
+provides=('cachyos-settings')
+conflicts=('cachyos-settings')
+source=('os-release'
+        'lsb-release'
+        'issue'
+        'hostname')
+sha256sums=('SKIP'
+            'SKIP'
+            'SKIP'
+            'SKIP')
+
+package() {
+    # Install system identity files
+    install -Dm644 "$srcdir/os-release" "$pkgdir/etc/os-release"
+    install -Dm644 "$srcdir/lsb-release" "$pkgdir/etc/lsb-release"
+    install -Dm644 "$srcdir/issue" "$pkgdir/etc/issue"
+    install -Dm644 "$srcdir/hostname" "$pkgdir/etc/hostname"
+}

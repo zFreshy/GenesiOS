@@ -19,3 +19,14 @@ build/
 example/
 genesi-desktop/
 kernel_legacy/
+
+# Source repos cloned for reference
+genesi-settings-source/
+genesi-welcome-source/
+cachyos-pkgbuilds-source/
+
+# Temporary documentation (don't commit)
+*_plan.md
+*_summary.md
+implementation_*.md
+debug_*.md

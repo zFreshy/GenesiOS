@@ -3,12 +3,20 @@
 
 pkgname=genesi-kde-settings
 pkgver=1.0.0
-pkgrel=2
+pkgrel=3
 pkgdesc='Genesi OS KDE Plasma settings and theme'
 arch=('any')
 url='https://github.com/zFreshy/GenesiOS'
 license=('GPL-3.0-or-later')
-depends=('plasma-desktop' 'breeze' 'breeze-gtk')
+depends=('ttf-fantasque-nerd'
+    'noto-fonts'
+    'ttf-fira-sans'
+    'capitaine-cursors'
+    'cachyos-alacritty-config'
+    'plasma-desktop'
+    'breeze'
+    'breeze-gtk'
+)
 optdepends=('klassy: Rounded window corners and better decorations')
 conflicts=('cachyos-kde-settings' 'cachyos-desktop-settings')
 provides=('cachyos-kde-settings' 'cachyos-desktop-settings')
