@@ -17,14 +17,17 @@ mkdir -p "$REPO_DIR"
 chmod 755 "$REPO_DIR"
 
 # List of packages to build
+# List of packages to build
 PACKAGES=(
     "genesi-settings"
     "genesi-kde-settings"
     "genesi-ai-mode"
     "genesi-updater"
     "genesi-calamares-branding"
-    "genesi-hello"
 )
+
+echo "📋 Note: Building Genesi packages (genesi-hello temporarily disabled)"
+echo ""
 
 # Build each package
 for pkg in "${PACKAGES[@]}"; do
