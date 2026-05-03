@@ -12,4 +12,4 @@ operations:
       - /opt/genesi-packages/genesi-kde-settings-4.9-5-any.pkg.tar.zst
       - /opt/genesi-packages/genesi-ai-mode-1.0.0-1-any.pkg.tar.zst
       - /opt/genesi-packages/genesi-updater-1.0.0-1-any.pkg.tar.zst
-      - /opt/genesi-packages/genesi-calamares-branding-1.0.0-3-any.pkg.tar.zst
+      - /opt/genesi-packages/genesi-calamares-branding-1.0.0-4-any.pkg.tar.zst

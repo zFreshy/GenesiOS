@@ -1,25 +1,32 @@
 # Maintainer: Genesi OS Team
+_gitname=genesi-calamares
 pkgname=genesi-calamares-branding
 pkgver=1.0.0
-pkgrel=3
+pkgrel=4
 pkgdesc="Genesi OS branding for Calamares installer"
 arch=('any')
-url="https://github.com/zFreshy/GenesiOS"
+url="https://github.com/zFreshy/genesi-calamares"
 license=('GPL3')
 depends=('calamares')
 conflicts=('cachyos-calamares-branding')
 provides=('calamares-branding')
 backup=('etc/calamares/settings.conf')
-source=()
-sha256sums=()
+makedepends=('git')
+source=("git+https://github.com/zFreshy/genesi-calamares.git")
+sha256sums=('SKIP')
 
 package() {
-    # Copy Genesi branding from genesi-calamares repo
+    # Copy Genesi branding from our cloned repo
     install -dm755 "${pkgdir}/usr/share/calamares/branding/genesi"
     
-    # Copy all branding files
-    cp -r "${startdir}/../../../genesi-calamares/src/branding/genesi/"* \
-          "${pkgdir}/usr/share/calamares/branding/genesi/"
+    # Copy all branding files from the git repo
+    if [ -d "${srcdir}/${_gitname}/src/branding/genesi" ]; then
+        cp -r "${srcdir}/${_gitname}/src/branding/genesi/"* \
+              "${pkgdir}/usr/share/calamares/branding/genesi/"
+    else
+        echo "ERROR: Branding directory not found in genesi-calamares repo!"
+        exit 1
+    fi
     
     # Update Calamares settings to use Genesi branding
     install -Dm644 "${startdir}/settings.conf" "${pkgdir}/etc/calamares/settings.conf"
