@@ -30,31 +30,8 @@ conflicts=('cachyos-hello')
 source=("git+https://github.com/zFreshy/genesi-welcome.git")
 sha512sums=('SKIP')
 
-prepare() {
-  cd "${srcdir}/${_gitname}"
-  
-  # Replace CachyOS branding with Genesi
-  find . -type f -not -path "./.git/*" -exec sed -i 's/CachyOS/Genesi OS/g' {} + 2>/dev/null || true
-  find . -type f -not -path "./.git/*" -exec sed -i 's/cachyos/genesi/g' {} + 2>/dev/null || true
-  
-  # Rename desktop file if it exists
-  if [ -f "cachyos-hello.desktop" ]; then
-    sed -i 's/cachyos-hello/genesi-hello/g' cachyos-hello.desktop
-    sed -i 's/CachyOS/Genesi OS/g' cachyos-hello.desktop
-  fi
-}
-
 build() {
   cd "${srcdir}/${_gitname}"
-
-  # Compile with clang
-  export AR=llvm-ar
-  export CC=clang
-  export CXX=clang++
-  export NM=llvm-nm
-  export RANLIB=llvm-ranlib
-
-  export RUSTFLAGS="-Cembed-bitcode -C opt-level=3 -Ccodegen-units=1 -Clinker=clang -C link-arg=-flto -Clink-arg=-fuse-ld=/usr/bin/ld.lld"
 
   meson setup --buildtype=release --prefix=/usr build
   meson compile -C build
@@ -62,21 +39,12 @@ build() {
 
 package() {
   cd "${srcdir}/${_gitname}"
-
-  # Compile with clang
-  export AR=llvm-ar
-  export CC=clang
-  export CXX=clang++
-  export NM=llvm-nm
-  export RANLIB=llvm-ranlib
-
-  export RUSTFLAGS="-Cembed-bitcode -C opt-level=3 -Ccodegen-units=1 -Clinker=clang -C link-arg=-flto -Clink-arg=-fuse-ld=/usr/bin/ld.lld"
   
   DESTDIR="${pkgdir}" meson install -C build
 
   # Install autostart
-  if [ -f "cachyos-hello.desktop" ]; then
-    install -Dm644 cachyos-hello.desktop \
+  if [ -f "genesi-hello.desktop" ]; then
+    install -Dm644 genesi-hello.desktop \
       "$pkgdir/etc/skel/.config/autostart/genesi-hello.desktop"
   fi
 }

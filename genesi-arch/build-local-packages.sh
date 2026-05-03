@@ -17,14 +17,13 @@ mkdir -p "$REPO_DIR"
 chmod 755 "$REPO_DIR"
 
 # List of packages to build
-# List of packages to build
 PACKAGES=(
     "genesi-settings"
     "genesi-kde-settings"
     "genesi-ai-mode"
     "genesi-updater"
     "genesi-calamares-branding"
-    "genesi-hello"
+    # "genesi-hello"  # Temporarily disabled due to cargo network issues
 )
 
 echo "📋 Note: Building all Genesi packages from GitHub repos"
