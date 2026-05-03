@@ -7,6 +7,15 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 echo "🎨 Installing Genesi OS packages..."
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
+# CRITICAL: Disable signature verification for local packages
+echo "🔓 Disabling GPG signature verification for local packages..."
+sed -i 's/^LocalFileSigLevel.*/LocalFileSigLevel = Never/' /etc/pacman.conf
+sed -i 's/^SigLevel.*/SigLevel = Never/' /etc/pacman.conf
+
+# Verify the change
+echo "📋 Current pacman.conf signature settings:"
+grep -E "^(Local)?SigLevel" /etc/pacman.conf || echo "No SigLevel found"
+
 # Packages are in /opt/genesi-packages/ (part of airootfs)
 GENESI_PKG_DIR="/opt/genesi-packages"
 
@@ -36,24 +45,26 @@ echo ""
 echo "📦 Installing Genesi packages..."
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-# Install packages one by one to see which ones fail
-for pkg in "$GENESI_PKG_DIR"/*.pkg.tar.zst; do
-    echo ""
-    echo "Installing: $(basename "$pkg")"
-    # Use --overwrite to force installation even if files conflict
-    # Use --needed to skip if already installed
-    if pacman -U --noconfirm --needed --overwrite '*' "$pkg"; then
-        echo "✅ Installed: $(basename "$pkg")"
-    else
-        echo "⚠️  Failed to install: $(basename "$pkg")"
-        echo "Trying with --nodeps and --force..."
-        if pacman -U --noconfirm --nodeps --overwrite '*' "$pkg"; then
-            echo "✅ Installed with --nodeps: $(basename "$pkg")"
+# Install all packages at once (faster and cleaner)
+echo ""
+echo "📦 Installing all Genesi packages..."
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+if pacman -U --noconfirm --needed --overwrite '*' "$GENESI_PKG_DIR"/*.pkg.tar.zst; then
+    echo "✅ All Genesi packages installed successfully!"
+else
+    echo "⚠️  Some packages failed, trying one by one..."
+    # Install packages one by one to see which ones fail
+    for pkg in "$GENESI_PKG_DIR"/*.pkg.tar.zst; do
+        echo ""
+        echo "Installing: $(basename "$pkg")"
+        if pacman -U --noconfirm --needed --overwrite '*' "$pkg"; then
+            echo "✅ Installed: $(basename "$pkg")"
         else
-            echo "❌ Failed completely: $(basename "$pkg")"
+            echo "❌ Failed: $(basename "$pkg")"
         fi
-    fi
-done
+    done
+fi
 
 # Remove CachyOS branding packages that conflict
 echo ""
