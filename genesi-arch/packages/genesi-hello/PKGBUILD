@@ -1,14 +1,15 @@
-# Maintainer: Genesi OS Team <dev@genesios.org>
+# Maintainer: Genesi OS Team
 # Based on cachyos-hello by CachyOS team
 
+_gitname=genesi-welcome
 pkgname=genesi-hello
 pkgver=1.0.0
-pkgrel=1
+pkgrel=2
 pkgdesc='Welcome screen for Genesi OS'
 arch=('x86_64')
 groups=('genesi')
 license=('GPL-3.0-or-later')
-url='https://github.com/zFreshy/GenesiOS'
+url='https://github.com/zFreshy/genesi-welcome'
 depends=(
   glib2
   gtk3
@@ -26,24 +27,25 @@ makedepends=(
 )
 provides=('cachyos-hello')
 conflicts=('cachyos-hello')
-source=("cachyos-welcome::git+https://github.com/cachyos/cachyos-welcome.git#tag=v0.24.0")
+source=("git+https://github.com/zFreshy/genesi-welcome.git")
 sha512sums=('SKIP')
 
 prepare() {
-  cd "${srcdir}/cachyos-welcome"
+  cd "${srcdir}/${_gitname}"
   
   # Replace CachyOS branding with Genesi
-  find . -type f -exec sed -i 's/CachyOS/Genesi OS/g' {} + 2>/dev/null || true
-  find . -type f -exec sed -i 's/cachyos/genesi/g' {} + 2>/dev/null || true
+  find . -type f -not -path "./.git/*" -exec sed -i 's/CachyOS/Genesi OS/g' {} + 2>/dev/null || true
+  find . -type f -not -path "./.git/*" -exec sed -i 's/cachyos/genesi/g' {} + 2>/dev/null || true
   
-  # Rename desktop file
+  # Rename desktop file if it exists
   if [ -f "cachyos-hello.desktop" ]; then
-    mv cachyos-hello.desktop genesi-hello.desktop
+    sed -i 's/cachyos-hello/genesi-hello/g' cachyos-hello.desktop
+    sed -i 's/CachyOS/Genesi OS/g' cachyos-hello.desktop
   fi
 }
 
 build() {
-  cd "${srcdir}/cachyos-welcome"
+  cd "${srcdir}/${_gitname}"
 
   # Compile with clang
   export AR=llvm-ar
@@ -59,7 +61,7 @@ build() {
 }
 
 package() {
-  cd "${srcdir}/cachyos-welcome/build"
+  cd "${srcdir}/${_gitname}"
 
   # Compile with clang
   export AR=llvm-ar
@@ -70,9 +72,11 @@ package() {
 
   export RUSTFLAGS="-Cembed-bitcode -C opt-level=3 -Ccodegen-units=1 -Clinker=clang -C link-arg=-flto -Clink-arg=-fuse-ld=/usr/bin/ld.lld"
   
-  DESTDIR="${pkgdir}" meson install
+  DESTDIR="${pkgdir}" meson install -C build
 
   # Install autostart
-  install -Dm644 ../genesi-hello.desktop \
-    "$pkgdir/etc/skel/.config/autostart/genesi-hello.desktop"
+  if [ -f "cachyos-hello.desktop" ]; then
+    install -Dm644 cachyos-hello.desktop \
+      "$pkgdir/etc/skel/.config/autostart/genesi-hello.desktop"
+  fi
 }

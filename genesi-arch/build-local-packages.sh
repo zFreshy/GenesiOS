@@ -24,9 +24,10 @@ PACKAGES=(
     "genesi-ai-mode"
     "genesi-updater"
     "genesi-calamares-branding"
+    "genesi-hello"
 )
 
-echo "📋 Note: Building Genesi packages (genesi-hello temporarily disabled)"
+echo "📋 Note: Building all Genesi packages from GitHub repos"
 echo ""
 
 # Build each package
