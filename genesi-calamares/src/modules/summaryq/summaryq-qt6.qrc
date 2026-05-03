@@ -1,7 +1,0 @@
-<RCC>
-    <qresource>
-        <file alias="summaryq.qml">summaryq-qt6.qml</file>
-        <file>img/keyboard.svg</file>
-        <file>img/lokalize.svg</file>
-    </qresource>
-</RCC>
