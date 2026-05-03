@@ -1,7 +1,7 @@
 # Maintainer: Genesi OS Team
 # Based on CachyOS-Settings by Peter Jung
 
-_gitname=genesi-settings-full
+_gitname=genesi-settings
 pkgname=genesi-settings
 pkgver=1.3.4
 pkgrel=3
@@ -9,11 +9,11 @@ epoch=1
 groups=(genesi)
 arch=('any')
 license=(GPL-1.0-only)
-makedepends=('coreutils')
+makedepends=('coreutils' 'git')
 pkgdesc='Genesi OS - System Settings'
-url="https://github.com/zFreshy/GenesiOS"
-source=()
-sha256sums=()
+url="https://github.com/zFreshy/genesi-settings"
+source=("git+https://github.com/zFreshy/genesi-settings.git")
+sha256sums=('SKIP')
 depends=(
   zram-generator
   ananicy-cpp
@@ -30,11 +30,11 @@ provides=('ntsync-common' 'cachyos-settings')
 conflicts=('cachyos-settings')
 
 package() {
-  # Copy from the cloned genesi-settings-full directory
+  # Copy from the git repo
   install -d "$pkgdir/etc"
-  cp -rf "${startdir}/../../../genesi-settings-full/etc" "$pkgdir"
+  cp -rf "${srcdir}/${_gitname}/etc" "$pkgdir"
   install -d "$pkgdir/usr"
-  cp -rf "${startdir}/../../../genesi-settings-full/usr" "$pkgdir"
+  cp -rf "${srcdir}/${_gitname}/usr" "$pkgdir"
   
   # Replace all CachyOS references with Genesi OS
   find "$pkgdir" -type f -exec sed -i 's/CachyOS/Genesi OS/g' {} + 2>/dev/null || true

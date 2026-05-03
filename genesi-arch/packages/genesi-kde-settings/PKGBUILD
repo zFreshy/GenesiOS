@@ -1,29 +1,30 @@
 # Maintainer: Genesi OS Team
 # Based on CachyOS KDE Settings
 
+_gitname=genesi-pkgbuilds
 pkgname=genesi-kde-settings
 pkgdesc='Genesi OS KDE Plasma Settings with Glassmorphism'
 pkgver=4.9
-pkgrel=4
+pkgrel=5
 arch=('any')
-url="https://github.com/zFreshy/GenesiOS"
+url="https://github.com/zFreshy/genesi-pkgbuilds"
 license=(GPL-1.0-only)
 depends=('ttf-fantasque-nerd'
     'noto-fonts'
     'ttf-fira-sans'
     'capitaine-cursors'
 )
-makedepends=('coreutils')
+makedepends=('coreutils' 'git')
 provides=('cachyos-desktop-settings' 'cachyos-kde-settings')
 conflicts=('cachyos-desktop-settings' 'cachyos-kde-settings')
-source=()
-sha512sums=()
+source=("git+https://github.com/zFreshy/genesi-pkgbuilds.git")
+sha512sums=('SKIP')
 
 package() {
-    # Get the source directory (cachyos-kde-settings-4.9 from GitHub)
-    local _srcdir="${startdir}/../../../cachyos-pkgbuilds/cachyos-kde-settings"
+    # Get the kde-settings from our repo
+    local _srcdir="${srcdir}/${_gitname}/cachyos-kde-settings"
     
-    # Download and extract if needed
+    # Download the tarball if the directory structure doesn't exist
     if [ ! -d "${_srcdir}/cachyos-kde-settings-4.9" ]; then
         cd "${_srcdir}"
         curl -L "https://github.com/cachyos/cachyos-kde-settings/archive/4.9.tar.gz" -o cachyos-kde-settings-4.9.tar.gz
@@ -40,7 +41,7 @@ package() {
     find "$pkgdir" -type f -exec sed -i 's/cachyos/genesi/g' {} + 2>/dev/null || true
     
     # Apply Genesi colors (green theme)
-    find "$pkgdir" -type f -name "*.conf" -o -name "*.css" -o -name "*.qml" | while read file; do
+    find "$pkgdir" -type f \( -name "*.conf" -o -name "*.css" -o -name "*.qml" \) | while read file; do
         sed -i 's/#3daee9/#00ff9f/g' "$file" 2>/dev/null || true  # Accent color
         sed -i 's/#232629/#0a0f0d/g' "$file" 2>/dev/null || true  # Background
     done
