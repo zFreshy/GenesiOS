@@ -48,13 +48,47 @@ echo ""
 echo "🔨 Building ISO (will ask for sudo password)..."
 echo ""
 cd "$SCRIPT_DIR"
-sudo ./buildiso.sh -p desktop
+
+# Create logs directory
+mkdir -p "$SCRIPT_DIR/logs"
+LOG_FILE="$SCRIPT_DIR/logs/build-$(date +%Y%m%d-%H%M%S).log"
+
+echo "📝 Saving build output to: $LOG_FILE"
+echo ""
+
+# Run buildiso and capture ALL output (stdout + stderr)
+sudo ./buildiso.sh -p desktop 2>&1 | tee "$LOG_FILE"
+
+# Check if build succeeded
+if [ ${PIPESTATUS[0]} -eq 0 ]; then
+    BUILD_SUCCESS=true
+else
+    BUILD_SUCCESS=false
+fi
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "✅ ISO build complete!"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+if [ "$BUILD_SUCCESS" = true ]; then
+    echo "✅ ISO build complete!"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+    echo "ISO location: $SCRIPT_DIR/out/"
+    ls -lh "$SCRIPT_DIR/out/"*.iso 2>/dev/null || echo "No ISO found"
+else
+    echo "❌ ISO build FAILED!"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
+    echo "❌ Build failed! Check the log for details:"
+    echo "   $LOG_FILE"
+    echo ""
+    echo "Last 50 lines of log:"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    tail -50 "$LOG_FILE"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    exit 1
+fi
+
 echo ""
-echo "ISO location: $SCRIPT_DIR/out/"
-ls -lh "$SCRIPT_DIR/out/"*.iso 2>/dev/null || echo "No ISO found"
+echo "📝 Full build log saved to: $LOG_FILE"
 echo ""
