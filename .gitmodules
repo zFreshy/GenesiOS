@@ -1,0 +1,18 @@
+[submodule "genesi-settings-full"]
+	path = genesi-settings-full
+	url = https://github.com/zFreshy/genesi-settings.git
+[submodule "cachyos-pkgbuilds"]
+	path = cachyos-pkgbuilds
+	url = https://github.com/zFreshy/genesi-pkgbuilds.git
+[submodule "genesi-welcome-full"]
+	path = genesi-welcome-full
+	url = https://github.com/zFreshy/genesi-welcome.git
+[submodule "cachyos-calamares-full"]
+	path = cachyos-calamares-full
+	url = https://github.com/zFreshy/genesi-calamares.git
+[submodule "cachyos-live-iso-full"]
+	path = cachyos-live-iso-full
+	url = https://github.com/zFreshy/genesi-live-iso.git
+[submodule "cachyos-kernel-manager-full"]
+	path = cachyos-kernel-manager-full
+	url = https://github.com/zFreshy/genesi-kernel-manager.git
