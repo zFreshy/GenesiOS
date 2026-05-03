@@ -40,10 +40,18 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 for pkg in "$GENESI_PKG_DIR"/*.pkg.tar.zst; do
     echo ""
     echo "Installing: $(basename "$pkg")"
-    if pacman -U --noconfirm "$pkg"; then
+    # Use --overwrite to force installation even if files conflict
+    # Use --needed to skip if already installed
+    if pacman -U --noconfirm --needed --overwrite '*' "$pkg"; then
         echo "✅ Installed: $(basename "$pkg")"
     else
         echo "⚠️  Failed to install: $(basename "$pkg")"
+        echo "Trying with --nodeps and --force..."
+        if pacman -U --noconfirm --nodeps --overwrite '*' "$pkg"; then
+            echo "✅ Installed with --nodeps: $(basename "$pkg")"
+        else
+            echo "❌ Failed completely: $(basename "$pkg")"
+        fi
     fi
 done
 
