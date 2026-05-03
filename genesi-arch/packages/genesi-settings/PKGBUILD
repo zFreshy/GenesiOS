@@ -1,15 +1,19 @@
-# Maintainer: Genesi OS Team <dev@genesios.org>
-# Based on cachyos-settings by CachyOS team
+# Maintainer: Genesi OS Team
+# Based on CachyOS-Settings by Peter Jung
 
+_gitname=genesi-settings-full
 pkgname=genesi-settings
-pkgver=1.1.0
-pkgrel=1
+pkgver=1.3.4
+pkgrel=3
 epoch=1
 groups=(genesi)
-pkgdesc='Genesi OS system settings and branding'
 arch=('any')
-url='https://github.com/zFreshy/GenesiOS'
-license=('GPL-3.0-or-later')
+license=(GPL-1.0-only)
+makedepends=('coreutils')
+pkgdesc='Genesi OS - System Settings'
+url="https://github.com/zFreshy/GenesiOS"
+source=()
+sha256sums=()
 depends=(
   zram-generator
   ananicy-cpp
@@ -22,21 +26,17 @@ depends=(
 optdepends=('libluv: for topmem'
             'lua-luv: for topmem'
             'power-profiles-daemon: For game-performance')
-provides=('cachyos-settings' 'ntsync-common')
+provides=('ntsync-common' 'cachyos-settings')
 conflicts=('cachyos-settings')
 
 package() {
-    # Copy all etc files
-    install -d "$pkgdir/etc"
-    cp -rf "$srcdir/etc" "$pkgdir/" 2>/dev/null || true
-    
-    # Copy all usr files
-    install -d "$pkgdir/usr"
-    cp -rf "$srcdir/usr" "$pkgdir/" 2>/dev/null || true
-    
-    # Override with Genesi branding
-    install -Dm644 "$srcdir/os-release" "$pkgdir/etc/os-release" 2>/dev/null || true
-    install -Dm644 "$srcdir/lsb-release" "$pkgdir/etc/lsb-release" 2>/dev/null || true
-    install -Dm644 "$srcdir/issue" "$pkgdir/etc/issue" 2>/dev/null || true
-    install -Dm644 "$srcdir/hostname" "$pkgdir/etc/hostname" 2>/dev/null || true
+  # Copy from the cloned genesi-settings-full directory
+  install -d "$pkgdir/etc"
+  cp -rf "${startdir}/../../../genesi-settings-full/etc" "$pkgdir"
+  install -d "$pkgdir/usr"
+  cp -rf "${startdir}/../../../genesi-settings-full/usr" "$pkgdir"
+  
+  # Replace all CachyOS references with Genesi OS
+  find "$pkgdir" -type f -exec sed -i 's/CachyOS/Genesi OS/g' {} + 2>/dev/null || true
+  find "$pkgdir" -type f -exec sed -i 's/cachyos/genesi/g' {} + 2>/dev/null || true
 }

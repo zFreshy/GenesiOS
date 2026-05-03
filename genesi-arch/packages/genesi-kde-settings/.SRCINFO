@@ -1,0 +1,20 @@
+pkgbase = cachyos-kde-settings
+	pkgdesc = CachyOS KDE settings
+	pkgver = 4.9
+	pkgrel = 1
+	url = https://github.com/cachyos/cachyos-kde-settings
+	install = cachyos-kde-settings.install
+	arch = any
+	license = GPL-1.0-only
+	makedepends = coreutils
+	depends = ttf-fantasque-nerd
+	depends = noto-fonts
+	depends = ttf-fira-sans
+	depends = capitaine-cursors
+	depends = cachyos-alacritty-config
+	provides = cachyos-desktop-settings
+	conflicts = cachyos-desktop-settings
+	source = cachyos-kde-settings-4.9.tar.gz::https://github.com/cachyos/cachyos-kde-settings/archive/4.9.tar.gz
+	sha512sums = 8e81881d58a715741f33e904608c0e5bf9f6e3cba0547d3d37b94e2f88f50717d493c5a164dbdecefb661b398fcd60f253b73e409ac23deff0a008751779c3ed
+
+pkgname = cachyos-kde-settings

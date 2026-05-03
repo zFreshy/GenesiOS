@@ -1,33 +1,47 @@
-# Maintainer: Genesi OS Team <dev@genesios.org>
-# Based on cachyos-kde-settings by CachyOS team
+# Maintainer: Genesi OS Team
+# Based on CachyOS KDE Settings
 
 pkgname=genesi-kde-settings
-pkgver=1.0.0
-pkgrel=3
-pkgdesc='Genesi OS KDE Plasma settings and theme'
+pkgdesc='Genesi OS KDE Plasma Settings with Glassmorphism'
+pkgver=4.9
+pkgrel=4
 arch=('any')
-url='https://github.com/zFreshy/GenesiOS'
-license=('GPL-3.0-or-later')
+url="https://github.com/zFreshy/GenesiOS"
+license=(GPL-1.0-only)
 depends=('ttf-fantasque-nerd'
     'noto-fonts'
     'ttf-fira-sans'
     'capitaine-cursors'
-    'cachyos-alacritty-config'
-    'plasma-desktop'
-    'breeze'
-    'breeze-gtk'
 )
-optdepends=('klassy: Rounded window corners and better decorations')
-conflicts=('cachyos-kde-settings' 'cachyos-desktop-settings')
-provides=('cachyos-kde-settings' 'cachyos-desktop-settings')
+makedepends=('coreutils')
+provides=('cachyos-desktop-settings' 'cachyos-kde-settings')
+conflicts=('cachyos-desktop-settings' 'cachyos-kde-settings')
 source=()
-sha256sums=()
+sha512sums=()
 
 package() {
-    # Copy files from package directory (not srcdir)
-    cp -r "${startdir}/etc" "$pkgdir/"
-    cp -r "${startdir}/usr" "$pkgdir/"
+    # Get the source directory (cachyos-kde-settings-4.9 from GitHub)
+    local _srcdir="${startdir}/../../../cachyos-pkgbuilds/cachyos-kde-settings"
     
-    # Make desktop icons executable
-    chmod +x "$pkgdir/etc/skel/Desktop/"*.desktop 2>/dev/null || true
+    # Download and extract if needed
+    if [ ! -d "${_srcdir}/cachyos-kde-settings-4.9" ]; then
+        cd "${_srcdir}"
+        curl -L "https://github.com/cachyos/cachyos-kde-settings/archive/4.9.tar.gz" -o cachyos-kde-settings-4.9.tar.gz
+        tar xzf cachyos-kde-settings-4.9.tar.gz
+    fi
+    
+    install -d "$pkgdir/etc"
+    cp -rf "${_srcdir}/cachyos-kde-settings-4.9/etc" "$pkgdir" 2>/dev/null || true
+    install -d "$pkgdir/usr"
+    cp -rf "${_srcdir}/cachyos-kde-settings-4.9/usr" "$pkgdir" 2>/dev/null || true
+    
+    # Replace all CachyOS branding with Genesi OS
+    find "$pkgdir" -type f -exec sed -i 's/CachyOS/Genesi OS/g' {} + 2>/dev/null || true
+    find "$pkgdir" -type f -exec sed -i 's/cachyos/genesi/g' {} + 2>/dev/null || true
+    
+    # Apply Genesi colors (green theme)
+    find "$pkgdir" -type f -name "*.conf" -o -name "*.css" -o -name "*.qml" | while read file; do
+        sed -i 's/#3daee9/#00ff9f/g' "$file" 2>/dev/null || true  # Accent color
+        sed -i 's/#232629/#0a0f0d/g' "$file" 2>/dev/null || true  # Background
+    done
 }

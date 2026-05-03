@@ -1,8 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=This PC
-Name[pt_BR]=Este PC
-Icon=computer
-Exec=dolphin /
-Terminal=false
-Categories=System;FileManager;

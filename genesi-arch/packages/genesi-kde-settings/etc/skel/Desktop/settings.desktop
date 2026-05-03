@@ -1,8 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=Settings
-Name[pt_BR]=Configurações
-Icon=preferences-system
-Exec=systemsettings
-Terminal=false
-Categories=Settings;
