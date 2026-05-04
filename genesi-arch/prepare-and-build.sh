@@ -32,7 +32,7 @@ fi
 
 # Step 2: Copy packages to airootfs (will be included in the ISO)
 echo ""
-echo "📋 Copying packages to airootfs and creating local repository..."
+echo "📋 Copying packages to airootfs..."
 
 # Create directory if it doesn't exist and set permissions
 sudo mkdir -p "$SCRIPT_DIR/archiso/airootfs/opt/genesi-packages/"
@@ -41,15 +41,7 @@ sudo chmod 755 "$SCRIPT_DIR/archiso/airootfs/opt/genesi-packages/"
 # Copy packages with sudo
 sudo cp "$SCRIPT_DIR/local-repo/"*.pkg.tar.zst "$SCRIPT_DIR/archiso/airootfs/opt/genesi-packages/"
 
-# Create repository database in airootfs
-echo "📦 Creating repository database in airootfs..."
-cd "$SCRIPT_DIR/archiso/airootfs/opt/genesi-packages/"
-sudo repo-add genesi-local.db.tar.gz *.pkg.tar.zst
-sudo ln -sf genesi-local.db.tar.gz genesi-local.db
-sudo ln -sf genesi-local.files.tar.gz genesi-local.files
-cd "$SCRIPT_DIR"
-
-echo "✅ Packages copied and repository created in airootfs/opt/genesi-packages/"
+echo "✅ Packages copied to airootfs/opt/genesi-packages/"
 echo ""
 
 # Step 3: Build ISO (this will ask for sudo password)
