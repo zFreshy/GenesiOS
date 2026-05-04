@@ -19,6 +19,7 @@ chmod 755 "$REPO_DIR"
 # List of packages to build
 PACKAGES=(
     "libpamac-dummy"
+    "genesi-calamares"
     "genesi-settings"
     "genesi-kde-settings"
     "genesi-ai-mode"

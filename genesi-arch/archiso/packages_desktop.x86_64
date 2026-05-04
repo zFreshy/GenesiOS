@@ -24,8 +24,9 @@ cachy-chroot
 # cachyos-rate-mirrors  # Removed - CachyOS specific
 # cachyos-v3-mirrorlist  # Removed - CachyOS specific
 # cachyos-v4-mirrorlist  # Removed - CachyOS specific
-# Calamares installer (will be rebranded by genesi-calamares-branding package)
-calamares
+# Calamares installer will be provided by genesi-calamares package (compiled from our repo)
+# NOT using the CachyOS calamares package
+# calamares  # Removed - using genesi-calamares instead
 # Genesi packages will be installed post-build via customize script
 # These packages are in /opt/genesi-packages/ and installed by customize_airootfs_genesi.sh:
 # - genesi-settings
