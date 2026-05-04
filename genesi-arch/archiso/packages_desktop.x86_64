@@ -1,8 +1,5 @@
 cachyos-keyring
 cachyos-mirrorlist
-# Install dummy libpamac FIRST to prevent real libpamac from being installed
-# This avoids the install script error that crashes the build
-libpamac-dummy
 alacritty
 alsa-utils
 amd-ucode

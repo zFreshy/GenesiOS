@@ -8,7 +8,15 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 echo "🎨 Installing Genesi OS packages..."
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-# FIRST: Remove problematic packages that have broken install scripts
+# FIRST: Install libpamac-dummy to replace the broken libpamac-aur
+echo "🔧 Installing libpamac-dummy to prevent install script errors..."
+if [ -f /opt/genesi-packages/libpamac-dummy*.pkg.tar.zst ]; then
+    pacman -U --noconfirm --overwrite '*' /opt/genesi-packages/libpamac-dummy*.pkg.tar.zst || echo "⚠️  Failed to install libpamac-dummy"
+else
+    echo "⚠️  libpamac-dummy not found"
+fi
+
+# SECOND: Remove problematic packages that have broken install scripts
 echo "🗑️  Removing problematic packages..."
 pacman -Rdd --noconfirm libpamac-aur libpamac pamac-aur 2>/dev/null || echo "Pamac packages not installed or already removed"
 
