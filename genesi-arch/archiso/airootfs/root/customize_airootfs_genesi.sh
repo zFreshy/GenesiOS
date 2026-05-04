@@ -1,11 +1,16 @@
 #!/usr/bin/env bash
 # Install Genesi packages after mkarchiso
 
-set -e
+# DON'T use set -e - we want to continue even if some packages fail
+# set -e
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "🎨 Installing Genesi OS packages..."
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+# FIRST: Remove problematic packages that have broken install scripts
+echo "🗑️  Removing problematic packages..."
+pacman -Rdd --noconfirm libpamac-aur libpamac pamac-aur 2>/dev/null || echo "Pamac packages not installed or already removed"
 
 # CRITICAL: Disable signature verification for local packages
 echo "🔓 Disabling GPG signature verification for local packages..."
@@ -77,6 +82,9 @@ CACHYOS_PACKAGES=(
     "cachyos-settings"
     "cachyos-kde-settings"
     "cachyos-hello"
+    "libpamac-aur"
+    "libpamac"
+    "pamac-aur"
 )
 
 for pkg in "${CACHYOS_PACKAGES[@]}"; do
