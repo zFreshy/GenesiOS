@@ -1,0 +1,16 @@
+# Dummy package to replace libpamac-aur and avoid install script errors
+pkgname=libpamac-dummy
+pkgver=1.0.0
+pkgrel=1
+pkgdesc='Dummy package to replace libpamac-aur (prevents install script errors)'
+arch=('any')
+license=('GPL')
+provides=('libpamac-aur' 'libpamac' 'pamac-aur')
+conflicts=('libpamac-aur' 'libpamac' 'pamac-aur')
+replaces=('libpamac-aur' 'libpamac' 'pamac-aur')
+
+package() {
+    # Empty package - just provides the names to satisfy dependencies
+    mkdir -p "$pkgdir/usr/share/doc/$pkgname"
+    echo "This is a dummy package to replace libpamac-aur" > "$pkgdir/usr/share/doc/$pkgname/README"
+}

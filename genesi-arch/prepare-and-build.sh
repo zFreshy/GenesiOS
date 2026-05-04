@@ -41,6 +41,11 @@ sudo chmod 755 "$SCRIPT_DIR/archiso/airootfs/opt/genesi-packages/"
 # Copy packages with sudo
 sudo cp "$SCRIPT_DIR/local-repo/"*.pkg.tar.zst "$SCRIPT_DIR/archiso/airootfs/opt/genesi-packages/"
 
+# CRITICAL: Also copy libpamac-dummy to the ISO's package cache so it can be installed early
+echo "📦 Adding libpamac-dummy to ISO package cache..."
+sudo mkdir -p "$SCRIPT_DIR/archiso/airootfs/var/cache/pacman/pkg/"
+sudo cp "$SCRIPT_DIR/local-repo/libpamac-dummy"*.pkg.tar.zst "$SCRIPT_DIR/archiso/airootfs/var/cache/pacman/pkg/" 2>/dev/null || echo "⚠️  libpamac-dummy not found in local-repo"
+
 echo "✅ Packages copied to airootfs/opt/genesi-packages/"
 echo ""
 
