@@ -17,12 +17,12 @@ breeze-gtk
 brltty
 btrfs-progs
 cachy-chroot
-cachyos-cli-installer-new
-cachyos-fish-config
-cachyos-hooks
-cachyos-rate-mirrors
-cachyos-v3-mirrorlist
-cachyos-v4-mirrorlist
+# cachyos-cli-installer-new  # Removed - may depend on libpamac
+# cachyos-fish-config  # Removed - CachyOS specific
+# cachyos-hooks  # Removed - CachyOS specific
+# cachyos-rate-mirrors  # Removed - CachyOS specific
+# cachyos-v3-mirrorlist  # Removed - CachyOS specific
+# cachyos-v4-mirrorlist  # Removed - CachyOS specific
 # Calamares installer (will be rebranded by genesi-calamares-branding package)
 calamares
 # Genesi packages will be installed post-build via customize script
