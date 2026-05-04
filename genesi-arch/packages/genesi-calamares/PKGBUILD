@@ -41,7 +41,6 @@ makedepends=(
     'cmake'
     'extra-cmake-modules'
     'git'
-    'ninja'
     'python-jsonschema'
     'python-pyaml'
     'python-unidecode'
@@ -72,8 +71,7 @@ prepare() {
 build() {
     cd "${srcdir}/${_gitname}"
     
-    cmake -S . -B build \
-        -GNinja \
+    cmake -S . -Bbuild \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_INSTALL_PREFIX=/usr \
         -DCMAKE_INSTALL_LIBDIR=lib \
