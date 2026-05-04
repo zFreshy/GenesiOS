@@ -18,6 +18,9 @@ breeze-gtk
 breeze
 kwin
 plasma-workspace-wallpapers
+virtualbox-guest-utils
+mesa
+qt6-tools
 brltty
 btrfs-progs
 cachy-chroot
