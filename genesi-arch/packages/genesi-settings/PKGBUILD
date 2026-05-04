@@ -36,6 +36,9 @@ package() {
   install -d "$pkgdir/usr"
   cp -rf "${srcdir}/${_gitname}/usr" "$pkgdir"
   
+  # Make the theme applicator script executable
+  chmod +x "$pkgdir/usr/bin/genesi-apply-theme.sh" 2>/dev/null || true
+  
   # Replace all CachyOS references with Genesi OS
   find "$pkgdir" -type f -exec sed -i 's/CachyOS/Genesi OS/g' {} + 2>/dev/null || true
   find "$pkgdir" -type f -exec sed -i 's/cachyos/genesi/g' {} + 2>/dev/null || true

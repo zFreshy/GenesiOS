@@ -70,26 +70,46 @@ LSB
 
 if [ -d /usr/share/genesi/skel-override ]; then
     echo ">>> Copying skel-override to /etc/skel and /home/liveuser..."
+    
+    # Copy to /etc/skel first
     cp -rf /usr/share/genesi/skel-override/. /etc/skel/
     echo ">>> Copied to /etc/skel"
-    if [ -d /home/liveuser ]; then
-        cp -rf /usr/share/genesi/skel-override/. /home/liveuser/
-        chmod +x /home/liveuser/Desktop/*.desktop 2>/dev/null || true
-        chown -R 1000:1000 /home/liveuser/
-        echo ">>> Copied to /home/liveuser"
-    else
-        echo ">>> WARNING: /home/liveuser does not exist yet"
-        # Create liveuser home and copy
+    
+    # Create liveuser home if it doesn't exist
+    if [ ! -d /home/liveuser ]; then
         mkdir -p /home/liveuser
-        cp -rf /usr/share/genesi/skel-override/. /home/liveuser/
-        chmod +x /home/liveuser/Desktop/*.desktop 2>/dev/null || true
-        chown -R 1000:1000 /home/liveuser/ 2>/dev/null || true
-        echo ">>> Created /home/liveuser and copied overrides"
+        echo ">>> Created /home/liveuser"
     fi
-    echo ">>> skel-override contents:"
-    find /usr/share/genesi/skel-override -type f
+    
+    # Copy to liveuser home
+    cp -rf /usr/share/genesi/skel-override/. /home/liveuser/
+    
+    # Make desktop files executable
+    chmod +x /home/liveuser/Desktop/*.desktop 2>/dev/null || true
+    
+    # Make theme applicator executable
+    chmod +x /usr/bin/genesi-apply-theme.sh 2>/dev/null || true
+    chmod +x /home/liveuser/.config/autostart/genesi-apply-theme.desktop 2>/dev/null || true
+    
+    # Set correct ownership
+    chown -R 1000:1000 /home/liveuser/ 2>/dev/null || true
+    
+    echo ">>> Copied to /home/liveuser and set permissions"
+    
+    # Debug: List what was copied
+    echo ">>> Files in /home/liveuser/.config:"
+    ls -la /home/liveuser/.config/ 2>/dev/null || echo "No .config directory"
+    
+    echo ">>> KDE config files:"
+    ls -la /home/liveuser/.config/kwin* /home/liveuser/.config/kdeglobals /home/liveuser/.config/plasma* 2>/dev/null || echo "No KDE config files found"
+    
+    echo ">>> Wallpaper location:"
+    ls -la /usr/share/wallpapers/genesi/wallpaper.png 2>/dev/null || echo "Wallpaper not found!"
+    
 else
     echo ">>> WARNING: /usr/share/genesi/skel-override NOT FOUND!"
+    echo ">>> Checking if genesi-settings package is installed..."
+    pacman -Q genesi-settings || echo "genesi-settings NOT INSTALLED!"
 fi
 
 # ============================================================
