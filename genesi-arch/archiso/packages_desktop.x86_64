@@ -13,6 +13,7 @@ bcachefs-tools
 bind
 bluedevil
 bolt
+boost-libs
 breeze-gtk
 brltty
 btrfs-progs
