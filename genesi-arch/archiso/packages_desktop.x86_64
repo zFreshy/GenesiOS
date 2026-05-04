@@ -201,4 +201,5 @@ xdg-user-dirs-gtk
 xdg-utils
 xfsprogs
 xl2tpd
+yaml-cpp
 zfs-utils
