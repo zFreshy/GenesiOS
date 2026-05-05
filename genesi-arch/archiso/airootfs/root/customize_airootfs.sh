@@ -51,6 +51,14 @@ if [ -d /root/genesi-calamares-config-full ]; then
         echo ">>> Calamares Python modules copied"
     fi
     
+    # Copy dummy scripts to /usr/local/bin
+    if [ -d /root/genesi-calamares-config-full/usr/local/bin ]; then
+        mkdir -p /usr/local/bin
+        cp -rf /root/genesi-calamares-config-full/usr/local/bin/* /usr/local/bin/
+        chmod +x /usr/local/bin/*
+        echo ">>> Calamares dummy scripts copied to /usr/local/bin"
+    fi
+    
     echo ">>> Genesi Calamares configuration installed successfully"
 else
     echo ">>> WARNING: genesi-calamares-config-full not found!"
