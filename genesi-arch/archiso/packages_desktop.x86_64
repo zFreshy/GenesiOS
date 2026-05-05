@@ -1,5 +1,3 @@
-cachyos-keyring
-cachyos-mirrorlist
 alacritty
 alsa-utils
 amd-ucode
@@ -13,33 +11,13 @@ bcachefs-tools
 bind
 bluedevil
 bolt
-boost-libs
 breeze-gtk
-breeze
-kwin
-plasma-workspace-wallpapers
-virtualbox-guest-utils
-mesa
-qt6-tools
 brltty
 btrfs-progs
 cachy-chroot
-# cachyos-cli-installer-new  # Removed - may depend on libpamac
-# cachyos-fish-config  # Removed - CachyOS specific
-# cachyos-hooks  # Removed - CachyOS specific
-# cachyos-rate-mirrors  # Removed - CachyOS specific
-# cachyos-v3-mirrorlist  # Removed - CachyOS specific
-# cachyos-v4-mirrorlist  # Removed - CachyOS specific
-# Calamares installer will be provided by genesi-calamares package (compiled from our repo)
-# NOT using the CachyOS calamares package
-# calamares  # Removed - using genesi-calamares instead
-# Genesi packages will be installed post-build via customize script
-# These packages are in /opt/genesi-packages/ and installed by customize_airootfs_genesi.sh:
-# - genesi-settings
-# - genesi-kde-settings  
-# - genesi-ai-mode
-# - genesi-updater
-# - genesi-calamares-branding (rebrands Calamares)
+cachyos-calamares-next
+cachyos-keyring
+cachyos-mirrorlist
 chwd
 ckbcomp
 clonezilla
@@ -64,8 +42,6 @@ f2fs-tools
 fakeroot
 fatresize
 firefox
-python-pyqt5
-python-psutil
 gcc
 gpart
 gparted
@@ -149,6 +125,7 @@ partclone
 parted
 partimage
 partitionmanager
+paru
 pcsclite
 pipewire
 pipewire-alsa
@@ -209,5 +186,4 @@ xdg-user-dirs-gtk
 xdg-utils
 xfsprogs
 xl2tpd
-yaml-cpp
 zfs-utils
