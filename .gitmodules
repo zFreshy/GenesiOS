@@ -16,3 +16,6 @@
 [submodule "cachyos-kernel-manager-full"]
 	path = cachyos-kernel-manager-full
 	url = https://github.com/zFreshy/genesi-kernel-manager.git
+[submodule "genesi-calamares-config-full"]
+	path = genesi-calamares-config-full
+	url = https://github.com/zFreshy/genesi-calamares-config.git
