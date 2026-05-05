@@ -7,7 +7,52 @@
 echo ">>> Genesi OS: Applying branding..."
 
 # ============================================================
-# 0. Install Genesi packages
+# 0. Copy Genesi Calamares configuration (from submodule)
+# ============================================================
+echo ">>> Copying Calamares configuration from genesi-calamares-config..."
+if [ -d /root/genesi-calamares-config-full ]; then
+    # Copy all Calamares configuration
+    mkdir -p /etc/calamares
+    mkdir -p /usr/lib/calamares
+    
+    # Copy branding
+    if [ -d /root/genesi-calamares-config-full/etc/calamares/branding ]; then
+        cp -rf /root/genesi-calamares-config-full/etc/calamares/branding /etc/calamares/
+        echo ">>> Calamares branding copied"
+    fi
+    
+    # Copy scripts
+    if [ -d /root/genesi-calamares-config-full/etc/calamares/scripts ]; then
+        cp -rf /root/genesi-calamares-config-full/etc/calamares/scripts /etc/calamares/
+        chmod +x /etc/calamares/scripts/*
+        echo ">>> Calamares scripts copied"
+    fi
+    
+    # Copy module configs
+    if [ -d /root/genesi-calamares-config-full/etc/calamares/modules ]; then
+        cp -rf /root/genesi-calamares-config-full/etc/calamares/modules /etc/calamares/
+        echo ">>> Calamares modules copied"
+    fi
+    
+    # Copy settings.conf
+    if [ -f /root/genesi-calamares-config-full/etc/calamares/settings.conf ]; then
+        cp -f /root/genesi-calamares-config-full/etc/calamares/settings.conf /etc/calamares/
+        echo ">>> Calamares settings.conf copied"
+    fi
+    
+    # Copy Python modules
+    if [ -d /root/genesi-calamares-config-full/usr/lib/calamares ]; then
+        cp -rf /root/genesi-calamares-config-full/usr/lib/calamares /usr/lib/
+        echo ">>> Calamares Python modules copied"
+    fi
+    
+    echo ">>> Genesi Calamares configuration installed successfully"
+else
+    echo ">>> WARNING: genesi-calamares-config-full not found!"
+fi
+
+# ============================================================
+# 1. Install Genesi packages
 # ============================================================
 if [ -f /root/customize_airootfs_genesi.sh ]; then
     echo ">>> Installing Genesi packages..."

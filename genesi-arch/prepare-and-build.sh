@@ -30,8 +30,19 @@ else
     echo "✅ Packages already built"
 fi
 
-# Step 2: Copy packages to airootfs (will be included in the ISO)
+# Step 2: Copy Genesi Calamares config to airootfs
 echo ""
+echo "📋 Copying Genesi Calamares config to airootfs..."
+
+# Copy the entire genesi-calamares-config-full submodule to airootfs/root
+sudo mkdir -p "$SCRIPT_DIR/archiso/airootfs/root/"
+sudo rm -rf "$SCRIPT_DIR/archiso/airootfs/root/genesi-calamares-config-full"
+sudo cp -r "../genesi-calamares-config-full" "$SCRIPT_DIR/archiso/airootfs/root/"
+
+echo "✅ Genesi Calamares config copied"
+echo ""
+
+# Step 3: Copy packages to airootfs (will be included in the ISO)
 echo "📋 Copying packages to airootfs..."
 
 # Create directory if it doesn't exist and set permissions
@@ -44,7 +55,7 @@ sudo cp "$SCRIPT_DIR/local-repo/"*.pkg.tar.zst "$SCRIPT_DIR/archiso/airootfs/opt
 echo "✅ Packages copied to airootfs/opt/genesi-packages/"
 echo ""
 
-# Step 3: Build ISO (this will ask for sudo password)
+# Step 4: Build ISO (this will ask for sudo password)
 echo "🔨 Building ISO (will ask for sudo password)..."
 echo ""
 cd "$SCRIPT_DIR"

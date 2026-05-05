@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# SPDX-FileCopyrightText: no
+# SPDX-License-Identifier: CC0-1.0
+#
+# Genesi OS - detect-architecture script
+# Detects system architecture and sets up appropriate repositories
+
+set -e
+
+echo ">>> Genesi OS: Detecting system architecture..."
+
+ARCH=$(uname -m)
+echo ">>> Detected architecture: $ARCH"
+
+# Create architecture-specific configuration if needed
+if [ "$ARCH" = "x86_64" ]; then
+    echo ">>> x86_64 architecture confirmed"
+elif [ "$ARCH" = "aarch64" ]; then
+    echo ">>> ARM64 architecture detected"
+else
+    echo ">>> Warning: Unsupported architecture: $ARCH"
+fi
+
+exit 0

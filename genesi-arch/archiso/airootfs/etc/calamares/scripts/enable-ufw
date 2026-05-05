@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# SPDX-FileCopyrightText: no
+# SPDX-License-Identifier: CC0-1.0
+#
+# Genesi OS - enable-ufw script
+# Enables and configures UFW firewall
+
+set -e
+
+echo ">>> Genesi OS: Configuring UFW firewall..."
+
+# Check if ufw is installed
+if ! command -v ufw &> /dev/null; then
+    echo ">>> UFW not installed, skipping..."
+    exit 0
+fi
+
+# Set default policies
+ufw --force default deny incoming
+ufw --force default allow outgoing
+
+# Enable UFW
+ufw --force enable
+
+# Enable UFW service
+systemctl enable ufw.service
+
+echo ">>> UFW firewall enabled successfully"
+exit 0

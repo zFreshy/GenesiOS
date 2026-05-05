@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# SPDX-FileCopyrightText: no
+# SPDX-License-Identifier: CC0-1.0
+#
+# Modified mkinitcpio hook that does nothing during installation
+# This prevents mkinitcpio from running multiple times during package installation
+# The real mkinitcpio will be run once at the end by the initcpio module
+
+echo ">>> Genesi OS: Skipping mkinitcpio during installation (will run at end)"
+exit 0
