@@ -28,16 +28,21 @@ if [ -d /root/genesi-calamares-config-full ]; then
         echo ">>> Calamares scripts copied"
     fi
     
-    # Copy module configs
+    # Copy module configs to BOTH locations (Calamares checks both)
     if [ -d /root/genesi-calamares-config-full/etc/calamares/modules ]; then
-        cp -rf /root/genesi-calamares-config-full/etc/calamares/modules /etc/calamares/
-        echo ">>> Calamares modules copied"
+        mkdir -p /etc/calamares/modules
+        mkdir -p /usr/share/calamares/modules
+        cp -rf /root/genesi-calamares-config-full/etc/calamares/modules/* /etc/calamares/modules/
+        cp -rf /root/genesi-calamares-config-full/etc/calamares/modules/* /usr/share/calamares/modules/
+        echo ">>> Calamares modules copied to /etc and /usr/share"
     fi
     
-    # Copy settings.conf
+    # Copy settings.conf to BOTH locations
     if [ -f /root/genesi-calamares-config-full/etc/calamares/settings.conf ]; then
         cp -f /root/genesi-calamares-config-full/etc/calamares/settings.conf /etc/calamares/
-        echo ">>> Calamares settings.conf copied"
+        mkdir -p /usr/share/calamares
+        cp -f /root/genesi-calamares-config-full/etc/calamares/settings.conf /usr/share/calamares/
+        echo ">>> Calamares settings.conf copied to /etc and /usr/share"
     fi
     
     # Copy Python modules
