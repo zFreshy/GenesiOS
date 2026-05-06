@@ -1,0 +1,4 @@
+[General]
+translucent_windows=true
+blur_translucent=true
+reduce_window_opacity=15
