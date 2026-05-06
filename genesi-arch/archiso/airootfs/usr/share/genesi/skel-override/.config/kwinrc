@@ -1,10 +1,10 @@
 [org.kde.kdecoration2]
-BorderSize=None
+BorderSize=Normal
 BorderSizeAuto=false
 ButtonsOnLeft=XIA
 ButtonsOnRight=
-library=org.kde.breeze
-theme=Breeze
+library=org.kde.kdecoration3
+theme=Lightly
 
 [Compositing]
 Backend=OpenGL
