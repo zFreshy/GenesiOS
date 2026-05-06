@@ -1,4 +1,4 @@
-name: Build and Publish Packages
+﻿name: Build and Publish Packages
 
 on:
   push:
@@ -20,46 +20,43 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
       
-      - name: Install dependencies
+      - name: Install dependencies and setup builder
         run: |
-          pacman -Syu --noconfirm base-devel git
+          pacman -Syu --noconfirm base-devel git sudo
+          useradd -m builder
+          echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+          chown -R builder:builder .
       
       - name: Build packages
         run: |
-          cd genesi-arch/packages
-          bash build-packages.sh
+          sudo -u builder bash -c "
+            cd genesi-arch/packages
+            bash build-packages.sh
+          "
       
       - name: List built packages
         run: |
           ls -lh genesi-arch/packages/repo/
       
-      - name: Create release tag
-        id: create_tag
-        run: |
-          TAG="packages-$(date +%Y%m%d-%H%M%S)"
-          echo "tag=$TAG" >> $GITHUB_OUTPUT
-      
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
+        uses: ncipollo/release-action@v1
         with:
-          tag_name: ${{ steps.create_tag.outputs.tag }}
-          name: "Genesi OS Packages - $(date +%Y-%m-%d)"
+          tag: "repo"
+          name: "Genesi OS Rolling Repository"
+          allowUpdates: true
+          replacesArtifacts: true
+          makeLatest: true
           body: |
             ## Genesi OS Package Repository
             
             Automatically built packages from commit ${{ github.sha }}
-            
-            ### Packages included:
-            - genesi-settings
-            - genesi-kde-settings
-            - genesi-ai-mode
             
             ### Installation:
             Add to `/etc/pacman.conf`:
             ```ini
             [genesi]
             SigLevel = Optional TrustAll
-            Server = https://github.com/zFreshy/GenesiOS/releases/download/${{ steps.create_tag.outputs.tag }}
+            Server = https://github.com/zFreshy/GenesiOS/releases/download/repo
             ```
             
             Then run:
@@ -67,9 +64,6 @@ jobs:
             sudo pacman -Sy
             sudo pacman -S genesi-settings genesi-kde-settings genesi-ai-mode
             ```
-          files: |
-            genesi-arch/packages/repo/*.pkg.tar.zst
-            genesi-arch/packages/repo/genesi.db.tar.gz
-            genesi-arch/packages/repo/genesi.files.tar.gz
+          artifacts: "genesi-arch/packages/repo/*.pkg.tar.zst,genesi-arch/packages/repo/genesi.db.tar.gz,genesi-arch/packages/repo/genesi.files.tar.gz"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
