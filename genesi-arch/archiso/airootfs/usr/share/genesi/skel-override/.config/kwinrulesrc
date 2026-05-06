@@ -1,0 +1,12 @@
+[General]
+count=1
+
+[1]
+Description=Genesi Glassmorphism
+opacityactive=85
+opacityactiverule=2
+opacityinactive=85
+opacityinactiverule=2
+types=1
+wmclass=.*
+wmclassmatch=3
