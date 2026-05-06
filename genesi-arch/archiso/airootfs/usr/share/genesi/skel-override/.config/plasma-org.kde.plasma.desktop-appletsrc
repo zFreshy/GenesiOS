@@ -125,7 +125,7 @@ plugin=org.kde.plasma.icon
 
 [Containments][2][Applets][31][Configuration][General]
 applicationName=Genesi AI Mode
-iconName=plasmavault
+iconName=cpu
 url=file:///usr/share/applications/genesi-aimode.desktop
 
 [Containments][2][Applets][7]

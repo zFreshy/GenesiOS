@@ -1,8 +1,8 @@
 [Desktop Entry]
 Name=Genesi AI Mode
 Comment=Toggle Genesi AI Mode
-Exec=sh -c 'if [ -f /tmp/genesi-ai-mode-forced ]; then rm /tmp/genesi-ai-mode-forced; notify-send -i plasmavault "Genesi AI Mode" "Disabled Forced AI Mode (Back to Auto)"; else touch /tmp/genesi-ai-mode-forced; notify-send -i plasmavault "Genesi AI Mode" "Forced AI Mode Active"; fi'
-Icon=plasmavault
+Exec=bash -c "if [ -f /tmp/genesi-ai-mode-forced ]; then rm -f /tmp/genesi-ai-mode-forced; notify-send -i /usr/share/pixmaps/genesi-logo.png -a 'Genesi AI Mode' -t 3000 'AI Mode' 'Modo Automático restaurado'; else touch /tmp/genesi-ai-mode-forced; notify-send -i /usr/share/pixmaps/genesi-logo.png -a 'Genesi AI Mode' -t 3000 'AI Mode' 'Modo IA Forçado ativado com sucesso!'; fi"
+Icon=cpu
 Type=Application
 Categories=System;
 Terminal=false
