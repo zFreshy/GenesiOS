@@ -1,9 +1,9 @@
 [Desktop Entry]
 Name=Genesi AI Mode
-Comment=Activate Genesi AI features
-Exec=konsole -e echo "AI Mode Activated"
+Comment=Toggle Genesi AI Mode
+Exec=sh -c 'if [ -f /tmp/genesi-ai-mode-forced ]; then rm /tmp/genesi-ai-mode-forced; notify-send -i plasmavault "Genesi AI Mode" "Disabled Forced AI Mode (Back to Auto)"; else touch /tmp/genesi-ai-mode-forced; notify-send -i plasmavault "Genesi AI Mode" "Forced AI Mode Active"; fi'
 Icon=plasmavault
 Type=Application
 Categories=System;
 Terminal=false
-StartupNotify=true
+StartupNotify=false

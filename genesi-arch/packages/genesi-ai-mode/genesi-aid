@@ -226,15 +226,18 @@ class AIOptimizer:
         
         while True:
             try:
+                # Check for manual force file
+                force_mode = os.path.exists("/tmp/genesi-ai-mode-forced")
+                
                 # Detect AI processes
                 self.ai_processes = self.detect_ai_processes()
                 
-                # Enable AI mode if AI processes detected
-                if self.ai_processes and not self.ai_mode_active:
+                # Enable AI mode if AI processes detected or forced
+                if (self.ai_processes or force_mode) and not self.ai_mode_active:
                     self.enable_ai_mode()
                 
-                # Disable AI mode if no AI processes
-                elif not self.ai_processes and self.ai_mode_active:
+                # Disable AI mode if no AI processes and not forced
+                elif not self.ai_processes and not force_mode and self.ai_mode_active:
                     self.disable_ai_mode()
                 
                 # Save state for widget
