@@ -50,6 +50,7 @@ makedepends=(
 provides=('calamares')
 conflicts=('calamares' 'calamares-git')
 replaces=('calamares')
+options=('!lto')
 backup=('usr/share/calamares/modules/bootloader.conf'
         'usr/share/calamares/modules/displaymanager.conf'
         'usr/share/calamares/modules/initcpio.conf'

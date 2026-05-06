@@ -24,8 +24,7 @@ PACKAGES=(
     "genesi-kde-settings"
     "genesi-ai-mode"
     "genesi-updater"
-    "genesi-calamares-branding"
-    # "genesi-hello"  # Temporarily disabled due to cargo network issues
+    "genesi-welcome"
 )
 
 echo "📋 Note: Building all Genesi packages from GitHub repos"
@@ -46,6 +45,7 @@ for pkg in "${PACKAGES[@]}"; do
     
     # Clean previous builds
     rm -f *.pkg.tar.zst
+    rm -rf src pkg
     
     # Build package (makepkg cannot run as root)
     if [ "$EUID" -eq 0 ]; then
