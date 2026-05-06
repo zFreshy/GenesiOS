@@ -153,7 +153,7 @@ class GenesiUpdater:
             subprocess.run([
                 'notify-send',
                 '-a', 'Genesi Updater',
-                '-i', 'system-software-update',
+                '-i', '/usr/share/pixmaps/genesi-logo.png',
                 '-u', 'normal',
                 '-t', '10000',  # 10 seconds
                 title,

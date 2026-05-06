@@ -26,14 +26,14 @@ while true; do
             if [ "$UPDATE_COUNT" -eq 1 ]; then
                 notify-send \
                     -a "Genesi Updater" \
-                    -i "system-software-update" \
+                    -i "/usr/share/pixmaps/genesi-logo.png" \
                     -u normal \
                     "🔄 1 Update Available" \
                     "Click the update icon in the taskbar to install."
             else
                 notify-send \
                     -a "Genesi Updater" \
-                    -i "system-software-update" \
+                    -i "/usr/share/pixmaps/genesi-logo.png" \
                     -u normal \
                     "🔄 $UPDATE_COUNT Updates Available" \
                     "Click the update icon in the taskbar to install."
