@@ -8,10 +8,10 @@
   </defs>
 
   <!-- Hints for Margins to ensure Plasma adds padding around the highlight -->
-  <rect id="hint-top-margin" x="0" y="0" width="32" height="6" fill="transparent"/>
-  <rect id="hint-bottom-margin" x="0" y="26" width="32" height="6" fill="transparent"/>
-  <rect id="hint-left-margin" x="0" y="0" width="6" height="32" fill="transparent"/>
-  <rect id="hint-right-margin" x="26" y="0" width="6" height="32" fill="transparent"/>
+  <rect id="hint-top-margin" x="0" y="0" width="32" height="7" fill="transparent"/>
+  <rect id="hint-bottom-margin" x="0" y="25" width="32" height="7" fill="transparent"/>
+  <rect id="hint-left-margin" x="0" y="0" width="7" height="32" fill="transparent"/>
+  <rect id="hint-right-margin" x="25" y="0" width="7" height="32" fill="transparent"/>
   
   <!-- Normal state (invisible) -->
   <g id="normal-center">
@@ -20,23 +20,23 @@
 
   <!-- Hover state -->
   <g id="hover-center">
-    <rect x="2" y="4" width="28" height="24" rx="4" ry="4" fill="currentColor" class="ColorScheme-Text" opacity="0.15"/>
+    <rect x="3" y="5" width="26" height="22" rx="5" ry="5" fill="currentColor" class="ColorScheme-Text" opacity="0.15"/>
   </g>
 
   <!-- Active/Selected state -->
   <g id="active-center">
-    <rect x="2" y="4" width="28" height="24" rx="4" ry="4" fill="currentColor" class="ColorScheme-Highlight" opacity="0.25"/>
+    <rect x="3" y="5" width="26" height="22" rx="5" ry="5" fill="currentColor" class="ColorScheme-Highlight" opacity="0.25"/>
     <!-- The little indicator dot/line at the bottom -->
     <rect x="12" y="28" width="8" height="3" rx="1.5" ry="1.5" fill="currentColor" class="ColorScheme-Highlight"/>
   </g>
 
   <!-- Focus state -->
   <g id="focus-center">
-    <rect x="2" y="4" width="28" height="24" rx="4" ry="4" fill="currentColor" class="ColorScheme-Highlight" opacity="0.3"/>
+    <rect x="3" y="5" width="26" height="22" rx="5" ry="5" fill="currentColor" class="ColorScheme-Highlight" opacity="0.3"/>
   </g>
 
   <!-- Attention state -->
   <g id="attention-center">
-    <rect x="2" y="4" width="28" height="24" rx="4" ry="4" fill="#ff5555" opacity="0.3"/>
+    <rect x="3" y="5" width="26" height="22" rx="5" ry="5" fill="#ff5555" opacity="0.3"/>
   </g>
 </svg>
