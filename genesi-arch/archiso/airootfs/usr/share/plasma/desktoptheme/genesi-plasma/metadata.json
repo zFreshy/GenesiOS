@@ -1,0 +1,9 @@
+{
+    "KPlugin": {
+        "Description": "Genesi OS Plasma Theme",
+        "Id": "genesi-plasma",
+        "Name": "Genesi Plasma",
+        "Version": "1.0"
+    },
+    "X-Plasma-FallbackTheme": "breeze-dark"
+}
