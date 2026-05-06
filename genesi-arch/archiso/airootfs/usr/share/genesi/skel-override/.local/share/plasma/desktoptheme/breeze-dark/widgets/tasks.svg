@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style type="text/css" id="current-color-scheme">
+      .ColorScheme-Text { color:#eff0f1; }
+      .ColorScheme-Highlight { color:#00ffa1; }
+    </style>
+  </defs>
+  <!-- Normal state (invisible) -->
+  <g id="normal">
+    <rect width="32" height="32" fill="transparent"/>
+  </g>
+  <!-- Hover state (light grey rounded background) -->
+  <g id="hover">
+    <rect x="2" y="2" width="28" height="28" rx="8" ry="8" fill="currentColor" class="ColorScheme-Text" opacity="0.1"/>
+  </g>
+  <!-- Active/Selected state (highlighted pill background) -->
+  <g id="active">
+    <rect x="2" y="2" width="28" height="28" rx="8" ry="8" fill="currentColor" class="ColorScheme-Highlight" opacity="0.2"/>
+    <rect x="10" y="28" width="12" height="3" rx="1.5" ry="1.5" fill="currentColor" class="ColorScheme-Highlight"/>
+  </g>
+  <!-- Focus state -->
+  <g id="focus">
+    <rect x="2" y="2" width="28" height="28" rx="8" ry="8" fill="currentColor" class="ColorScheme-Highlight" opacity="0.3"/>
+  </g>
+  <!-- Attention state -->
+  <g id="attention">
+    <rect x="2" y="2" width="28" height="28" rx="8" ry="8" fill="#ff5555" opacity="0.3"/>
+  </g>
+</svg>

@@ -96,6 +96,7 @@ panelLengthMode=0
 AppletOrder=30;4;5;6;31;7;9;10
 floating=1
 panelAlignment=1
+thickness=64
 
 [Containments][2][Applets][30]
 immutability=1
