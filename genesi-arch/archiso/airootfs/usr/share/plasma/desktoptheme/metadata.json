@@ -1,0 +1,19 @@
+{
+    "KPlugin": {
+        "Description": "Genesi OS Plasma Theme",
+        "Id": "genesi-plasma",
+        "Name": "Genesi Plasma",
+        "Version": "1.0",
+        "Website": "https://github.com/zFreshy/GenesiOS",
+        "Authors": [
+            {
+                "Name": "Genesi OS Team"
+            }
+        ]
+    },
+    "X-Plasma-FallbackTheme": "breeze-dark",
+    "X-Plasma-API": "5.0",
+    "theme": {
+        "translucent": true
+    }
+}

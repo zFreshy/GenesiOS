@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style type="text/css" id="current-color-scheme">
+      .ColorScheme-Text { color:#eff0f1; }
+      .ColorScheme-Highlight { color:#00ffa1; }
+    </style>
+  </defs>
+
+  <!-- Hints for Margins to ensure Plasma adds padding around the highlight -->
+  <rect id="hint-top-margin" x="0" y="0" width="32" height="6" fill="transparent"/>
+  <rect id="hint-bottom-margin" x="0" y="26" width="32" height="6" fill="transparent"/>
+  <rect id="hint-left-margin" x="0" y="0" width="6" height="32" fill="transparent"/>
+  <rect id="hint-right-margin" x="26" y="0" width="6" height="32" fill="transparent"/>
+  
+  <!-- Normal state (invisible) -->
+  <g id="normal-center">
+    <rect width="32" height="32" fill="transparent"/>
+  </g>
+
+  <!-- Hover state -->
+  <g id="hover-center">
+    <rect x="0" y="4" width="32" height="24" rx="8" ry="8" fill="currentColor" class="ColorScheme-Text" opacity="0.1"/>
+  </g>
+
+  <!-- Active/Selected state -->
+  <g id="active-center">
+    <rect x="0" y="4" width="32" height="24" rx="8" ry="8" fill="currentColor" class="ColorScheme-Highlight" opacity="0.2"/>
+    <!-- The little indicator dot/line at the bottom -->
+    <rect x="12" y="28" width="8" height="3" rx="1.5" ry="1.5" fill="currentColor" class="ColorScheme-Highlight"/>
+  </g>
+
+  <!-- Focus state -->
+  <g id="focus-center">
+    <rect x="0" y="4" width="32" height="24" rx="8" ry="8" fill="currentColor" class="ColorScheme-Highlight" opacity="0.3"/>
+  </g>
+
+  <!-- Attention state -->
+  <g id="attention-center">
+    <rect x="0" y="4" width="32" height="24" rx="8" ry="8" fill="#ff5555" opacity="0.3"/>
+  </g>
+</svg>
