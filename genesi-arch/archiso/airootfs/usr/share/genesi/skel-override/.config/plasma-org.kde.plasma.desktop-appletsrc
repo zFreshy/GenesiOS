@@ -94,10 +94,15 @@ panelLengthMode=1
 
 [Containments][2][General]
 AppletOrder=30;4;5;6;7;9;10
+floating=1
+panelAlignment=1
 
 [Containments][2][Applets][30]
 immutability=1
-plugin=org.genesi.logo
+plugin=org.kde.plasma.kickoff
+
+[Containments][2][Applets][30][Configuration][General]
+icon=/usr/share/pixmaps/genesi-logo.svg
 
 [Containments][2][Applets][4]
 immutability=1
