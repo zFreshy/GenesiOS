@@ -17,9 +17,9 @@ OpenGLIsUnsafe=false
 WindowsBlockCompositing=true
 AnimationSpeed=3
 
-[Effect-blur]
+[Effect-Blur]
 BlurStrength=12
-NoiseStrength=2
+NoiseStrength=3
 
 [Effect-slide]
 Duration=200
@@ -29,17 +29,15 @@ VerticalGap=0
 [Effect-fadingpopups]
 FadeDuration=100
 
-[Effect-translucency]
-Inactive=90
-MoveResize=80
+[Effect-Translucency]
+ActiveOpacity=85
+InactiveOpacity=85
 
 [Plugins]
 blurEnabled=true
-contrastEnabled=true
-slideEnabled=true
-fadingpopupsEnabled=true
 translucencyEnabled=true
-dimscreenEnabled=true
+forceblurEnabled=true
+kwin4_effect_translucencyEnabled=true
 
 [Windows]
 Placement=Centered
