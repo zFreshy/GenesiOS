@@ -91,6 +91,7 @@ location=4
 plugin=org.kde.panel
 panelOpacity=2
 panelLengthMode=0
+panelSize=100
 
 [Containments][2][General]
 AppletOrder=30;4;5;6;31;7;9;10
