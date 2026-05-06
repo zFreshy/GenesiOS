@@ -23,15 +23,13 @@ if [ "$EUID" -eq 0 ]; then
 fi
 
 # Step 1: Build packages if not already built
-# DISABLED: Using packages from repositories instead of local compilation
-# This avoids GCC version mismatch errors (LTO version conflicts)
-# if [ ! -d "$SCRIPT_DIR/local-repo" ] || [ ! -f "$SCRIPT_DIR/local-repo/genesi.db" ]; then
-#     echo "📦 Building Genesi packages..."
-#     bash "$SCRIPT_DIR/build-local-packages.sh"
-# else
-#     echo "✅ Packages already built"
-# fi
-echo "⏭️  Skipping local package build (using repository packages)"
+# ENABLED: We MUST build local packages because our custom packages (genesi-welcome, etc) are not in CachyOS repos
+if [ ! -d "$SCRIPT_DIR/local-repo" ] || [ ! -f "$SCRIPT_DIR/local-repo/genesi.db" ]; then
+    echo "📦 Building Genesi packages..."
+    bash "$SCRIPT_DIR/build-local-packages.sh"
+else
+    echo "✅ Packages already built"
+fi
 
 # Step 2: Copy Genesi Calamares config to airootfs
 echo ""
@@ -46,14 +44,15 @@ echo "✅ Genesi Calamares config copied"
 echo ""
 
 # Step 3: Copy packages to airootfs (will be included in the ISO)
-# DISABLED: Not copying local packages since we're using repository packages
-# echo "📋 Copying packages to airootfs..."
-# sudo mkdir -p "$SCRIPT_DIR/archiso/airootfs/opt/genesi-packages/"
-# sudo chmod 755 "$SCRIPT_DIR/archiso/airootfs/opt/genesi-packages/"
-# sudo cp "$SCRIPT_DIR/local-repo/"*.pkg.tar.zst "$SCRIPT_DIR/archiso/airootfs/opt/genesi-packages/"
-# sudo cp -a "$SCRIPT_DIR/local-repo/"genesi.db* "$SCRIPT_DIR/archiso/airootfs/opt/genesi-packages/"
-# sudo cp -a "$SCRIPT_DIR/local-repo/"genesi.files* "$SCRIPT_DIR/archiso/airootfs/opt/genesi-packages/"
-echo "⏭️  Skipping package copy (using repository packages)"
+# ENABLED: We need to copy local packages so mkarchiso can install them
+echo "📋 Copying packages to airootfs..."
+sudo mkdir -p "$SCRIPT_DIR/archiso/airootfs/opt/genesi-packages/"
+sudo chmod 755 "$SCRIPT_DIR/archiso/airootfs/opt/genesi-packages/"
+
+# Copy packages with sudo
+sudo cp "$SCRIPT_DIR/local-repo/"*.pkg.tar.zst "$SCRIPT_DIR/archiso/airootfs/opt/genesi-packages/"
+sudo cp -a "$SCRIPT_DIR/local-repo/"genesi.db* "$SCRIPT_DIR/archiso/airootfs/opt/genesi-packages/"
+sudo cp -a "$SCRIPT_DIR/local-repo/"genesi.files* "$SCRIPT_DIR/archiso/airootfs/opt/genesi-packages/"
 echo ""
 
 # Step 4: Build ISO (this will ask for sudo password)
