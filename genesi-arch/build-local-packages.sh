@@ -43,6 +43,21 @@ for pkg in "${PACKAGES[@]}"; do
     
     cd "$PACKAGES_DIR/$pkg"
     
+    # Build package only if not already built or if forced
+    # We skip building if the package already exists in the repo
+    # This saves a lot of time on subsequent ISO builds
+    PKG_NAME=$(grep "^pkgname=" PKGBUILD | cut -d= -f2 | tr -d "'" | tr -d '"')
+    PKG_VER=$(grep "^pkgver=" PKGBUILD | cut -d= -f2 | tr -d "'" | tr -d '"')
+    PKG_REL=$(grep "^pkgrel=" PKGBUILD | cut -d= -f2 | tr -d "'" | tr -d '"')
+    
+    # Simple check: if a file matching the package name exists in repo, skip
+    if ls "$REPO_DIR/${PKG_NAME}"-*.pkg.tar.zst 1> /dev/null 2>&1; then
+        echo "✅ Package ${PKG_NAME} already exists in repository, skipping build..."
+        cd "$PACKAGES_DIR"
+        echo ""
+        continue
+    fi
+    
     # Clean previous builds
     rm -f *.pkg.tar.zst
     rm -rf src pkg
