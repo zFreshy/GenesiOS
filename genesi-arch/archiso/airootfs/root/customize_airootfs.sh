@@ -3,6 +3,15 @@
 # Runs inside chroot AFTER packages are installed, BEFORE squashfs creation.
 # Overrides all CachyOS branding with Genesi OS.
 
+# Enable detailed logging
+set -x  # Print each command before executing
+exec 1> >(tee -a /var/log/genesi-customize.log)
+exec 2>&1
+
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "🚀 Genesi OS: Starting customization at $(date)"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
 # Don't use set -e - we want to continue even if some commands fail
 echo ">>> Genesi OS: Applying branding..."
 
@@ -67,9 +76,57 @@ fi
 # ============================================================
 # 1. Install Genesi packages
 # ============================================================
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "📦 CHECKING GENESI PACKAGES"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+echo "🔍 Checking if genesi-settings is installed..."
+if pacman -Q genesi-settings &>/dev/null; then
+    echo "✅ genesi-settings is INSTALLED"
+    pacman -Qi genesi-settings
+else
+    echo "❌ genesi-settings is NOT INSTALLED"
+    echo "🔍 Searching in repositories..."
+    pacman -Ss genesi-settings || echo "Not found in repositories"
+fi
+
+echo ""
+echo "🔍 Checking if genesi-calamares-branding is installed..."
+if pacman -Q genesi-calamares-branding &>/dev/null; then
+    echo "✅ genesi-calamares-branding is INSTALLED"
+    pacman -Qi genesi-calamares-branding
+else
+    echo "❌ genesi-calamares-branding is NOT INSTALLED"
+    echo "🔍 Searching in repositories..."
+    pacman -Ss genesi-calamares-branding || echo "Not found in repositories"
+fi
+
+echo ""
+echo "📋 All installed Genesi packages:"
+pacman -Q | grep genesi || echo "⚠️  No Genesi packages found"
+
+echo ""
+echo "📂 Checking /opt/genesi-packages directory..."
+if [ -d /opt/genesi-packages ]; then
+    echo "✅ Directory exists"
+    ls -lah /opt/genesi-packages/
+    echo ""
+    echo "📋 Database files:"
+    ls -lah /opt/genesi-packages/*.db* /opt/genesi-packages/*.files* 2>/dev/null || echo "No database files found"
+else
+    echo "❌ Directory does NOT exist"
+fi
+
+echo ""
+echo "📋 Pacman repositories configured:"
+grep -A 2 "^\[.*\]" /etc/pacman.conf | grep -E "^\[|^Server"
+
+echo ""
 if [ -f /root/customize_airootfs_genesi.sh ]; then
-    echo ">>> Installing Genesi packages..."
+    echo ">>> Running customize_airootfs_genesi.sh..."
     bash /root/customize_airootfs_genesi.sh
+else
+    echo "⚠️  customize_airootfs_genesi.sh not found"
 fi
 
 # ============================================================
@@ -322,3 +379,33 @@ MinimumUid=1000
 SDDMCONF
 
 echo ">>> Genesi OS: Branding applied successfully!"
+
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "✅ CUSTOMIZATION COMPLETE at $(date)"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+echo "📋 FINAL PACKAGE CHECK:"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+pacman -Q | grep -E "(genesi|calamares)" || echo "No Genesi/Calamares packages found"
+echo ""
+echo "📂 SKEL OVERRIDE CHECK:"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+if [ -d /usr/share/genesi/skel-override ]; then
+    echo "✅ /usr/share/genesi/skel-override EXISTS"
+    find /usr/share/genesi/skel-override -type f | head -20
+else
+    echo "❌ /usr/share/genesi/skel-override DOES NOT EXIST"
+fi
+echo ""
+echo "📂 LIVEUSER HOME CHECK:"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+if [ -d /home/liveuser ]; then
+    echo "✅ /home/liveuser EXISTS"
+    ls -la /home/liveuser/.config/*.* 2>/dev/null | head -20 || echo "No config files"
+else
+    echo "❌ /home/liveuser DOES NOT EXIST"
+fi
+echo ""
+echo "📝 Full log saved to: /var/log/genesi-customize.log"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

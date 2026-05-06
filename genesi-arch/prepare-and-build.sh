@@ -9,6 +9,11 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 echo "🚀 Genesi OS - Prepare and Build ISO"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
+echo "📋 Build Configuration:"
+echo "  - Using repository packages (no local compilation)"
+echo "  - Calamares: cachyos-calamares-next from repos"
+echo "  - Genesi packages: from CachyOS repos"
+echo ""
 
 # Check if running as root
 if [ "$EUID" -eq 0 ]; then
@@ -37,6 +42,11 @@ sudo rm -rf "$SCRIPT_DIR/archiso/airootfs/root/genesi-calamares-config-full"
 sudo cp -r "../genesi-calamares-config-full" "$SCRIPT_DIR/archiso/airootfs/root/"
 
 echo "✅ Genesi Calamares config copied"
+echo ""
+echo "📋 Verifying copied files:"
+echo "  - Branding: $(ls -d $SCRIPT_DIR/archiso/airootfs/root/genesi-calamares-config-full/etc/calamares/branding/genesi 2>/dev/null && echo '✅' || echo '❌')"
+echo "  - Modules: $(ls $SCRIPT_DIR/archiso/airootfs/root/genesi-calamares-config-full/etc/calamares/modules/*.conf 2>/dev/null | wc -l) files"
+echo "  - Settings: $(ls $SCRIPT_DIR/archiso/airootfs/root/genesi-calamares-config-full/etc/calamares/settings.conf 2>/dev/null && echo '✅' || echo '❌')"
 echo ""
 
 # Step 3: Copy packages to airootfs (will be included in the ISO)
