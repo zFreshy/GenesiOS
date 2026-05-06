@@ -24,12 +24,8 @@ fi
 
 # Step 1: Build packages if not already built
 # ENABLED: We MUST build local packages because our custom packages (genesi-welcome, etc) are not in CachyOS repos
-if [ ! -d "$SCRIPT_DIR/local-repo" ] || [ ! -f "$SCRIPT_DIR/local-repo/genesi.db" ]; then
-    echo "📦 Building Genesi packages..."
-    bash "$SCRIPT_DIR/build-local-packages.sh"
-else
-    echo "✅ Packages already built"
-fi
+echo "📦 Building Genesi packages..."
+bash "$SCRIPT_DIR/build-local-packages.sh"
 
 # Step 2: Copy Genesi Calamares config to airootfs
 echo ""
