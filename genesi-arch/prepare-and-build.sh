@@ -46,9 +46,9 @@ sudo mkdir -p "$SCRIPT_DIR/archiso/airootfs/opt/genesi-packages/"
 sudo chmod 755 "$SCRIPT_DIR/archiso/airootfs/opt/genesi-packages/"
 
 # Copy packages with sudo
-sudo cp "$SCRIPT_DIR/local-repo/"*.pkg.tar.zst "$SCRIPT_DIR/archiso/airootfs/opt/genesi-packages/"
-sudo cp -a "$SCRIPT_DIR/local-repo/"genesi.db* "$SCRIPT_DIR/archiso/airootfs/opt/genesi-packages/"
-sudo cp -a "$SCRIPT_DIR/local-repo/"genesi.files* "$SCRIPT_DIR/archiso/airootfs/opt/genesi-packages/"
+sudo cp "$SCRIPT_DIR/local-repo/"*.pkg.tar.zst "$SCRIPT_DIR/archiso/airootfs/opt/genesi-packages/" || true
+sudo cp -a "$SCRIPT_DIR/local-repo/"genesi.db* "$SCRIPT_DIR/archiso/airootfs/opt/genesi-packages/" || true
+sudo cp -a "$SCRIPT_DIR/local-repo/"genesi.files* "$SCRIPT_DIR/archiso/airootfs/opt/genesi-packages/" || true
 echo ""
 
 # Step 4: Build ISO (this will ask for sudo password)

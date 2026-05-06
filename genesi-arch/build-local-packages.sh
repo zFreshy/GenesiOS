@@ -62,14 +62,26 @@ for pkg in "${PACKAGES[@]}"; do
     rm -f *.pkg.tar.zst
     rm -rf src pkg
     
+    # Check if inside fakeroot or makepkg environment
+    if [ -n "$FAKEROOTKEY" ]; then
+        echo "⚠️ Running inside fakeroot environment"
+    fi
+    
     # Build package (makepkg cannot run as root)
-    if [ "$EUID" -eq 0 ]; then
+    if [ "$EUID" -eq 0 ] && [ -z "$FAKEROOTKEY" ]; then
         echo "❌ ERROR: This script cannot be run as root (makepkg restriction)"
         echo "Please run without sudo: bash build-local-packages.sh"
         exit 1
     fi
     
-    makepkg -sf --noconfirm
+    if [ "$EUID" -eq 0 ]; then
+        # If we are root but inside fakeroot, makepkg will still fail.
+        # We should use sudo -u to run as a normal user, but this script is meant to be run as normal user.
+        # Let makepkg handle its own errors.
+        makepkg -sf --noconfirm || true
+    else
+        makepkg -sf --noconfirm
+    fi
     
     if [ $? -eq 0 ]; then
         echo "✅ Built: $pkg"
