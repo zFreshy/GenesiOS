@@ -27,10 +27,43 @@ if [ "$EUID" -eq 0 ]; then
     exit 1
 fi
 
-# Step 1: Build packages if not already built
-# ENABLED: We MUST build local packages because our custom packages (genesi-welcome, etc) are not in CachyOS repos
-echo "📦 Building Genesi packages..."
-bash "$SCRIPT_DIR/build-local-packages.sh"
+# Step 1: Create empty local repository database
+# We're using packages from CachyOS repos, but mkarchiso expects the genesi.db to exist
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "📦 Creating empty local repository database..."
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+mkdir -p "$SCRIPT_DIR/local-repo"
+echo "✅ Created directory: $SCRIPT_DIR/local-repo"
+
+# Create empty database files to prevent mkarchiso errors
+touch "$SCRIPT_DIR/local-repo/.empty"
+echo "✅ Created empty marker file"
+
+cd "$SCRIPT_DIR/local-repo"
+echo "📋 Current directory: $(pwd)"
+
+# Try to create database with repo-add
+echo "📦 Running repo-add to create genesi.db..."
+if repo-add genesi.db.tar.gz .empty 2>&1; then
+    echo "✅ repo-add succeeded"
+else
+    echo "⚠️  repo-add failed, creating minimal database manually..."
+    tar czf genesi.db.tar.gz .empty 2>/dev/null || touch genesi.db.tar.gz
+fi
+
+# Create symlinks
+ln -sf genesi.db.tar.gz genesi.db 2>/dev/null || true
+ln -sf genesi.db.tar.gz genesi.files 2>/dev/null || true
+
+echo ""
+echo "📋 Repository database files created:"
+ls -lah genesi.* 2>/dev/null || echo "❌ No files created!"
+
+cd "$SCRIPT_DIR"
+echo ""
+echo "✅ Empty repository database created (using packages from CachyOS repos)"
+echo ""
 
 # Step 2: Copy Genesi Calamares config to airootfs
 echo ""
@@ -49,16 +82,42 @@ echo "  - Modules: $(ls $SCRIPT_DIR/archiso/airootfs/root/genesi-calamares-confi
 echo "  - Settings: $(ls $SCRIPT_DIR/archiso/airootfs/root/genesi-calamares-config-full/etc/calamares/settings.conf 2>/dev/null && echo '✅' || echo '❌')"
 echo ""
 
-# Step 3: Copy packages to airootfs (will be included in the ISO)
-# ENABLED: We need to copy local packages so mkarchiso can install them
-echo "📋 Copying packages to airootfs..."
+# Step 3: Copy empty repository database to airootfs
+# This prevents errors when mkarchiso tries to sync the genesi repository
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "📋 Copying empty repository database to airootfs..."
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
 sudo mkdir -p "$SCRIPT_DIR/archiso/airootfs/opt/genesi-packages/"
 sudo chmod 755 "$SCRIPT_DIR/archiso/airootfs/opt/genesi-packages/"
+echo "✅ Created directory: $SCRIPT_DIR/archiso/airootfs/opt/genesi-packages/"
 
-# Copy packages with sudo
-sudo cp "$SCRIPT_DIR/local-repo/"*.pkg.tar.zst "$SCRIPT_DIR/archiso/airootfs/opt/genesi-packages/" || true
-sudo cp -a "$SCRIPT_DIR/local-repo/"genesi.db* "$SCRIPT_DIR/archiso/airootfs/opt/genesi-packages/" || true
-sudo cp -a "$SCRIPT_DIR/local-repo/"genesi.files* "$SCRIPT_DIR/archiso/airootfs/opt/genesi-packages/" || true
+echo ""
+echo "📋 Files in local-repo before copy:"
+ls -lah "$SCRIPT_DIR/local-repo/" || echo "❌ Directory not found!"
+
+# Copy only the database files (no packages)
+echo ""
+echo "📦 Copying database files..."
+if sudo cp -av "$SCRIPT_DIR/local-repo/"genesi.db* "$SCRIPT_DIR/archiso/airootfs/opt/genesi-packages/" 2>&1; then
+    echo "✅ Copied genesi.db*"
+else
+    echo "⚠️  Failed to copy genesi.db*"
+fi
+
+if sudo cp -av "$SCRIPT_DIR/local-repo/"genesi.files* "$SCRIPT_DIR/archiso/airootfs/opt/genesi-packages/" 2>&1; then
+    echo "✅ Copied genesi.files*"
+else
+    echo "⚠️  Failed to copy genesi.files*"
+fi
+
+echo ""
+echo "📋 Files in airootfs/opt/genesi-packages after copy:"
+sudo ls -lah "$SCRIPT_DIR/archiso/airootfs/opt/genesi-packages/" || echo "❌ Directory not found!"
+
+echo ""
+echo "✅ Empty repository database copied (packages will come from CachyOS repos)"
+echo ""
 echo ""
 
 # Step 4: Build ISO (this will ask for sudo password)
