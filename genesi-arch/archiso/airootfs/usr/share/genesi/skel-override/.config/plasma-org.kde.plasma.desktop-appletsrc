@@ -124,7 +124,8 @@ immutability=1
 plugin=org.kde.plasma.icon
 
 [Containments][2][Applets][31][Configuration][General]
-applicationName=genesi-aimode
+applicationName=Genesi AI Mode
+iconName=plasmavault
 url=file:///usr/share/applications/genesi-aimode.desktop
 
 [Containments][2][Applets][7]
