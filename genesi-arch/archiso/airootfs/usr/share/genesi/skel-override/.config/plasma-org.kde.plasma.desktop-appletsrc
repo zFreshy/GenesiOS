@@ -102,22 +102,22 @@ immutability=1
 plugin=org.kde.plasma.kickoff
 
 [Containments][2][Applets][30][Configuration][General]
-icon=/usr/share/pixmaps/genesi-logo.svg
+icon=/usr/share/pixmaps/genesi-logo.png
 
 [Containments][2][Applets][4]
 immutability=1
-plugin=org.kde.plasma.marginsseparator
+plugin=org.kde.plasma.panelspacer
 
 [Containments][2][Applets][5]
 immutability=1
 plugin=org.kde.plasma.icontasks
 
 [Containments][2][Applets][5][Configuration][General]
-launchers=applications:org.kde.dolphin.desktop,preferred://browser,applications:org.kde.konsole.desktop,applications:systemsettings.desktop,applications:org.kde.kate.desktop,applications:org.kde.discover.desktop
+launchers=applications:org.kde.dolphin.desktop,preferred://browser,applications:org.kde.konsole.desktop,applications:genesi-aimode.desktop,applications:systemsettings.desktop,applications:org.kde.discover.desktop
 
 [Containments][2][Applets][6]
 immutability=1
-plugin=org.kde.plasma.marginsseparator
+plugin=org.kde.plasma.panelspacer
 
 [Containments][2][Applets][7]
 immutability=1

@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Genesi AI Mode
+Comment=Activate Genesi AI features
+Exec=konsole -e echo "AI Mode Activated"
+Icon=plasmavault
+Type=Application
+Categories=System;
+Terminal=false
+StartupNotify=true
