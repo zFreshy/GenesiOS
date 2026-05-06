@@ -76,7 +76,32 @@ sudo cp -r "../genesi-calamares-config-full" "$SCRIPT_DIR/archiso/airootfs/root/
 
 echo "✅ Genesi Calamares config copied"
 echo ""
+
+# Step 2.5: Copy Genesi Settings (KDE theme, wallpapers, etc) to airootfs
+echo "📋 Copying Genesi Settings to airootfs..."
+
+# Copy genesi-settings-full to /usr/share/genesi in airootfs
+sudo mkdir -p "$SCRIPT_DIR/archiso/airootfs/usr/share/genesi/"
+sudo rm -rf "$SCRIPT_DIR/archiso/airootfs/usr/share/genesi/skel-override"
+sudo cp -r "../genesi-settings-full/usr/share/genesi/skel-override" "$SCRIPT_DIR/archiso/airootfs/usr/share/genesi/"
+
+# Copy wallpapers
+sudo mkdir -p "$SCRIPT_DIR/archiso/airootfs/usr/share/wallpapers/genesi/"
+sudo cp -r "../genesi-settings-full/usr/share/wallpapers/genesi/"* "$SCRIPT_DIR/archiso/airootfs/usr/share/wallpapers/genesi/" 2>/dev/null || true
+
+# Copy theme applicator script
+sudo mkdir -p "$SCRIPT_DIR/archiso/airootfs/usr/bin/"
+sudo cp "../genesi-settings-full/usr/bin/genesi-apply-theme.sh" "$SCRIPT_DIR/archiso/airootfs/usr/bin/" 2>/dev/null || true
+sudo chmod +x "$SCRIPT_DIR/archiso/airootfs/usr/bin/genesi-apply-theme.sh" 2>/dev/null || true
+
+echo "✅ Genesi Settings copied"
+echo ""
 echo "📋 Verifying copied files:"
+echo "  - Skel override: $(ls -d $SCRIPT_DIR/archiso/airootfs/usr/share/genesi/skel-override 2>/dev/null && echo '✅' || echo '❌')"
+echo "  - Wallpaper: $(ls $SCRIPT_DIR/archiso/airootfs/usr/share/wallpapers/genesi/wallpaper.png 2>/dev/null && echo '✅' || echo '❌')"
+echo "  - Theme script: $(ls $SCRIPT_DIR/archiso/airootfs/usr/bin/genesi-apply-theme.sh 2>/dev/null && echo '✅' || echo '❌')"
+echo ""
+echo "📋 Verifying Calamares files:"
 echo "  - Branding: $(ls -d $SCRIPT_DIR/archiso/airootfs/root/genesi-calamares-config-full/etc/calamares/branding/genesi 2>/dev/null && echo '✅' || echo '❌')"
 echo "  - Modules: $(ls $SCRIPT_DIR/archiso/airootfs/root/genesi-calamares-config-full/etc/calamares/modules/*.conf 2>/dev/null | wc -l) files"
 echo "  - Settings: $(ls $SCRIPT_DIR/archiso/airootfs/root/genesi-calamares-config-full/etc/calamares/settings.conf 2>/dev/null && echo '✅' || echo '❌')"
