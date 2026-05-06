@@ -19,7 +19,7 @@ LookAndFeelPackage=org.kde.breezedark.desktop
 SingleClick=false
 AnimationDurationFactor=1
 ShowDeleteCommand=false
-widgetStyle=kvantum
+widgetStyle=Breeze
 contrast=4
 
 [Colors:Window]

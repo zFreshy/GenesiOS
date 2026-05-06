@@ -4,7 +4,7 @@ Name=Genesi
 
 [Colors:Window]
 BackgroundAlternate=15,110,86
-BackgroundNormal=4,52,44
+BackgroundNormal=4,52,44,200
 DecorationFocus=29,158,117
 DecorationHover=29,158,117
 ForegroundActive=255,255,255
@@ -18,7 +18,7 @@ ForegroundVisited=15,110,86
 
 [Colors:View]
 BackgroundAlternate=15,110,86
-BackgroundNormal=4,52,44
+BackgroundNormal=4,52,44,200
 DecorationFocus=29,158,117
 DecorationHover=29,158,117
 ForegroundActive=255,255,255
