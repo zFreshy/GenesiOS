@@ -18,60 +18,64 @@ echo ">>> Genesi OS: Applying branding..."
 # ============================================================
 # 0. Copy Genesi Calamares configuration (from submodule)
 # ============================================================
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ">>> Copying Calamares configuration from genesi-calamares-config..."
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
 if [ -d /root/genesi-calamares-config-full ]; then
-    # Copy all Calamares configuration
+    # Copy all Calamares configuration (OVERWRITE existing files from cachyos-calamares-next)
     mkdir -p /etc/calamares
     mkdir -p /usr/lib/calamares
     
-    # Copy branding
+    # Copy branding (overwrite)
     if [ -d /root/genesi-calamares-config-full/etc/calamares/branding ]; then
         cp -rf /root/genesi-calamares-config-full/etc/calamares/branding /etc/calamares/
-        echo ">>> Calamares branding copied"
+        echo ">>> Calamares branding copied (overwritten)"
     fi
     
-    # Copy scripts
+    # Copy scripts (overwrite)
     if [ -d /root/genesi-calamares-config-full/etc/calamares/scripts ]; then
         cp -rf /root/genesi-calamares-config-full/etc/calamares/scripts /etc/calamares/
-        chmod +x /etc/calamares/scripts/*
-        echo ">>> Calamares scripts copied"
+        chmod +x /etc/calamares/scripts/* 2>/dev/null || true
+        echo ">>> Calamares scripts copied (overwritten)"
     fi
     
-    # Copy module configs to BOTH locations (Calamares checks both)
+    # Copy module configs to BOTH locations (OVERWRITE)
     if [ -d /root/genesi-calamares-config-full/etc/calamares/modules ]; then
         mkdir -p /etc/calamares/modules
         mkdir -p /usr/share/calamares/modules
         cp -rf /root/genesi-calamares-config-full/etc/calamares/modules/* /etc/calamares/modules/
         cp -rf /root/genesi-calamares-config-full/etc/calamares/modules/* /usr/share/calamares/modules/
-        echo ">>> Calamares modules copied to /etc and /usr/share"
+        echo ">>> Calamares modules copied to /etc and /usr/share (overwritten)"
     fi
     
-    # Copy settings.conf to BOTH locations
+    # Copy settings.conf to BOTH locations (OVERWRITE)
     if [ -f /root/genesi-calamares-config-full/etc/calamares/settings.conf ]; then
         cp -f /root/genesi-calamares-config-full/etc/calamares/settings.conf /etc/calamares/
         mkdir -p /usr/share/calamares
         cp -f /root/genesi-calamares-config-full/etc/calamares/settings.conf /usr/share/calamares/
-        echo ">>> Calamares settings.conf copied to /etc and /usr/share"
+        echo ">>> Calamares settings.conf copied to /etc and /usr/share (overwritten)"
     fi
     
-    # Copy Python modules
+    # Copy Python modules (overwrite)
     if [ -d /root/genesi-calamares-config-full/usr/lib/calamares ]; then
         cp -rf /root/genesi-calamares-config-full/usr/lib/calamares /usr/lib/
-        echo ">>> Calamares Python modules copied"
+        echo ">>> Calamares Python modules copied (overwritten)"
     fi
     
-    # Copy dummy scripts to /usr/local/bin
+    # Copy dummy scripts to /usr/local/bin (overwrite)
     if [ -d /root/genesi-calamares-config-full/usr/local/bin ]; then
         mkdir -p /usr/local/bin
         cp -rf /root/genesi-calamares-config-full/usr/local/bin/* /usr/local/bin/
-        chmod +x /usr/local/bin/*
-        echo ">>> Calamares dummy scripts copied to /usr/local/bin"
+        chmod +x /usr/local/bin/* 2>/dev/null || true
+        echo ">>> Calamares dummy scripts copied to /usr/local/bin (overwritten)"
     fi
     
-    echo ">>> Genesi Calamares configuration installed successfully"
+    echo ">>> Genesi Calamares configuration installed successfully (all files overwritten)"
 else
     echo ">>> WARNING: genesi-calamares-config-full not found!"
 fi
+echo ""
 
 # ============================================================
 # 1. Install Genesi packages
