@@ -13,6 +13,8 @@ on:
 jobs:
   build-packages:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     container:
       image: cachyos/cachyos-v3:latest
     
