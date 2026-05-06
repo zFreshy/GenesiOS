@@ -52,8 +52,10 @@ if [ -d /root/genesi-calamares-config-full ]; then
     # Copy settings.conf to BOTH locations (OVERWRITE)
     if [ -f /root/genesi-calamares-config-full/etc/calamares/settings.conf ]; then
         cp -f /root/genesi-calamares-config-full/etc/calamares/settings.conf /etc/calamares/
+        cp -f /root/genesi-calamares-config-full/etc/calamares/settings.conf /etc/calamares/settings_online.conf
         mkdir -p /usr/share/calamares
         cp -f /root/genesi-calamares-config-full/etc/calamares/settings.conf /usr/share/calamares/
+        cp -f /root/genesi-calamares-config-full/etc/calamares/settings.conf /usr/share/calamares/settings_online.conf
         echo ">>> Calamares settings.conf copied to /etc and /usr/share (overwritten)"
     fi
     
@@ -205,6 +207,15 @@ if [ -d /usr/share/genesi/skel-override ]; then
     
     # Make desktop files executable
     chmod +x /home/liveuser/Desktop/*.desktop 2>/dev/null || true
+    chmod +x /etc/skel/Desktop/*.desktop 2>/dev/null || true
+    
+    # Trust desktop files (Plasma 5/6 requirement for live ISO)
+    for f in /home/liveuser/Desktop/*.desktop; do
+        [ -f "$f" ] && gio set "$f" metadata::trusted true 2>/dev/null || true
+    done
+    for f in /etc/skel/Desktop/*.desktop; do
+        [ -f "$f" ] && gio set "$f" metadata::trusted true 2>/dev/null || true
+    done
     
     # Make theme applicator executable
     chmod +x /usr/bin/genesi-apply-theme.sh 2>/dev/null || true
