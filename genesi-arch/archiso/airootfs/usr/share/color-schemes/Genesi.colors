@@ -3,8 +3,8 @@ ColorScheme=Genesi
 Name=Genesi
 
 [Colors:Window]
-BackgroundAlternate=4,52,44
-BackgroundNormal=44,44,42
+BackgroundAlternate=15,110,86
+BackgroundNormal=4,52,44
 DecorationFocus=29,158,117
 DecorationHover=29,158,117
 ForegroundActive=255,255,255
@@ -17,8 +17,8 @@ ForegroundPositive=17,209,22
 ForegroundVisited=15,110,86
 
 [Colors:View]
-BackgroundAlternate=4,52,44
-BackgroundNormal=44,44,42
+BackgroundAlternate=15,110,86
+BackgroundNormal=4,52,44
 DecorationFocus=29,158,117
 DecorationHover=29,158,117
 ForegroundActive=255,255,255
