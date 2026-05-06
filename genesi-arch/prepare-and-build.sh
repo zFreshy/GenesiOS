@@ -65,16 +65,17 @@ echo ""
 echo "✅ Empty repository database created (using packages from CachyOS repos)"
 echo ""
 
-# Step 2: Copy Genesi Calamares config to airootfs
+# Step 2: Copy Genesi Calamares config to airootfs/root (for customize_airootfs.sh to use)
 echo ""
-echo "📋 Copying Genesi Calamares config to airootfs..."
+echo "📋 Copying Genesi Calamares config to airootfs/root..."
 
-# Copy the entire genesi-calamares-config-full submodule to airootfs/root
+# Copy the genesi-calamares-config-full to /root/ inside airootfs
+# This will be used by customize_airootfs.sh to overwrite Calamares files AFTER package installation
 sudo mkdir -p "$SCRIPT_DIR/archiso/airootfs/root/"
 sudo rm -rf "$SCRIPT_DIR/archiso/airootfs/root/genesi-calamares-config-full"
 sudo cp -r "../genesi-calamares-config-full" "$SCRIPT_DIR/archiso/airootfs/root/"
 
-echo "✅ Genesi Calamares config copied"
+echo "✅ Genesi Calamares config copied to /root/ (will be applied by customize_airootfs.sh)"
 echo ""
 
 # Step 2.5: Copy Genesi Settings (KDE theme, wallpapers, etc) to airootfs
@@ -100,11 +101,6 @@ echo "📋 Verifying copied files:"
 echo "  - Skel override: $(ls -d $SCRIPT_DIR/archiso/airootfs/usr/share/genesi/skel-override 2>/dev/null && echo '✅' || echo '❌')"
 echo "  - Wallpaper: $(ls $SCRIPT_DIR/archiso/airootfs/usr/share/wallpapers/genesi/wallpaper.png 2>/dev/null && echo '✅' || echo '❌')"
 echo "  - Theme script: $(ls $SCRIPT_DIR/archiso/airootfs/usr/bin/genesi-apply-theme.sh 2>/dev/null && echo '✅' || echo '❌')"
-echo ""
-echo "📋 Verifying Calamares files:"
-echo "  - Branding: $(ls -d $SCRIPT_DIR/archiso/airootfs/root/genesi-calamares-config-full/etc/calamares/branding/genesi 2>/dev/null && echo '✅' || echo '❌')"
-echo "  - Modules: $(ls $SCRIPT_DIR/archiso/airootfs/root/genesi-calamares-config-full/etc/calamares/modules/*.conf 2>/dev/null | wc -l) files"
-echo "  - Settings: $(ls $SCRIPT_DIR/archiso/airootfs/root/genesi-calamares-config-full/etc/calamares/settings.conf 2>/dev/null && echo '✅' || echo '❌')"
 echo ""
 
 # Step 3: Copy empty repository database to airootfs
