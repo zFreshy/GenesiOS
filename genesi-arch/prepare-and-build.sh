@@ -97,10 +97,39 @@ sudo chmod +x "$SCRIPT_DIR/archiso/airootfs/usr/bin/genesi-apply-theme.sh" 2>/de
 
 echo "✅ Genesi Settings copied"
 echo ""
+
+# Step 2.6: Create CachyOS mirrorlist files in airootfs
+echo "📋 Creating CachyOS mirrorlist files..."
+
+# Create the mirrorlist files that will be copied during installation
+sudo mkdir -p "$SCRIPT_DIR/archiso/airootfs/etc/pacman.d/"
+
+# Download or create cachyos-mirrorlist
+if [ -f /etc/pacman.d/cachyos-mirrorlist ]; then
+    sudo cp /etc/pacman.d/cachyos-mirrorlist "$SCRIPT_DIR/archiso/airootfs/etc/pacman.d/"
+else
+    sudo bash -c 'cat > '"$SCRIPT_DIR"'/archiso/airootfs/etc/pacman.d/cachyos-mirrorlist << "EOF"
+##
+## CachyOS repository mirrorlist
+##
+Server = https://mirror.cachyos.org/repo/$arch/$repo
+Server = https://cdn-77.cachyos.org/repo/$arch/$repo
+Server = https://build.cachyos.org/repo/$arch/$repo
+Server = https://mirror.lesviallon.fr/cachy/repo/$arch/$repo
+EOF'
+fi
+
+# Create v3 and v4 mirrorlists (copies of the main one)
+sudo cp "$SCRIPT_DIR/archiso/airootfs/etc/pacman.d/cachyos-mirrorlist" "$SCRIPT_DIR/archiso/airootfs/etc/pacman.d/cachyos-v3-mirrorlist"
+sudo cp "$SCRIPT_DIR/archiso/airootfs/etc/pacman.d/cachyos-mirrorlist" "$SCRIPT_DIR/archiso/airootfs/etc/pacman.d/cachyos-v4-mirrorlist"
+
+echo "✅ CachyOS mirrorlist files created"
+echo ""
 echo "📋 Verifying copied files:"
 echo "  - Skel override: $(ls -d $SCRIPT_DIR/archiso/airootfs/usr/share/genesi/skel-override 2>/dev/null && echo '✅' || echo '❌')"
 echo "  - Wallpaper: $(ls $SCRIPT_DIR/archiso/airootfs/usr/share/wallpapers/genesi/wallpaper.png 2>/dev/null && echo '✅' || echo '❌')"
 echo "  - Theme script: $(ls $SCRIPT_DIR/archiso/airootfs/usr/bin/genesi-apply-theme.sh 2>/dev/null && echo '✅' || echo '❌')"
+echo "  - CachyOS mirrorlist: $(ls $SCRIPT_DIR/archiso/airootfs/etc/pacman.d/cachyos-mirrorlist 2>/dev/null && echo '✅' || echo '❌')"
 echo ""
 
 # Step 3: Copy empty repository database to airootfs
