@@ -68,6 +68,8 @@ echo "📋 Copying Genesi Calamares config to airootfs/root..."
 
 # Copy the genesi-calamares-config-full to /root/ inside airootfs
 # This will be used by customize_airootfs.sh to overwrite Calamares files AFTER package installation
+# DO NOT copy them to /etc/calamares inside airootfs during prepare, as that causes pacman conflicts
+# when it tries to install the cachyos-calamares-next package
 sudo mkdir -p "$SCRIPT_DIR/archiso/airootfs/root/"
 sudo rm -rf "$SCRIPT_DIR/archiso/airootfs/root/genesi-calamares-config-full"
 sudo cp -r "../genesi-calamares-config-full" "$SCRIPT_DIR/archiso/airootfs/root/"
