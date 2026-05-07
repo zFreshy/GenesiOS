@@ -65,6 +65,11 @@ kde-gtk-config
 kinfocenter
 konsole
 kscreen
+kvantum
+qt5-tools
+qt5ct
+systemsettings
+kcmutils
 ldns
 less
 lftp
