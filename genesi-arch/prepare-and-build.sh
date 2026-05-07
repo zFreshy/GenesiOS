@@ -45,12 +45,9 @@ echo "📋 Current directory: $(pwd)"
 
 # Try to create database with repo-add
 echo "📦 Running repo-add to create genesi.db..."
-if repo-add genesi.db.tar.gz .empty 2>&1; then
-    echo "✅ repo-add succeeded"
-else
-    echo "⚠️  repo-add failed, creating minimal database manually..."
-    tar czf genesi.db.tar.gz .empty 2>/dev/null || touch genesi.db.tar.gz
-fi
+# Don't try to add .empty to the DB, it's not a real package and breaks pacman
+# Just create an empty tar.gz file and name it correctly
+tar czf genesi.db.tar.gz -T /dev/null 2>/dev/null || touch genesi.db.tar.gz
 
 # Create symlinks
 ln -sf genesi.db.tar.gz genesi.db 2>/dev/null || true
