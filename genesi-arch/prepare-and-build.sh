@@ -110,11 +110,11 @@ else
     sudo bash -c 'cat > '"$SCRIPT_DIR"'/archiso/airootfs/etc/pacman.d/cachyos-mirrorlist << "EOF"
 ##
 ## CachyOS repository mirrorlist
+## Only working mirrors (nl.cachyos.org removed due to DNS issues)
 ##
 Server = https://mirror.cachyos.org/repo/$arch/$repo
 Server = https://cdn-77.cachyos.org/repo/$arch/$repo
 Server = https://build.cachyos.org/repo/$arch/$repo
-Server = https://mirror.lesviallon.fr/cachy/repo/$arch/$repo
 EOF'
 fi
 
