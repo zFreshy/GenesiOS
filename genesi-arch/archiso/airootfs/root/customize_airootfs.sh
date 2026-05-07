@@ -393,6 +393,22 @@ MaximumUid=60513
 MinimumUid=1000
 SDDMCONF
 
+# ============================================================
+# 9. Install Tela Circle Icon Theme (AUR package workaround)
+# ============================================================
+echo ">>> Installing Tela Circle Icon Theme from source..."
+git clone https://github.com/vinceliuice/Tela-circle-icon-theme.git /tmp/Tela-circle-icon-theme
+if [ -d /tmp/Tela-circle-icon-theme ]; then
+    cd /tmp/Tela-circle-icon-theme
+    # Run the installer for all color variants, or just default. -a installs all color variants.
+    ./install.sh -a
+    cd /
+    rm -rf /tmp/Tela-circle-icon-theme
+    echo ">>> Tela Circle Icon Theme installed successfully."
+else
+    echo ">>> WARNING: Failed to clone Tela Circle Icon Theme repository."
+fi
+
 echo ">>> Genesi OS: Branding applied successfully!"
 
 echo ""

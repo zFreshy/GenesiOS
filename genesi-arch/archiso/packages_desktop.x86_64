@@ -43,6 +43,7 @@ fakeroot
 fatresize
 firefox
 gcc
+git
 gpart
 gparted
 gptfdisk
