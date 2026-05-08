@@ -34,6 +34,43 @@ main() {
 
     sudo pacman -Sy --noconfirm cachyos-calamares-next
 
+    # Copy Genesi OS Calamares configuration (overwrite CachyOS defaults)
+    echo ">>> Applying Genesi OS Calamares configuration..."
+    if [ -d /root/genesi-calamares-config-full ]; then
+        sudo mkdir -p /etc/calamares/modules
+        sudo mkdir -p /usr/share/calamares/modules
+        
+        # Copy module configs
+        if [ -d /root/genesi-calamares-config-full/etc/calamares/modules ]; then
+            sudo cp -rf /root/genesi-calamares-config-full/etc/calamares/modules/* /etc/calamares/modules/
+            sudo cp -rf /root/genesi-calamares-config-full/etc/calamares/modules/* /usr/share/calamares/modules/
+            echo ">>> Genesi Calamares modules copied"
+        fi
+        
+        # Copy settings.conf
+        if [ -f /root/genesi-calamares-config-full/etc/calamares/settings.conf ]; then
+            sudo cp -f /root/genesi-calamares-config-full/etc/calamares/settings.conf /etc/calamares/
+            sudo cp -f /root/genesi-calamares-config-full/etc/calamares/settings.conf /usr/share/calamares/
+            echo ">>> Genesi Calamares settings copied"
+        fi
+        
+        # Copy branding
+        if [ -d /root/genesi-calamares-config-full/etc/calamares/branding ]; then
+            sudo cp -rf /root/genesi-calamares-config-full/etc/calamares/branding /etc/calamares/
+            sudo cp -rf /root/genesi-calamares-config-full/etc/calamares/branding /usr/share/calamares/
+            echo ">>> Genesi Calamares branding copied"
+        fi
+        
+        # Copy scripts
+        if [ -d /root/genesi-calamares-config-full/etc/calamares/scripts ]; then
+            sudo cp -rf /root/genesi-calamares-config-full/etc/calamares/scripts /etc/calamares/
+            sudo chmod +x /etc/calamares/scripts/* 2>/dev/null || true
+            echo ">>> Genesi Calamares scripts copied"
+        fi
+    else
+        echo ">>> WARNING: genesi-calamares-config-full not found at /root/"
+    fi
+
     # Rebrand Calamares from CachyOS to Genesi OS
     if [ -d /usr/share/calamares/branding/cachyos ]; then
         # Copy cachyos branding to genesi folder, then patch
