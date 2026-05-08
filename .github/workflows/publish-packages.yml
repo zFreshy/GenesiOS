@@ -25,7 +25,10 @@ jobs:
       - name: Install git in container
         # The image may not include git in PATH; without it, actions/checkout
         # falls back to the REST API which does not support `submodules`.
-        run: pacman -Sy --noconfirm git openssh
+        # --needed skips reinstalling when git is already present (cachyos-v3
+        # ships with git, and reinstalling it on top of a running process can
+        # deadlock the pacman transaction).
+        run: pacman -Sy --needed --noconfirm git openssh
 
       - name: Determine channel
         id: channel
