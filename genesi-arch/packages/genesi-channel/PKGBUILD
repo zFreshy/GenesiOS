@@ -1,0 +1,26 @@
+# Maintainer: Genesi OS Team
+pkgname=genesi-channel
+pkgver=1.0.0
+pkgrel=1
+pkgdesc="Switch between stable and testing update channels for Genesi OS"
+arch=('any')
+url="https://github.com/zFreshy/GenesiOS"
+license=('GPL-3.0-or-later')
+depends=('bash' 'pacman' 'polkit')
+optdepends=('kdialog: graphical channel switcher')
+source=(
+    'genesi-channel'
+    'genesi-channel-gui'
+    'org.genesi.channel.policy'
+    'genesi-channel.desktop'
+)
+sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP')
+
+package() {
+    install -Dm755 "${srcdir}/genesi-channel"     "${pkgdir}/usr/bin/genesi-channel"
+    install -Dm755 "${srcdir}/genesi-channel-gui" "${pkgdir}/usr/bin/genesi-channel-gui"
+    install -Dm644 "${srcdir}/org.genesi.channel.policy" \
+        "${pkgdir}/usr/share/polkit-1/actions/org.genesi.channel.policy"
+    install -Dm644 "${srcdir}/genesi-channel.desktop" \
+        "${pkgdir}/usr/share/applications/genesi-channel.desktop"
+}

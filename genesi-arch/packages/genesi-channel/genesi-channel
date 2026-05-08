@@ -1,0 +1,88 @@
+#!/bin/bash
+# genesi-channel: switch between stable and testing Genesi update channels
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+set -euo pipefail
+
+PACMAN_CONF="${GENESI_PACMAN_CONF:-/etc/pacman.conf}"
+TESTING_HEADER='[genesi-testing]'
+
+usage() {
+    cat <<EOF
+genesi-channel — switch Genesi update channel
+
+Usage:
+    genesi-channel get                  Show current channel
+    genesi-channel set stable           Disable [genesi-testing], sync DB
+    genesi-channel set testing          Enable  [genesi-testing], sync DB
+    genesi-channel -h | --help          Show this help
+
+Notes:
+    'set' requires root; the CLI re-invokes itself via pkexec when called as a
+    user. The Welcome app uses the polkit action 'org.genesi.channel.set'.
+EOF
+}
+
+is_testing_enabled() {
+    grep -Eq "^\s*\[genesi-testing\]\s*$" "$PACMAN_CONF"
+}
+
+cmd_get() {
+    if is_testing_enabled; then
+        echo "testing"
+    else
+        echo "stable"
+    fi
+}
+
+require_root() {
+    if [ "$(id -u)" -ne 0 ]; then
+        exec pkexec --disable-internal-agent /usr/bin/genesi-channel "$@"
+    fi
+}
+
+cmd_set() {
+    local target="${1:-}"
+    case "$target" in
+        stable|testing) ;;
+        *) echo "Error: target must be 'stable' or 'testing'" >&2; exit 2 ;;
+    esac
+
+    require_root set "$target"
+
+    local tmp
+    tmp="$(mktemp)"
+    trap 'rm -f "$tmp"' EXIT
+
+    if [ "$target" = "testing" ]; then
+        # Uncomment the [genesi-testing] block (header + 2 following lines)
+        awk '
+            BEGIN { in_block = 0 }
+            /^#\[genesi-testing\][[:space:]]*$/ { in_block = 3; sub(/^#/, ""); print; next }
+            in_block > 0 { sub(/^#/, ""); in_block--; print; next }
+            { print }
+        ' "$PACMAN_CONF" > "$tmp"
+    else
+        # Re-comment the [genesi-testing] block
+        awk '
+            BEGIN { in_block = 0 }
+            /^\[genesi-testing\][[:space:]]*$/ { in_block = 3; print "#" $0; next }
+            in_block > 0 && /^[^#]/ { print "#" $0; in_block--; next }
+            in_block > 0 { in_block--; print; next }
+            { print }
+        ' "$PACMAN_CONF" > "$tmp"
+    fi
+
+    install -m644 "$tmp" "$PACMAN_CONF"
+    echo "Channel switched to: $target"
+    echo "Refreshing package database..."
+    pacman -Syy
+    echo "Done. To pull testing packages now: pacman -Syu"
+}
+
+case "${1:-}" in
+    get)            shift; cmd_get "$@" ;;
+    set)            shift; cmd_set "$@" ;;
+    -h|--help|"")   usage ;;
+    *)              echo "Unknown command: $1" >&2; usage; exit 2 ;;
+esac

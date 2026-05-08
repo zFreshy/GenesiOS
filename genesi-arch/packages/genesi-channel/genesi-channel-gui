@@ -1,0 +1,33 @@
+#!/bin/bash
+# genesi-channel-gui: kdialog wrapper around genesi-channel
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+set -euo pipefail
+
+current="$(genesi-channel get)"
+
+if ! command -v kdialog >/dev/null; then
+    notify-send -i genesi-update-blue "Genesi Channel" \
+        "kdialog not installed. Use the CLI: genesi-channel set <stable|testing>"
+    exit 1
+fi
+
+choice=$(kdialog \
+    --title "Genesi Update Channel" \
+    --radiolist "Select the channel that pacman should pull Genesi packages from. Testing may break your system." \
+    stable  "Stable (recommended)"  $([ "$current" = "stable"  ] && echo on || echo off) \
+    testing "Testing (may break)"   $([ "$current" = "testing" ] && echo on || echo off) \
+    || true)
+
+[ -z "$choice" ] && exit 0
+[ "$choice" = "$current" ] && exit 0
+
+if [ "$choice" = "testing" ]; then
+    kdialog --warningyesno \
+        "Switching to the testing channel can install pre-release Genesi packages that may break your system. Continue?" \
+        || exit 0
+fi
+
+genesi-channel set "$choice"
+
+kdialog --title "Genesi Channel" --msgbox "Channel switched to: $choice"

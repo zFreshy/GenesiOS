@@ -1,0 +1,52 @@
+# Maintainer: Genesi OS Team
+# Source: https://github.com/zFreshy/genesi-update (fork of CachyOS/cachy-update)
+pkgname=genesi-update
+pkgver=1.0.0
+pkgrel=1
+pkgdesc="Interactive update notifier & applier for Genesi OS with systray applet"
+arch=('any')
+url="https://github.com/zFreshy/genesi-update"
+license=('GPL-3.0-or-later')
+depends=(
+    'bash'
+    'systemd'
+    'pacman'
+    'pacman-contrib'
+    'archlinux-contrib'
+    'curl'
+    'fakeroot'
+    'htmlq'
+    'diffutils'
+    'hicolor-icon-theme'
+    'python'
+    'python-pyqt6'
+    'qt6-svg'
+    'glib2'
+    'xdg-utils'
+    'libnotify'
+)
+optdepends=(
+    'paru: AUR support'
+    'yay: AUR support'
+    'pikaur: AUR support'
+    'flatpak: Flatpak support'
+    'sudo: privilege elevation'
+    'sudo-rs: privilege elevation'
+    'opendoas: privilege elevation'
+)
+makedepends=('make' 'scdoc' 'gettext')
+provides=('genesi-update')
+conflicts=('genesi-updater')
+replaces=('genesi-updater')
+source=("git+https://github.com/zFreshy/genesi-update.git#branch=main")
+sha256sums=('SKIP')
+
+build() {
+    cd "${srcdir}/genesi-update"
+    make
+}
+
+package() {
+    cd "${srcdir}/genesi-update"
+    make PREFIX=/usr DESTDIR="${pkgdir}" install
+}

@@ -1,201 +1,127 @@
-name: Build and Publish Packages (DISABLED)
-
-# Workflow temporariamente desabilitado
-# Build packages manualmente na VM por enquanto:
-# cd genesi-arch/packages && bash build-packages.sh
+name: Build and Publish Packages
 
 on:
-  workflow_dispatch:  # Apenas manual
+  push:
+    branches: [main, develop]
+    paths:
+      - 'genesi-arch/packages/**'
+      - '.github/workflows/publish-packages.yml'
+      - '.gitmodules'
+  workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
-  build-packages:
+  build:
     runs-on: ubuntu-latest
     container:
       image: archlinux:latest
-    
+
     steps:
-      - name: Checkout repository
+      - name: Determine channel
+        id: channel
+        shell: bash
+        run: |
+          if [ "${GITHUB_REF_NAME}" = "main" ]; then
+            echo "name=stable"  >> "$GITHUB_OUTPUT"
+            echo "branch=main"  >> "$GITHUB_OUTPUT"
+          else
+            echo "name=testing" >> "$GITHUB_OUTPUT"
+            echo "branch=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          fi
+          echo "Channel: $(cat "$GITHUB_OUTPUT" | grep '^name=' | cut -d= -f2)"
+
+      - name: Checkout repository (with submodules)
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      
-      - name: Setup Arch Linux environment
+          submodules: recursive
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install build deps
         run: |
-          # Update system
           pacman -Syu --noconfirm
-          
-          # Install build dependencies
           pacman -S --noconfirm \
-            base-devel \
-            git \
-            python \
-            python-requests \
-            python-packaging \
-            pacman-contrib \
-            libnotify \
-            plasma-workspace
-      
+            base-devel git sudo \
+            python python-requests python-packaging \
+            pacman-contrib libnotify plasma-workspace \
+            make scdoc gettext
+
       - name: Build packages
+        shell: bash
         run: |
-          # Create build user (makepkg can't run as root)
+          set -euo pipefail
           useradd -m -G wheel builder
           echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
-          
-          # Give ownership to builder
           chown -R builder:builder "$GITHUB_WORKSPACE"
-          
-          # Build each package
+
           cd "$GITHUB_WORKSPACE/genesi-arch/packages"
-          
-          # Create repo directory with correct permissions
           mkdir -p repo
           chown builder:builder repo
-          
+
           PACKAGES=(
             "genesi-settings"
             "genesi-kde-settings"
             "genesi-ai-mode"
-            "genesi-updater"
+            "genesi-update"
+            "genesi-channel"
+            "genesi-calamares"
+            "genesi-welcome"
           )
-          
+
           for pkg in "${PACKAGES[@]}"; do
-            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-            echo "Building: $pkg"
-            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-            
+            echo "::group::Building $pkg"
             if [ ! -d "$pkg" ]; then
-              echo "❌ Package directory not found: $pkg"
-              exit 1
+              echo "::warning::Package directory not found: $pkg — skipping"
+              echo "::endgroup::"
+              continue
             fi
-            
-            # Build in package directory
-            (
-              cd "$pkg"
-              
-              # Clean previous builds
-              rm -f *.pkg.tar.zst
-              
-              # Build package as builder user with PKGDEST
-              sudo -u builder PKGDEST="$GITHUB_WORKSPACE/genesi-arch/packages/repo" makepkg -sf --noconfirm
-              
-              if [ $? -ne 0 ]; then
-                echo "❌ Failed to build: $pkg"
-                exit 1
-              fi
-              
-              echo "✅ Built: $pkg"
-            )
+            ( cd "$pkg" && rm -f *.pkg.tar.zst && \
+              sudo -u builder PKGDEST="$GITHUB_WORKSPACE/genesi-arch/packages/repo" \
+                makepkg -sf --noconfirm )
+            echo "::endgroup::"
           done
-          
-          # Create repository database
+
           cd repo
-          
-          echo "Packages built:"
-          ls -lh *.pkg.tar.zst
-          
           rm -f genesi.db* genesi.files*
           repo-add genesi.db.tar.gz *.pkg.tar.zst
-          
-          echo ""
-          echo "✅ All packages built successfully!"
-      
-      - name: List built packages
-        run: |
-          echo "=== Built Packages ==="
-          ls -lh genesi-arch/packages/repo/
-          
-          echo ""
-          echo "=== Package Info ==="
-          for pkg in genesi-arch/packages/repo/*.pkg.tar.zst; do
-            echo "Package: $(basename $pkg)"
-            pacman -Qip "$pkg" | grep -E "^(Name|Version|Description)"
-            echo ""
-          done
-      
-      - name: Create release tag
-        id: create_tag
-        run: |
-          # Generate tag name with timestamp
-          TAG_NAME="packages-$(date +%Y%m%d-%H%M%S)"
-          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
-          echo "Generated tag: $TAG_NAME"
-      
-      - name: Upload packages to GitHub Release
-        uses: softprops/action-gh-release@v1
-        with:
-          tag_name: ${{ steps.create_tag.outputs.tag_name }}
-          name: "Genesi OS Packages - ${{ steps.create_tag.outputs.tag_name }}"
-          body: |
-            ## 📦 Genesi OS Package Repository
-            
-            **Build Date**: ${{ github.event.head_commit.timestamp }}
-            **Commit**: ${{ github.sha }}
-            
-            ### Packages Included
-            - `genesi-settings` - System branding and configuration
-            - `genesi-kde-settings` - KDE Plasma theme and settings
-            - `genesi-ai-mode` - Automatic AI optimization daemon
-            - `genesi-updater` - Automatic update system
-            
-            ### Installation
-            
-            Add to `/etc/pacman.conf`:
-            ```ini
-            [genesi]
-            SigLevel = Optional TrustAll
-            Server = https://github.com/${{ github.repository }}/releases/download/${{ steps.create_tag.outputs.tag_name }}
-            ```
-            
-            Then run:
-            ```bash
-            sudo pacman -Sy
-            sudo pacman -S genesi-settings genesi-kde-settings genesi-ai-mode genesi-updater
-            ```
-            
-            ### Changelog
-            ${{ github.event.head_commit.message }}
-          files: |
-            genesi-arch/packages/repo/*.pkg.tar.zst
-            genesi-arch/packages/repo/genesi.db.tar.gz
-            genesi-arch/packages/repo/genesi.files.tar.gz
-          draft: false
-          prerelease: false
+          ls -lh
+
+      - name: Commit packages to in-repo registry
+        shell: bash
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      
-      - name: Update latest release pointer
-        uses: softprops/action-gh-release@v1
-        with:
-          tag_name: packages-latest
-          name: "Genesi OS Packages - Latest"
-          body: |
-            ## 📦 Latest Genesi OS Packages
-            
-            This release always points to the latest packages.
-            
-            **Last Updated**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
-            **Latest Build**: ${{ steps.create_tag.outputs.tag_name }}
-            
-            ### Quick Setup
-            
-            Add to `/etc/pacman.conf`:
-            ```ini
-            [genesi]
-            SigLevel = Optional TrustAll
-            Server = https://github.com/${{ github.repository }}/releases/download/packages-latest
-            ```
-          files: |
-            genesi-arch/packages/repo/*.pkg.tar.zst
-            genesi-arch/packages/repo/genesi.db.tar.gz
-            genesi-arch/packages/repo/genesi.files.tar.gz
-          draft: false
-          prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      
-      - name: Notify success
-        if: success()
+          CHANNEL: ${{ steps.channel.outputs.name }}
+          BRANCH:  ${{ steps.channel.outputs.branch }}
         run: |
-          echo "✅ Packages built and published successfully!"
-          echo "📦 Release: ${{ steps.create_tag.outputs.tag_name }}"
-          echo "🔗 URL: https://github.com/${{ github.repository }}/releases/tag/${{ steps.create_tag.outputs.tag_name }}"
+          set -euo pipefail
+          cd "$GITHUB_WORKSPACE"
+
+          # Place built artifacts where pacman.conf expects them.
+          # Both channels publish to genesi-arch/repo/x86_64 — channel
+          # separation is by branch (main = stable, develop = testing).
+          mkdir -p genesi-arch/repo/x86_64
+          rm -f genesi-arch/repo/x86_64/*.pkg.tar.zst genesi-arch/repo/x86_64/genesi.*
+          cp genesi-arch/packages/repo/*.pkg.tar.zst genesi-arch/repo/x86_64/ || true
+          cp genesi-arch/packages/repo/genesi.db.tar.gz genesi-arch/repo/x86_64/ || true
+          cp genesi-arch/packages/repo/genesi.files.tar.gz genesi-arch/repo/x86_64/ || true
+          # Pacman expects unsuffixed pointers as well
+          ( cd genesi-arch/repo/x86_64 && \
+            ln -sf genesi.db.tar.gz    genesi.db && \
+            ln -sf genesi.files.tar.gz genesi.files )
+
+          git config user.email "actions@github.com"
+          git config user.name  "Genesi Bot"
+          git add genesi-arch/repo
+          if git diff --cached --quiet; then
+            echo "No package changes to publish"
+            exit 0
+          fi
+          git commit -m "ci(${CHANNEL}): publish packages from ${GITHUB_SHA:0:7}"
+          git push origin "HEAD:${BRANCH}"
+
+      - name: Summary
+        run: |
+          echo "Channel: ${{ steps.channel.outputs.name }}"
+          echo "Branch:  ${{ steps.channel.outputs.branch }}"
+          echo "Packages published to genesi-arch/repo/x86_64 on branch ${{ steps.channel.outputs.branch }}"
