@@ -43,10 +43,14 @@ sha256sums=('SKIP')
 
 build() {
     cd "${srcdir}/genesi-update"
-    make
+    # Skip msgfmt for now — the rebrand sed pass collapsed `Arch-Update` and
+    # `Cachy-Update` into the same `Genesi-Update` string, which produces
+    # duplicate msgids in every .po file. Translations can be re-introduced
+    # later by regenerating the .pot from sources and running msgmerge.
+    make locales=""
 }
 
 package() {
     cd "${srcdir}/genesi-update"
-    make PREFIX=/usr DESTDIR="${pkgdir}" install
+    make PREFIX=/usr DESTDIR="${pkgdir}" locales="" install
 }
