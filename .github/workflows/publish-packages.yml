@@ -53,13 +53,24 @@ jobs:
       - name: Install build deps
         # Avoid `pacman -Syu`: upgrading pacman itself mid-CI can deadlock or
         # break the running container. We only need DB refresh + missing deps.
+        # Pre-install ALL runtime deps used by the Genesi PKGBUILDs so makepkg -s
+        # has nothing to install and cannot deadlock on a pacman prompt.
+        # --overwrite='*' avoids prompts when files conflict between cachyos-v3
+        # base packages and what we are layering on top.
         run: |
+          set -euxo pipefail
           pacman -Sy --noconfirm
-          pacman -S --needed --noconfirm \
+          pacman -S --needed --noconfirm --overwrite='*' \
             base-devel git sudo \
-            python python-requests python-packaging \
+            python python-requests python-packaging python-psutil \
             pacman-contrib libnotify \
-            make scdoc gettext
+            make scdoc gettext \
+            zram-generator ananicy-cpp cachyos-ananicy-rules \
+            inxi iw wireless-regdb \
+            archlinux-contrib curl fakeroot htmlq diffutils \
+            hicolor-icon-theme python-pyqt6 qt6-svg glib2 xdg-utils \
+            polkit \
+            plasma-workspace ttf-fantasque-nerd
 
       - name: Build packages
         shell: bash
@@ -90,9 +101,23 @@ jobs:
               echo "::endgroup::"
               continue
             fi
-            ( cd "$pkg" && rm -f *.pkg.tar.zst && \
-              sudo -u builder PKGDEST="$GITHUB_WORKSPACE/genesi-arch/packages/repo" \
-                makepkg -sf --noconfirm )
+            # 25-min ceiling per package so a hang fails loudly instead of
+            # eating the whole 6h GitHub job timeout in silence.
+            # PACMAN env adds --overwrite='*' so missing-dep installs by makepkg
+            # never block on file conflicts.
+            timeout 1500 bash -c "cd '$pkg' && rm -f *.pkg.tar.zst && \
+              sudo -u builder \
+                PKGDEST='$GITHUB_WORKSPACE/genesi-arch/packages/repo' \
+                PACMAN='pacman --overwrite=*' \
+                makepkg -sf --noconfirm --noprogressbar" || {
+              rc=$?
+              if [ \$rc -eq 124 ]; then
+                echo "::error::Package $pkg timed out after 25 minutes"
+              else
+                echo "::error::Package $pkg failed with exit $rc"
+              fi
+              exit 1
+            }
             echo "::endgroup::"
           done
 
