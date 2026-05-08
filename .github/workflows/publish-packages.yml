@@ -16,13 +16,15 @@ jobs:
   build:
     runs-on: ubuntu-latest
     container:
-      image: archlinux:latest
+      # cachyos-v3 ships with CachyOS repos preconfigured + keyring trusted,
+      # which is required because several Genesi packages depend on CachyOS-only
+      # packages (cachyos-ananicy-rules, zram-generator, ananicy-cpp, etc.).
+      image: cachyos/cachyos-v3:latest
 
     steps:
       - name: Install git in container
-        # archlinux:latest ships without git, which makes actions/checkout
-        # fall back to the REST API — and that path does not support the
-        # `submodules` input. Install git first so checkout uses native clone.
+        # The image may not include git in PATH; without it, actions/checkout
+        # falls back to the REST API which does not support `submodules`.
         run: pacman -Sy --noconfirm git openssh
 
       - name: Determine channel
