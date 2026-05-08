@@ -146,6 +146,7 @@ polkit
 polkit-kde-agent
 power-profiles-daemon
 pv
+python-pyqt5
 qemu-guest-agent
 realtime-privileges
 refind
