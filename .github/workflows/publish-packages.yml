@@ -51,12 +51,14 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install build deps
+        # Avoid `pacman -Syu`: upgrading pacman itself mid-CI can deadlock or
+        # break the running container. We only need DB refresh + missing deps.
         run: |
-          pacman -Syu --noconfirm
-          pacman -S --noconfirm \
+          pacman -Sy --noconfirm
+          pacman -S --needed --noconfirm \
             base-devel git sudo \
             python python-requests python-packaging \
-            pacman-contrib libnotify plasma-workspace \
+            pacman-contrib libnotify \
             make scdoc gettext
 
       - name: Build packages
