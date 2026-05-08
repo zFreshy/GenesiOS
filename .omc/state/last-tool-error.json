@@ -1,0 +1,7 @@
+{
+  "tool_name": "Bash",
+  "tool_input_preview": "{\"command\":\"ls \\\"C:\\\\Users\\\\mathe\\\\.claude\\\\projects\\\\D--Desenvolvimento-Genesi\\\\memory\\\\\\\" 2>$null\",\"description\":\"List memory files\"}",
+  "error": "Exit code 2\n/usr/bin/bash: eval: line 1: unexpected EOF while looking for matching `\"'",
+  "timestamp": "2026-05-08T17:41:31.415Z",
+  "retry_count": 1
+}

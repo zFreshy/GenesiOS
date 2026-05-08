@@ -19,3 +19,6 @@
 [submodule "genesi-calamares-config-full"]
 	path = genesi-calamares-config-full
 	url = https://github.com/zFreshy/genesi-calamares-config.git
+[submodule "genesi-update-full"]
+	path = genesi-update-full
+	url = https://github.com/zFreshy/genesi-update.git

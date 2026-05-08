@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Genesi Update Channel
+Comment=Switch between stable and testing Genesi update channels
+Exec=genesi-channel-gui
+Icon=genesi-update_app-icon
+Terminal=false
+Categories=System;Settings;
+Keywords=update;channel;stable;testing;genesi;

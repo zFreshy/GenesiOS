@@ -1,0 +1,322 @@
+{
+  "version": "1.0.0",
+  "lastScanned": 1778262079808,
+  "projectRoot": "D:\\Desenvolvimento\\Genesi\\.claude\\worktrees\\happy-newton-8d1070",
+  "techStack": {
+    "languages": [],
+    "frameworks": [],
+    "packageManager": null,
+    "runtime": null
+  },
+  "build": {
+    "buildCommand": null,
+    "testCommand": null,
+    "lintCommand": null,
+    "devCommand": null,
+    "scripts": {}
+  },
+  "conventions": {
+    "namingStyle": null,
+    "importStyle": null,
+    "testPattern": null,
+    "fileOrganization": null
+  },
+  "structure": {
+    "isMonorepo": false,
+    "workspaces": [],
+    "mainDirectories": [
+      "docs"
+    ],
+    "gitBranches": {
+      "defaultBranch": "main",
+      "branchingStrategy": null
+    }
+  },
+  "customNotes": [],
+  "directoryMap": {
+    "cachyos-calamares-full": {
+      "path": "cachyos-calamares-full",
+      "purpose": null,
+      "fileCount": 0,
+      "lastAccessed": 1778262079762,
+      "keyFiles": []
+    },
+    "cachyos-kernel-manager-full": {
+      "path": "cachyos-kernel-manager-full",
+      "purpose": null,
+      "fileCount": 0,
+      "lastAccessed": 1778262079763,
+      "keyFiles": []
+    },
+    "cachyos-live-iso-full": {
+      "path": "cachyos-live-iso-full",
+      "purpose": null,
+      "fileCount": 0,
+      "lastAccessed": 1778262079764,
+      "keyFiles": []
+    },
+    "cachyos-pkgbuilds": {
+      "path": "cachyos-pkgbuilds",
+      "purpose": null,
+      "fileCount": 0,
+      "lastAccessed": 1778262079765,
+      "keyFiles": []
+    },
+    "docs": {
+      "path": "docs",
+      "purpose": "Documentation",
+      "fileCount": 3,
+      "lastAccessed": 1778262079765,
+      "keyFiles": [
+        "faq.md",
+        "installation.md",
+        "ROADMAP.md"
+      ]
+    },
+    "genesi-arch": {
+      "path": "genesi-arch",
+      "purpose": null,
+      "fileCount": 12,
+      "lastAccessed": 1778262079766,
+      "keyFiles": [
+        "build-local-packages.sh",
+        "buildiso.sh",
+        "debug-build.sh",
+        "debug-genesi.sh",
+        "prepare-and-build.sh"
+      ]
+    },
+    "genesi-calamares-config-full": {
+      "path": "genesi-calamares-config-full",
+      "purpose": null,
+      "fileCount": 0,
+      "lastAccessed": 1778262079767,
+      "keyFiles": []
+    },
+    "genesi-settings-full": {
+      "path": "genesi-settings-full",
+      "purpose": null,
+      "fileCount": 0,
+      "lastAccessed": 1778262079767,
+      "keyFiles": []
+    },
+    "genesi-welcome-full": {
+      "path": "genesi-welcome-full",
+      "purpose": null,
+      "fileCount": 0,
+      "lastAccessed": 1778262079768,
+      "keyFiles": []
+    },
+    "wallpapers": {
+      "path": "wallpapers",
+      "purpose": null,
+      "fileCount": 3,
+      "lastAccessed": 1778262079769,
+      "keyFiles": [
+        "splash.png",
+        "splash1.png",
+        "wallpaper.png"
+      ]
+    },
+    "genesi-arch\\docs": {
+      "path": "genesi-arch\\docs",
+      "purpose": "Documentation",
+      "fileCount": 8,
+      "lastAccessed": 1778262079771,
+      "keyFiles": [
+        "AI-MODE-REFERENCE.md",
+        "AUTO-UPDATE-ARCHITECTURE.md",
+        "AUTO-UPDATE-SYSTEM.md"
+      ]
+    }
+  },
+  "hotPaths": [
+    {
+      "path": "",
+      "accessCount": 9,
+      "lastAccessed": 1778263014923,
+      "type": "directory"
+    },
+    {
+      "path": "GENESI-BUILD-STRATEGY.md",
+      "accessCount": 1,
+      "lastAccessed": 1778262102917,
+      "type": "file"
+    },
+    {
+      "path": "README.md",
+      "accessCount": 1,
+      "lastAccessed": 1778262103039,
+      "type": "file"
+    },
+    {
+      "path": "genesi-arch\\packages\\genesi-updater\\README.md",
+      "accessCount": 1,
+      "lastAccessed": 1778262117754,
+      "type": "file"
+    },
+    {
+      "path": "genesi-arch\\packages\\genesi-updater\\genesi-updater",
+      "accessCount": 1,
+      "lastAccessed": 1778262118515,
+      "type": "file"
+    },
+    {
+      "path": "genesi-arch\\packages\\genesi-updater\\genesi-update-notifier",
+      "accessCount": 1,
+      "lastAccessed": 1778262118949,
+      "type": "file"
+    },
+    {
+      "path": "genesi-arch\\packages\\genesi-updater\\plasmoid\\contents\\ui\\main.qml",
+      "accessCount": 1,
+      "lastAccessed": 1778262119640,
+      "type": "file"
+    },
+    {
+      "path": "genesi-arch\\packages\\genesi-updater\\PKGBUILD",
+      "accessCount": 1,
+      "lastAccessed": 1778262120661,
+      "type": "file"
+    },
+    {
+      "path": "genesi-arch\\packages\\genesi-updater\\genesi-updater.conf",
+      "accessCount": 1,
+      "lastAccessed": 1778262121233,
+      "type": "file"
+    },
+    {
+      "path": "genesi-arch\\docs\\AUTO-UPDATE-ARCHITECTURE.md",
+      "accessCount": 1,
+      "lastAccessed": 1778262121581,
+      "type": "file"
+    },
+    {
+      "path": "genesi-arch\\packages\\genesi-updater\\genesi-updater.service",
+      "accessCount": 1,
+      "lastAccessed": 1778262122351,
+      "type": "file"
+    },
+    {
+      "path": "genesi-arch\\packages\\genesi-updater\\genesi-updater.timer",
+      "accessCount": 1,
+      "lastAccessed": 1778262123079,
+      "type": "file"
+    },
+    {
+      "path": "genesi-arch\\packages\\genesi-updater\\genesi-update-notifier.desktop",
+      "accessCount": 1,
+      "lastAccessed": 1778262123634,
+      "type": "file"
+    },
+    {
+      "path": "genesi-arch\\archiso\\airootfs\\usr\\share\\pixmaps\\genesi-logo.png",
+      "accessCount": 1,
+      "lastAccessed": 1778262281643,
+      "type": "file"
+    },
+    {
+      "path": "genesi-update-full\\README.md",
+      "accessCount": 1,
+      "lastAccessed": 1778262959825,
+      "type": "file"
+    },
+    {
+      "path": "genesi-update-full\\src\\arch-update.sh",
+      "accessCount": 1,
+      "lastAccessed": 1778262960490,
+      "type": "file"
+    },
+    {
+      "path": "genesi-update-full\\src\\lib\\tray.sh",
+      "accessCount": 1,
+      "lastAccessed": 1778262961162,
+      "type": "file"
+    },
+    {
+      "path": "genesi-update-full\\src\\lib\\check.sh",
+      "accessCount": 1,
+      "lastAccessed": 1778262961568,
+      "type": "file"
+    },
+    {
+      "path": "genesi-update-full\\src\\lib\\config.sh",
+      "accessCount": 1,
+      "lastAccessed": 1778262962366,
+      "type": "file"
+    },
+    {
+      "path": "genesi-update-full\\src\\lib\\common.sh",
+      "accessCount": 1,
+      "lastAccessed": 1778262962750,
+      "type": "file"
+    },
+    {
+      "path": "genesi-update-full\\src\\lib\\notification.sh",
+      "accessCount": 1,
+      "lastAccessed": 1778262963785,
+      "type": "file"
+    },
+    {
+      "path": "genesi-update-full\\src\\lib\\update.sh",
+      "accessCount": 1,
+      "lastAccessed": 1778262963927,
+      "type": "file"
+    },
+    {
+      "path": "genesi-update-full\\src\\lib\\help.sh",
+      "accessCount": 1,
+      "lastAccessed": 1778262964669,
+      "type": "file"
+    },
+    {
+      "path": "genesi-update-full\\src\\lib\\version.sh",
+      "accessCount": 1,
+      "lastAccessed": 1778262965468,
+      "type": "file"
+    },
+    {
+      "path": "genesi-update-full\\res\\desktop\\arch-update-tray.desktop",
+      "accessCount": 1,
+      "lastAccessed": 1778262965822,
+      "type": "file"
+    },
+    {
+      "path": "genesi-update-full\\res\\desktop\\arch-update.desktop",
+      "accessCount": 1,
+      "lastAccessed": 1778262966991,
+      "type": "file"
+    },
+    {
+      "path": "genesi-update-full\\res\\icons\\cachy-update_app-icon.svg",
+      "accessCount": 1,
+      "lastAccessed": 1778262967232,
+      "type": "file"
+    },
+    {
+      "path": "genesi-update-full",
+      "accessCount": 1,
+      "lastAccessed": 1778263016905,
+      "type": "directory"
+    },
+    {
+      "path": "genesi-update-full\\Makefile",
+      "accessCount": 1,
+      "lastAccessed": 1778263036138,
+      "type": "file"
+    },
+    {
+      "path": "genesi-update-full\\src\\lib\\tray.py",
+      "accessCount": 1,
+      "lastAccessed": 1778263037343,
+      "type": "file"
+    },
+    {
+      "path": "genesi-update-full\\src\\lib\\gen-config.sh",
+      "accessCount": 1,
+      "lastAccessed": 1778263037721,
+      "type": "file"
+    }
+  ],
+  "userDirectives": []
+}

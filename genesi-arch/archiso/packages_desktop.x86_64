@@ -19,6 +19,8 @@ cachyos-calamares-next
 cachyos-keyring
 cachyos-mirrorlist
 chwd
+genesi-update
+genesi-channel
 ckbcomp
 clonezilla
 cloud-init

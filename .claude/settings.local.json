@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git submodule *)",
+      "Bash(git config *)",
+      "Bash(git checkout *)",
+      "Bash(git add *)",
+      "Bash(git commit -m 'Rebrand cachy-update as Genesi-Update for Genesi OS *)",
+      "Bash(git push *)"
+    ]
+  }
+}
