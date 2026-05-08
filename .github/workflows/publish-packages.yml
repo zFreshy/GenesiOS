@@ -19,6 +19,12 @@ jobs:
       image: archlinux:latest
 
     steps:
+      - name: Install git in container
+        # archlinux:latest ships without git, which makes actions/checkout
+        # fall back to the REST API — and that path does not support the
+        # `submodules` input. Install git first so checkout uses native clone.
+        run: pacman -Sy --noconfirm git openssh
+
       - name: Determine channel
         id: channel
         shell: bash
