@@ -69,11 +69,12 @@ script:
     - "-pacman-key --init"
     - "-pacman-key --populate archlinux cachyos"
     - "-sed -i 's/SigLevel.*/SigLevel = Never/g' /etc/pacman.conf"
+    - "-grep -q '^\\[genesi\\]' /etc/pacman.conf || printf '\\n[genesi]\\nSigLevel = Optional TrustAll\\nServer = https://raw.githubusercontent.com/zFreshy/GenesiOS/main/genesi-arch/repo/$arch\\n' >> /etc/pacman.conf"
     - "-pacman -Sy"
     - "-pacman -S --noconfirm --needed --overwrite=* genesi-settings"
     - "-pacman -S --noconfirm --needed --overwrite=* genesi-calamares-branding"
 BOEOF
-        echo ">>> Rewrote shellprocess-before-online.conf: pre-install genesi pkgs with --overwrite=*"
+        echo ">>> Rewrote shellprocess-before-online.conf: ensure [genesi] + pre-install with --overwrite=*"
     fi
     
     # Copy module configs to BOTH locations (OVERWRITE)
