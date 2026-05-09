@@ -208,6 +208,14 @@ jobs:
           set -euo pipefail
           cd "$GITHUB_WORKSPACE"
 
+          # The "Build packages" step did `chown -R builder:builder` over the
+          # whole workspace, including .git. That triggers git's CVE-2022-24765
+          # dubious-ownership protection and surfaces as "fatal: not in a git
+          # directory" when this step (running as root) tries to use the repo.
+          # Restore ownership and whitelist the path.
+          chown -R "$(id -u)":"$(id -g)" "$GITHUB_WORKSPACE/.git"
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
           # Place built artifacts where pacman.conf expects them.
           # Both channels publish to genesi-arch/repo/x86_64 — channel
           # separation is by branch (main = stable, develop = testing).
