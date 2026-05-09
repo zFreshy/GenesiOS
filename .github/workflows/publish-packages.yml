@@ -224,10 +224,13 @@ jobs:
           cp genesi-arch/packages/repo/*.pkg.tar.zst genesi-arch/repo/x86_64/ || true
           cp genesi-arch/packages/repo/genesi.db.tar.gz genesi-arch/repo/x86_64/ || true
           cp genesi-arch/packages/repo/genesi.files.tar.gz genesi-arch/repo/x86_64/ || true
-          # Pacman expects unsuffixed pointers as well
+          # Pacman expects unsuffixed pointers as well. Use copies (not
+          # symlinks) — raw.githubusercontent.com serves git symlinks as
+          # plaintext (the link target path), which would break pacman when
+          # a client points at the GitHub-raw URL.
           ( cd genesi-arch/repo/x86_64 && \
-            ln -sf genesi.db.tar.gz    genesi.db && \
-            ln -sf genesi.files.tar.gz genesi.files )
+            cp -f genesi.db.tar.gz    genesi.db && \
+            cp -f genesi.files.tar.gz genesi.files )
 
           git config user.email "actions@github.com"
           git config user.name  "Genesi Bot"
