@@ -125,15 +125,19 @@ jobs:
 
             rc=0
             for attempt in 1 2; do
-              # NOTE: dropped -s. All runtime/make deps are pre-installed by
-              # the "Install build deps" step. The -s flag makes makepkg call
-              # `sudo pacman` from the builder user; in a minimal container
-              # with broken PAM that gets killed by SIGUSR1 (exit 138).
+              # makepkg's ERR trap converts ANY internal command failure into
+              # `kill -USR1 $$`, which surfaces as exit 138 + "An unknown
+              # error has occurred. Exiting...". To see the real failing
+              # command we run makepkg under `bash -x` so every command in
+              # the makepkg script is traced to stderr. Tail the trace on
+              # stop so the last commands before the kill are visible in the
+              # GitHub log even if it's huge.
               if timeout 1500 bash -xc "cd '$pkg' && rm -f *.pkg.tar.zst && \
                 runuser -u builder -- env \
                   PKGDEST='$GITHUB_WORKSPACE/genesi-arch/packages/repo' \
                   PACMAN='pacman --overwrite=*' \
-                  makepkg -f --noconfirm --noprogressbar --log"; then
+                  bash -x /usr/sbin/makepkg -f --noconfirm --noprogressbar --log \
+                    2> >(tee /tmp/makepkg.trace >&2)"; then
                 rc=0
                 break
               else
@@ -159,6 +163,24 @@ jobs:
                 echo "::error::Package $pkg timed out after 25 minutes"
               else
                 echo "::error::Package $pkg failed with exit $rc"
+              fi
+              # Dump the last bit of the bash -x trace so the real failing
+              # command is visible without scrolling through the whole trace.
+              if [ -f /tmp/makepkg.trace ]; then
+                echo "::group::last 60 lines of makepkg bash -x trace"
+                tail -n 60 /tmp/makepkg.trace || true
+                echo "::endgroup::"
+              fi
+              # Show which declared deps pacman thinks are missing — answers
+              # "is the build dying because a dep wasn't installed?".
+              if [ -f "$pkg/PKGBUILD" ]; then
+                echo "::group::dep status for $pkg"
+                ( cd "$pkg" && \
+                  ALL_DEPS=$(bash -c 'source ./PKGBUILD; printf "%s\n" "${depends[@]}" "${makedepends[@]}"' | sort -u | tr -d "'\"") && \
+                  echo "declared: $ALL_DEPS" && \
+                  echo "missing:" && \
+                  pacman -T $ALL_DEPS || true )
+                echo "::endgroup::"
               fi
               exit 1
             fi
