@@ -105,19 +105,34 @@ jobs:
             # eating the whole 6h GitHub job timeout in silence.
             # PACMAN env adds --overwrite='*' so missing-dep installs by makepkg
             # never block on file conflicts.
-            timeout 1500 bash -c "cd '$pkg' && rm -f *.pkg.tar.zst && \
-              sudo -u builder \
-                PKGDEST='$GITHUB_WORKSPACE/genesi-arch/packages/repo' \
-                PACMAN='pacman --overwrite=*' \
-                makepkg -sf --noconfirm --noprogressbar" || {
-              rc=$?
-              if [ \$rc -eq 124 ]; then
+            rc=0
+            for attempt in 1 2; do
+              if timeout 1500 bash -c "cd '$pkg' && rm -f *.pkg.tar.zst && \
+                sudo -u builder \
+                  PKGDEST='$GITHUB_WORKSPACE/genesi-arch/packages/repo' \
+                  PACMAN='pacman --overwrite=*' \
+                  makepkg -sf --noconfirm --noprogressbar"; then
+                rc=0
+                break
+              else
+                rc=$?
+              fi
+              # 138 = 128+SIGUSR1, 137 = 128+SIGKILL — usually transient
+              # (flaky git clone, cgroup signal). Retry once before giving up.
+              if [ "$rc" -eq 138 ] || [ "$rc" -eq 137 ]; then
+                echo "::warning::Package $pkg killed by signal (exit $rc) on attempt $attempt — retrying"
+                continue
+              fi
+              break
+            done
+            if [ "$rc" -ne 0 ]; then
+              if [ "$rc" -eq 124 ]; then
                 echo "::error::Package $pkg timed out after 25 minutes"
               else
                 echo "::error::Package $pkg failed with exit $rc"
               fi
               exit 1
-            }
+            fi
             echo "::endgroup::"
           done
 
