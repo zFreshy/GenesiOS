@@ -125,19 +125,16 @@ jobs:
 
             rc=0
             for attempt in 1 2; do
-              # makepkg's ERR trap converts ANY internal command failure into
-              # `kill -USR1 $$`, which surfaces as exit 138 + "An unknown
-              # error has occurred. Exiting...". To see the real failing
-              # command we run makepkg under `bash -x` so every command in
-              # the makepkg script is traced to stderr. Tail the trace on
-              # stop so the last commands before the kill are visible in the
-              # GitHub log even if it's huge.
-              if timeout 1500 bash -xc "cd '$pkg' && rm -f *.pkg.tar.zst && \
+              # Do NOT set PACMAN='pacman --overwrite=*'. makepkg does
+              # `PACMAN_PATH=$(type -P $PACMAN)` unquoted, so a value with
+              # spaces makes type -P fail (the flag isn't an executable),
+              # which triggers makepkg's ERR trap → SIGUSR1 → exit 138.
+              # We don't need --overwrite anyway: -s is gone and deps are
+              # pre-installed in the previous step.
+              if timeout 1500 bash -c "cd '$pkg' && rm -f *.pkg.tar.zst && \
                 runuser -u builder -- env \
                   PKGDEST='$GITHUB_WORKSPACE/genesi-arch/packages/repo' \
-                  PACMAN='pacman --overwrite=*' \
-                  bash -x /usr/sbin/makepkg -f --noconfirm --noprogressbar --log \
-                    2> >(tee /tmp/makepkg.trace >&2)"; then
+                  makepkg -f --noconfirm --noprogressbar --log"; then
                 rc=0
                 break
               else
@@ -163,13 +160,6 @@ jobs:
                 echo "::error::Package $pkg timed out after 25 minutes"
               else
                 echo "::error::Package $pkg failed with exit $rc"
-              fi
-              # Dump the last bit of the bash -x trace so the real failing
-              # command is visible without scrolling through the whole trace.
-              if [ -f /tmp/makepkg.trace ]; then
-                echo "::group::last 60 lines of makepkg bash -x trace"
-                tail -n 60 /tmp/makepkg.trace || true
-                echo "::endgroup::"
               fi
               # Show which declared deps pacman thinks are missing — answers
               # "is the build dying because a dep wasn't installed?".
