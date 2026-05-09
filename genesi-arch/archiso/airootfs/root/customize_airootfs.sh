@@ -62,21 +62,41 @@ if [ -d /root/genesi-calamares-config-full ]; then
     if [ -f /etc/calamares/modules/shellprocess-before-online.conf ]; then
         cat > /etc/calamares/modules/shellprocess-before-online.conf <<'BOEOF'
 ---
-# Runs on the LIVE ISO (dontChroot: true) before pacstrap. The live
-# ISO's /etc/pacman.conf is what pacstrap reads to install the base
-# system AND to sync repo dbs into the target. genesi-prepare-pacman.sh
-# may strip the [genesi] section right before this step, and on some
-# settings.conf orderings before-online runs while the target chroot
-# is still empty (chroot: /bin/sh: No such file or directory, exit 127).
-# So we keep this step in the live-ISO context and just guarantee that
-# [genesi] is back in /etc/pacman.conf before pacstrap runs.
+# Runs on the LIVE ISO (dontChroot: true). Two responsibilities:
+#  1. Guarantee [genesi] is in /etc/pacman.conf so the host pacman can
+#     resolve genesi-* packages (in case genesi-prepare-pacman.sh
+#     stripped it earlier).
+#  2. Pre-install genesi-settings into the target with --overwrite='*'.
+#     shellprocess@copy_genesi runs BEFORE this step and pours
+#     /usr/share/genesi, /usr/share/wallpapers/genesi, etc. into the
+#     target chroot. Without --overwrite, packages@online's later
+#     `pacman -S genesi-settings` blows up with "exists in filesystem".
+#     pacman --root <target> uses the host pacman.conf, which is why
+#     step 1 must run first.
 dontChroot: true
-timeout: 60
+timeout: 600
 script:
     - "-grep -q '^\\[genesi\\]' /etc/pacman.conf || printf '\\n[genesi]\\nSigLevel = Optional TrustAll\\nServer = https://raw.githubusercontent.com/zFreshy/GenesiOS/main/genesi-arch/repo/x86_64\\n' >> /etc/pacman.conf"
+    - "-pacman --root ${ROOT} -Sy --noconfirm"
+    - "-pacman --root ${ROOT} -S --noconfirm --needed --overwrite=* genesi-settings"
 BOEOF
-        echo ">>> Rewrote shellprocess-before-online.conf: re-add [genesi] on live ISO before pacstrap"
+        echo ">>> Rewrote shellprocess-before-online.conf: re-add [genesi] + pre-install genesi-settings with --overwrite=*"
     fi
+
+    # genesi-calamares-branding ships /usr/share/calamares/branding/genesi/*,
+    # the EXACT same files that the genesi-calamares package already installs.
+    # Listing both in netinstall.yaml makes packages@online die with
+    # "exists in both 'genesi-calamares' and 'genesi-calamares-branding'".
+    # Drop the redundant entry from the netinstall list everywhere it
+    # might be picked up.
+    for nf in \
+        /etc/calamares/modules/netinstall.yaml \
+        /usr/share/calamares/modules/netinstall.yaml; do
+        if [ -f "$nf" ]; then
+            sed -i '/^[[:space:]]*-[[:space:]]*genesi-calamares-branding[[:space:]]*$/d' "$nf"
+            echo ">>> Removed redundant genesi-calamares-branding from $nf"
+        fi
+    done
     
     # Copy module configs to BOTH locations (OVERWRITE)
     if [ -d /root/genesi-calamares-config-full/etc/calamares/modules ]; then
