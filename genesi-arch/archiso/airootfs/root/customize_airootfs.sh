@@ -62,19 +62,20 @@ if [ -d /root/genesi-calamares-config-full ]; then
     if [ -f /etc/calamares/modules/shellprocess-before-online.conf ]; then
         cat > /etc/calamares/modules/shellprocess-before-online.conf <<'BOEOF'
 ---
-dontChroot: false
-timeout: 900
+# Runs on the LIVE ISO (dontChroot: true) before pacstrap. The live
+# ISO's /etc/pacman.conf is what pacstrap reads to install the base
+# system AND to sync repo dbs into the target. genesi-prepare-pacman.sh
+# may strip the [genesi] section right before this step, and on some
+# settings.conf orderings before-online runs while the target chroot
+# is still empty (chroot: /bin/sh: No such file or directory, exit 127).
+# So we keep this step in the live-ISO context and just guarantee that
+# [genesi] is back in /etc/pacman.conf before pacstrap runs.
+dontChroot: true
+timeout: 60
 script:
-    - "-rm ${ROOT}/etc/calamares/scripts/try-v3"
-    - "-pacman-key --init"
-    - "-pacman-key --populate archlinux cachyos"
-    - "-sed -i 's/SigLevel.*/SigLevel = Never/g' /etc/pacman.conf"
     - "-grep -q '^\\[genesi\\]' /etc/pacman.conf || printf '\\n[genesi]\\nSigLevel = Optional TrustAll\\nServer = https://raw.githubusercontent.com/zFreshy/GenesiOS/main/genesi-arch/repo/x86_64\\n' >> /etc/pacman.conf"
-    - "-pacman -Sy"
-    - "-pacman -S --noconfirm --needed --overwrite=* genesi-settings"
-    - "-pacman -S --noconfirm --needed --overwrite=* genesi-calamares-branding"
 BOEOF
-        echo ">>> Rewrote shellprocess-before-online.conf: ensure [genesi] + pre-install with --overwrite=*"
+        echo ">>> Rewrote shellprocess-before-online.conf: re-add [genesi] on live ISO before pacstrap"
     fi
     
     # Copy module configs to BOTH locations (OVERWRITE)
