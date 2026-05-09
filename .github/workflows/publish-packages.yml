@@ -105,25 +105,42 @@ jobs:
             # eating the whole 6h GitHub job timeout in silence.
             # PACMAN env adds --overwrite='*' so missing-dep installs by makepkg
             # never block on file conflicts.
+            # Diagnostic: prove builder can reach makepkg before invoking it.
+            # `runuser` (util-linux) is used instead of `sudo` because PAM is
+            # often broken in minimal Arch containers, which surfaces as the
+            # builder process being killed by SIGUSR1 (exit 138).
+            echo "--- diag for $pkg ---"
+            id builder || true
+            ls -la "$pkg" | head -5
+            runuser -u builder -- bash -c "id; which makepkg; makepkg --version | head -1" || true
+            echo "--- /diag ---"
+
             rc=0
             for attempt in 1 2; do
-              if timeout 1500 bash -c "cd '$pkg' && rm -f *.pkg.tar.zst && \
-                sudo -u builder \
+              if timeout 1500 bash -xc "cd '$pkg' && rm -f *.pkg.tar.zst && \
+                runuser -u builder -- env \
                   PKGDEST='$GITHUB_WORKSPACE/genesi-arch/packages/repo' \
                   PACMAN='pacman --overwrite=*' \
-                  makepkg -sf --noconfirm --noprogressbar"; then
+                  makepkg -sf --noconfirm --noprogressbar --log"; then
                 rc=0
                 break
               else
                 rc=$?
               fi
-              # 138 = 128+SIGUSR1, 137 = 128+SIGKILL — usually transient
-              # (flaky git clone, cgroup signal). Retry once before giving up.
+              # 138 = 128+SIGUSR1, 137 = 128+SIGKILL — retry once for transient
               if [ "$rc" -eq 138 ] || [ "$rc" -eq 137 ]; then
                 echo "::warning::Package $pkg killed by signal (exit $rc) on attempt $attempt — retrying"
                 continue
               fi
               break
+            done
+
+            # If makepkg --log produced output, dump it so we see the real failure
+            for log in "$pkg"/*.log; do
+              [ -f "$log" ] || continue
+              echo "::group::makepkg log: $log"
+              cat "$log"
+              echo "::endgroup::"
             done
             if [ "$rc" -ne 0 ]; then
               if [ "$rc" -eq 124 ]; then
