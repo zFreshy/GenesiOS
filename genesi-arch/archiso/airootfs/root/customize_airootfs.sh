@@ -69,7 +69,7 @@ script:
     - "-pacman-key --init"
     - "-pacman-key --populate archlinux cachyos"
     - "-sed -i 's/SigLevel.*/SigLevel = Never/g' /etc/pacman.conf"
-    - "-grep -q '^\\[genesi\\]' /etc/pacman.conf || printf '\\n[genesi]\\nSigLevel = Optional TrustAll\\nServer = https://raw.githubusercontent.com/zFreshy/GenesiOS/main/genesi-arch/repo/$arch\\n' >> /etc/pacman.conf"
+    - "-grep -q '^\\[genesi\\]' /etc/pacman.conf || printf '\\n[genesi]\\nSigLevel = Optional TrustAll\\nServer = https://raw.githubusercontent.com/zFreshy/GenesiOS/main/genesi-arch/repo/x86_64\\n' >> /etc/pacman.conf"
     - "-pacman -Sy"
     - "-pacman -S --noconfirm --needed --overwrite=* genesi-settings"
     - "-pacman -S --noconfirm --needed --overwrite=* genesi-calamares-branding"
