@@ -111,17 +111,29 @@ jobs:
             # builder process being killed by SIGUSR1 (exit 138).
             echo "--- diag for $pkg ---"
             id builder || true
-            ls -la "$pkg" | head -5
+            ls -la "$pkg" | head -10
             runuser -u builder -- bash -c "id; which makepkg; makepkg --version | head -1" || true
+            # If sudo from inside builder is broken (PAM in minimal container),
+            # makepkg -s will be killed by SIGUSR1 the moment it tries to call
+            # `sudo pacman` for deps. Probe it explicitly.
+            if runuser -u builder -- sudo -n true 2>&1; then
+              echo "diag: sudo works for builder"
+            else
+              echo "diag: sudo BROKEN for builder (rc=$?) — relying on pre-installed deps"
+            fi
             echo "--- /diag ---"
 
             rc=0
             for attempt in 1 2; do
+              # NOTE: dropped -s. All runtime/make deps are pre-installed by
+              # the "Install build deps" step. The -s flag makes makepkg call
+              # `sudo pacman` from the builder user; in a minimal container
+              # with broken PAM that gets killed by SIGUSR1 (exit 138).
               if timeout 1500 bash -xc "cd '$pkg' && rm -f *.pkg.tar.zst && \
                 runuser -u builder -- env \
                   PKGDEST='$GITHUB_WORKSPACE/genesi-arch/packages/repo' \
                   PACMAN='pacman --overwrite=*' \
-                  makepkg -sf --noconfirm --noprogressbar --log"; then
+                  makepkg -f --noconfirm --noprogressbar --log"; then
                 rc=0
                 break
               else
