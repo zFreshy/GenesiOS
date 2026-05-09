@@ -2,12 +2,11 @@
 _gitname=genesi-calamares
 pkgname=genesi-calamares-branding
 pkgver=1.0.0
-pkgrel=4
+pkgrel=5
 pkgdesc="Genesi OS branding for Calamares installer"
 arch=('any')
 url="https://github.com/zFreshy/genesi-calamares"
 license=('GPL3')
-depends=('calamares')
 conflicts=('cachyos-calamares-branding')
 provides=('calamares-branding')
 backup=('etc/calamares/settings.conf')

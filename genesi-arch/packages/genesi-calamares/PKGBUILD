@@ -4,7 +4,7 @@
 _gitname=genesi-calamares
 pkgname=genesi-calamares
 pkgver=3.3.11
-pkgrel=1
+pkgrel=2
 pkgdesc='Distribution-independent installer framework - Genesi OS Edition'
 arch=('x86_64')
 license=(GPL-3.0-or-later)
@@ -35,6 +35,7 @@ depends=(
     'solid'
     'squashfs-tools'
     'yaml-cpp'
+    'genesi-calamares-branding'
 )
 makedepends=(
     'boost'
@@ -96,11 +97,6 @@ package() {
     cd "${srcdir}/${_gitname}"
     
     DESTDIR="${pkgdir}" cmake --install build
-    
-    # Install Genesi branding
-    install -dm755 "${pkgdir}/usr/share/calamares/branding/genesi"
-    cp -r "${srcdir}/${_gitname}/src/branding/genesi/"* \
-          "${pkgdir}/usr/share/calamares/branding/genesi/"
     
     # Update settings to use Genesi branding
     sed -i "s/branding:.*/branding: genesi/" \
