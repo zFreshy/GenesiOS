@@ -60,17 +60,34 @@ jobs:
         run: |
           set -euxo pipefail
           pacman -Sy --noconfirm
+
+          # Collect every depends/makedepends/checkdepends declared by the
+          # Genesi PKGBUILDs so makepkg never needs `-s` (which would call
+          # `sudo pacman` from the unprivileged builder and is fragile).
+          # Strip version constraints — pacman -S takes plain names.
+          DEPS=$(
+            for pkgbuild in genesi-arch/packages/*/PKGBUILD; do
+              bash -c "
+                set +u
+                # shellcheck disable=SC1090
+                source '$pkgbuild' 2>/dev/null || exit 0
+                printf '%s\n' \"\${depends[@]}\" \"\${makedepends[@]}\" \"\${checkdepends[@]}\"
+              "
+            done \
+              | sed -E 's/[<>=].*//' \
+              | sort -u \
+              | grep -v '^$' \
+              | tr '\n' ' '
+          )
+          echo "Collected deps: $DEPS"
+
+          # base-devel and sudo are needed by makepkg itself; the rest comes
+          # from the PKGBUILDs. python-requests/python-packaging are tooling
+          # used by ISO/CI scripts outside the PKGBUILDs.
           pacman -S --needed --noconfirm --overwrite='*' \
             base-devel git sudo \
-            python python-requests python-packaging python-psutil \
-            pacman-contrib libnotify \
-            make scdoc gettext \
-            zram-generator ananicy-cpp cachyos-ananicy-rules \
-            inxi iw wireless-regdb \
-            archlinux-contrib curl fakeroot htmlq diffutils \
-            hicolor-icon-theme python-pyqt6 qt6-svg glib2 xdg-utils \
-            polkit \
-            plasma-workspace ttf-fantasque-nerd
+            python-requests python-packaging \
+            $DEPS
 
       - name: Build packages
         shell: bash
