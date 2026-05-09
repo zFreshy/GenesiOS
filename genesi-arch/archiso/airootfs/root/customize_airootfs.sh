@@ -51,36 +51,26 @@ if [ -d /root/genesi-calamares-config-full ]; then
         fi
     fi
 
-    # shellprocess@copy_genesi pours genesi-settings' file payload onto the
-    # target chroot BEFORE packages@online has a chance to install the
-    # package. The vanilla install then dies with
-    # "failed to commit transaction (conflicting files)" because pacman
-    # refuses to overwrite. Rewrite shellprocess-before-online.conf so it
-    # pre-installs genesi-settings + genesi-calamares-branding with
-    # --overwrite='*' inside the chroot, taking ownership of the files
-    # before packages@online runs.
+    # Install genesi-settings with --overwrite BEFORE shellprocess@copy_genesi
+    # runs, so pacman takes ownership of the files first. This prevents
+    # "conflicting files" errors during packages@online.
     if [ -f /etc/calamares/modules/shellprocess-before-online.conf ]; then
         cat > /etc/calamares/modules/shellprocess-before-online.conf <<'BOEOF'
 ---
-# Runs on the LIVE ISO (dontChroot: true). Two responsibilities:
-#  1. Guarantee [genesi] is in /etc/pacman.conf so the host pacman can
-#     resolve genesi-* packages (in case genesi-prepare-pacman.sh
-#     stripped it earlier).
-#  2. Pre-install genesi-settings into the target with --overwrite='*'.
-#     shellprocess@copy_genesi runs BEFORE this step and pours
-#     /usr/share/genesi, /usr/share/wallpapers/genesi, etc. into the
-#     target chroot. Without --overwrite, packages@online's later
-#     `pacman -S genesi-settings` blows up with "exists in filesystem".
-#     pacman --root <target> uses the host pacman.conf, which is why
-#     step 1 must run first.
+# Runs on the LIVE ISO (dontChroot: true).
+# 1. Guarantees [genesi] is in /etc/pacman.conf so pacstrap can resolve
+#    genesi-* packages during installation.
+# 2. Pre-installs genesi-settings with --overwrite to take ownership of
+#    files before shellprocess@copy_genesi runs, preventing conflicts.
 dontChroot: true
 timeout: 600
 script:
     - "-grep -q '^\\[genesi\\]' /etc/pacman.conf || printf '\\n[genesi]\\nSigLevel = Optional TrustAll\\nServer = https://raw.githubusercontent.com/zFreshy/GenesiOS/main/genesi-arch/repo/x86_64\\n' >> /etc/pacman.conf"
-    - "-pacman --root ${ROOT} -Sy --noconfirm"
-    - "-pacman --root ${ROOT} -S --noconfirm --needed --overwrite=* genesi-settings"
+    - "-pacman -Sy --noconfirm"
+    - "-pacman --root ${ROOT} --config /etc/pacman.conf -Sy --noconfirm"
+    - "-pacman --root ${ROOT} --config /etc/pacman.conf -S --noconfirm --needed --overwrite='*' genesi-settings || true"
 BOEOF
-        echo ">>> Rewrote shellprocess-before-online.conf: re-add [genesi] + pre-install genesi-settings with --overwrite=*"
+        echo ">>> Rewrote shellprocess-before-online.conf: ensure [genesi] repo + pre-install genesi-settings with --overwrite"
     fi
 
     # genesi-calamares-branding ships /usr/share/calamares/branding/genesi/*,
