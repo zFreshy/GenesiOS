@@ -50,6 +50,31 @@ if [ -d /root/genesi-calamares-config-full ]; then
             echo ">>> Patched genesi-prepare-pacman.sh: keep [genesi] repo"
         fi
     fi
+
+    # shellprocess@copy_genesi pours genesi-settings' file payload onto the
+    # target chroot BEFORE packages@online has a chance to install the
+    # package. The vanilla install then dies with
+    # "failed to commit transaction (conflicting files)" because pacman
+    # refuses to overwrite. Rewrite shellprocess-before-online.conf so it
+    # pre-installs genesi-settings + genesi-calamares-branding with
+    # --overwrite='*' inside the chroot, taking ownership of the files
+    # before packages@online runs.
+    if [ -f /etc/calamares/modules/shellprocess-before-online.conf ]; then
+        cat > /etc/calamares/modules/shellprocess-before-online.conf <<'BOEOF'
+---
+dontChroot: false
+timeout: 900
+script:
+    - "-rm ${ROOT}/etc/calamares/scripts/try-v3"
+    - "-pacman-key --init"
+    - "-pacman-key --populate archlinux cachyos"
+    - "-sed -i 's/SigLevel.*/SigLevel = Never/g' /etc/pacman.conf"
+    - "-pacman -Sy"
+    - "-pacman -S --noconfirm --needed --overwrite=* genesi-settings"
+    - "-pacman -S --noconfirm --needed --overwrite=* genesi-calamares-branding"
+BOEOF
+        echo ">>> Rewrote shellprocess-before-online.conf: pre-install genesi pkgs with --overwrite=*"
+    fi
     
     # Copy module configs to BOTH locations (OVERWRITE)
     if [ -d /root/genesi-calamares-config-full/etc/calamares/modules ]; then
