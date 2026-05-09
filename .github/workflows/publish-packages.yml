@@ -108,6 +108,7 @@ jobs:
             "genesi-update"
             "genesi-channel"
             "genesi-calamares"
+            "genesi-calamares-branding"
             "genesi-welcome"
           )
 

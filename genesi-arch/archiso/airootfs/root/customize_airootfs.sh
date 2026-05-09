@@ -38,6 +38,17 @@ if [ -d /root/genesi-calamares-config-full ]; then
         cp -rf /root/genesi-calamares-config-full/etc/calamares/scripts /etc/calamares/
         chmod +x /etc/calamares/scripts/* 2>/dev/null || true
         echo ">>> Calamares scripts copied (overwritten)"
+
+        # genesi-prepare-pacman.sh upstream strips the [genesi] repo from
+        # /etc/pacman.conf (live ISO) AND from the target's pacman.conf right
+        # before pacstrap runs. That makes packages@online fail later with
+        # "target not found: genesi-settings / genesi-calamares-branding".
+        # Drop those sed lines so [genesi] survives into the target chroot.
+        if [ -f /etc/calamares/scripts/genesi-prepare-pacman.sh ]; then
+            sed -i '/sed -i .*genesi.*pacman\.conf/d' \
+                /etc/calamares/scripts/genesi-prepare-pacman.sh
+            echo ">>> Patched genesi-prepare-pacman.sh: keep [genesi] repo"
+        fi
     fi
     
     # Copy module configs to BOTH locations (OVERWRITE)
