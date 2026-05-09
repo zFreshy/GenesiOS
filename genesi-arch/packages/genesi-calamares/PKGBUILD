@@ -4,7 +4,7 @@
 _gitname=genesi-calamares
 pkgname=genesi-calamares
 pkgver=3.3.11
-pkgrel=2
+pkgrel=3
 pkgdesc='Distribution-independent installer framework - Genesi OS Edition'
 arch=('x86_64')
 license=(GPL-3.0-or-later)
@@ -35,7 +35,6 @@ depends=(
     'solid'
     'squashfs-tools'
     'yaml-cpp'
-    'genesi-calamares-branding'
 )
 makedepends=(
     'boost'
