@@ -381,6 +381,11 @@ mkdir -p /etc/systemd/system/multi-user.target.wants
 ln -sf /usr/lib/systemd/system/NetworkManager.service /etc/systemd/system/multi-user.target.wants/NetworkManager.service
 ln -sf /usr/lib/systemd/system/NetworkManager-dispatcher.service /etc/systemd/system/dbus-org.freedesktop.nm-dispatcher.service
 
+# SDDM (display manager)
+mkdir -p /etc/systemd/system/display-manager.service.d
+ln -sf /usr/lib/systemd/system/sddm.service /etc/systemd/system/display-manager.service
+systemctl enable sddm.service 2>/dev/null || ln -sf /usr/lib/systemd/system/sddm.service /etc/systemd/system/multi-user.target.wants/sddm.service
+
 # Genesi branding service
 if [ -f /etc/systemd/system/genesi-branding.service ]; then
     ln -sf /etc/systemd/system/genesi-branding.service /etc/systemd/system/multi-user.target.wants/genesi-branding.service
