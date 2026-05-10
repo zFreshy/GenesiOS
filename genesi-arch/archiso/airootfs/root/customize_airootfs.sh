@@ -381,11 +381,6 @@ mkdir -p /etc/systemd/system/multi-user.target.wants
 ln -sf /usr/lib/systemd/system/NetworkManager.service /etc/systemd/system/multi-user.target.wants/NetworkManager.service
 ln -sf /usr/lib/systemd/system/NetworkManager-dispatcher.service /etc/systemd/system/dbus-org.freedesktop.nm-dispatcher.service
 
-# SDDM (display manager)
-mkdir -p /etc/systemd/system/display-manager.service.d
-ln -sf /usr/lib/systemd/system/sddm.service /etc/systemd/system/display-manager.service
-systemctl enable sddm.service 2>/dev/null || ln -sf /usr/lib/systemd/system/sddm.service /etc/systemd/system/multi-user.target.wants/sddm.service
-
 # Genesi branding service
 if [ -f /etc/systemd/system/genesi-branding.service ]; then
     ln -sf /etc/systemd/system/genesi-branding.service /etc/systemd/system/multi-user.target.wants/genesi-branding.service
@@ -406,6 +401,17 @@ ln -sf /usr/lib/systemd/system/sshd.service /etc/systemd/system/multi-user.targe
 
 # VirtualBox guest
 ln -sf /usr/lib/systemd/system/vboxservice.service /etc/systemd/system/multi-user.target.wants/vboxservice.service 2>/dev/null || true
+
+# NOTE: SDDM is NOT enabled here for the live ISO
+# The live ISO uses autologin via systemd service
+# SDDM will be enabled by Calamares during installation via the displaymanager module
+
+# Run dmcheck to configure display manager for live ISO
+if [ -f /usr/local/bin/dmcheck ]; then
+    echo ">>> Running dmcheck to configure display manager..."
+    bash /usr/local/bin/dmcheck
+    echo ">>> Display manager configured"
+fi
 
 # ============================================================
 # 6. Generate locales
