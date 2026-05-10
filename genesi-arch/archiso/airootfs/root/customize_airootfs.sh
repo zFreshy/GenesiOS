@@ -459,11 +459,12 @@ echo ">>> Installing Tela Circle Icon Theme from source..."
 git clone https://github.com/vinceliuice/Tela-circle-icon-theme.git /tmp/Tela-circle-icon-theme
 if [ -d /tmp/Tela-circle-icon-theme ]; then
     cd /tmp/Tela-circle-icon-theme
-    # Run the installer for all color variants, or just default. -a installs all color variants.
-    ./install.sh -a
+    # Install only green-dark variant (used by Genesi OS theme)
+    # This saves ~500MB compared to installing all variants with -a
+    ./install.sh -c green -t default
     cd /
     rm -rf /tmp/Tela-circle-icon-theme
-    echo ">>> Tela Circle Icon Theme installed successfully."
+    echo ">>> Tela Circle Icon Theme (green-dark) installed successfully."
 else
     echo ">>> WARNING: Failed to clone Tela Circle Icon Theme repository."
 fi
