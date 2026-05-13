@@ -125,6 +125,36 @@ BOEOF
 else
     echo ">>> WARNING: genesi-calamares-config-full not found!"
 fi
+
+# Patch Calamares packages module to always pass --overwrite=* to pacman.
+# Upstream module ignores any 'overwrite' YAML key, so files copied into the
+# chroot by shellprocess (skel-override etc.) trip "exists in filesystem"
+# when packages@online installs genesi-settings. Inject the flag directly into
+# the install() command builder, then nuke .pyc so the patched source is used.
+for PKG_MAIN in /usr/lib/calamares/modules/packages/main.py \
+                /usr/share/calamares/modules/packages/main.py; do
+    [ -f "$PKG_MAIN" ] || continue
+    if grep -q -- '--overwrite=\*' "$PKG_MAIN"; then
+        echo ">>> $PKG_MAIN already patched with --overwrite=*"
+        continue
+    fi
+    python3 - "$PKG_MAIN" <<'PYEOF'
+import sys
+p = sys.argv[1]
+s = open(p).read()
+new = s.replace(
+    'command.append("--noconfirm")',
+    'command.append("--noconfirm")\n        command.append("--overwrite=*")',
+    1)
+if new == s:
+    print(f">>> WARNING: pattern not found in {p}, packages module NOT patched")
+    sys.exit(1)
+open(p, 'w').write(new)
+print(f">>> Patched {p} with --overwrite=*")
+PYEOF
+done
+find /usr/lib/calamares /usr/share/calamares -name '*.pyc' -delete 2>/dev/null || true
+find /usr/lib/calamares /usr/share/calamares -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 echo ""
 
 # ============================================================
