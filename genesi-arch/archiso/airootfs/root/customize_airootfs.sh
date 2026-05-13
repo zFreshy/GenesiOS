@@ -489,12 +489,20 @@ echo ">>> Installing Tela Circle Icon Theme from source..."
 git clone https://github.com/vinceliuice/Tela-circle-icon-theme.git /tmp/Tela-circle-icon-theme
 if [ -d /tmp/Tela-circle-icon-theme ]; then
     cd /tmp/Tela-circle-icon-theme
-    # Install only green-dark variant (used by Genesi OS theme)
-    # This saves ~500MB compared to installing all variants with -a
-    ./install.sh -c green -t default
+    # Install only green variants (green, green-light, green-dark) system-wide.
+    # genesi-apply-theme.sh selects Tela-circle-green-dark at runtime.
+    # Flags: -c = circular folder version, -d = system destination, "green" = color.
+    # NOTE: -t was a typo — that flag does not exist in upstream install.sh and
+    # caused installation to silently misbehave / land in /root/.local/share/icons.
+    ./install.sh -c -d /usr/share/icons green
     cd /
     rm -rf /tmp/Tela-circle-icon-theme
-    echo ">>> Tela Circle Icon Theme (green-dark) installed successfully."
+    if [ -d /usr/share/icons/Tela-circle-green-dark ]; then
+        echo ">>> Tela-circle-green-dark installed at /usr/share/icons/"
+    else
+        echo ">>> WARNING: Tela-circle-green-dark NOT found after install"
+        ls /usr/share/icons | grep -i tela || echo "(no Tela-* dirs)"
+    fi
 else
     echo ">>> WARNING: Failed to clone Tela Circle Icon Theme repository."
 fi
