@@ -39,6 +39,29 @@ if [ -d /root/genesi-calamares-config-full ]; then
         chmod +x /etc/calamares/scripts/* 2>/dev/null || true
         echo ">>> Calamares scripts copied (overwritten)"
 
+        # Defense in depth: guarantee enable-ufw exists even if the submodule
+        # bump was skipped. Upstream cachyos-calamares hardcodes
+        # shellprocess@enable_ufw -> /etc/calamares/scripts/enable-ufw and the
+        # install aborts at job 44/46 with exit 127 if the file is missing.
+        if [ ! -f /etc/calamares/scripts/enable-ufw ]; then
+            mkdir -p /etc/calamares/scripts
+            cat > /etc/calamares/scripts/enable-ufw <<'UFWEOF'
+#!/bin/bash
+set -e
+if command -v ufw >/dev/null 2>&1; then
+    ufw default deny incoming  || true
+    ufw default allow outgoing || true
+    ufw --force enable          || true
+    systemctl enable ufw.service || true
+else
+    echo "ufw not installed, skipping"
+fi
+exit 0
+UFWEOF
+            chmod +x /etc/calamares/scripts/enable-ufw
+            echo ">>> Wrote fallback /etc/calamares/scripts/enable-ufw"
+        fi
+
         # genesi-prepare-pacman.sh upstream strips the [genesi] repo from
         # /etc/pacman.conf (live ISO) AND from the target's pacman.conf right
         # before pacstrap runs. That makes packages@online fail later with
