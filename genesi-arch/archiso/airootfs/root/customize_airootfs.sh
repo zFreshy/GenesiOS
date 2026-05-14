@@ -62,6 +62,26 @@ UFWEOF
             echo ">>> Wrote fallback /etc/calamares/scripts/enable-ufw"
         fi
 
+        # Defense in depth: same problem with btrfs-installation-snapshot.
+        # cachyos-calamares-next ships a shellprocess instance that calls
+        # /etc/calamares/scripts/btrfs-installation-snapshot. If the script
+        # is missing, job 45/46 fails with exit 127 and the install aborts.
+        # Always overwrite with our stub so we never depend on whether the
+        # submodule bump shipped it.
+        mkdir -p /etc/calamares/scripts
+        cat > /etc/calamares/scripts/btrfs-installation-snapshot <<'BTRFSEOF'
+#!/bin/bash
+# Genesi OS stub: best-effort btrfs snapshot, never fails.
+set -u
+ROOT_FS="$(findmnt -no FSTYPE / 2>/dev/null || true)"
+if [ "${ROOT_FS:-}" = "btrfs" ] && command -v btrfs >/dev/null 2>&1; then
+    btrfs subvolume snapshot -r / /.snapshots/@initial-install 2>/dev/null || true
+fi
+exit 0
+BTRFSEOF
+        chmod +x /etc/calamares/scripts/btrfs-installation-snapshot
+        echo ">>> Wrote fallback /etc/calamares/scripts/btrfs-installation-snapshot"
+
         # genesi-prepare-pacman.sh upstream strips the [genesi] repo from
         # /etc/pacman.conf (live ISO) AND from the target's pacman.conf right
         # before pacstrap runs. That makes packages@online fail later with
