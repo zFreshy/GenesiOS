@@ -62,25 +62,36 @@ UFWEOF
             echo ">>> Wrote fallback /etc/calamares/scripts/enable-ufw"
         fi
 
-        # Defense in depth: same problem with btrfs-installation-snapshot.
-        # cachyos-calamares-next ships a shellprocess instance that calls
-        # /etc/calamares/scripts/btrfs-installation-snapshot. If the script
-        # is missing, job 45/46 fails with exit 127 and the install aborts.
-        # Always overwrite with our stub so we never depend on whether the
-        # submodule bump shipped it.
-        mkdir -p /etc/calamares/scripts
-        cat > /etc/calamares/scripts/btrfs-installation-snapshot <<'BTRFSEOF'
-#!/bin/bash
-# Genesi OS stub: best-effort btrfs snapshot, never fails.
-set -u
-ROOT_FS="$(findmnt -no FSTYPE / 2>/dev/null || true)"
-if [ "${ROOT_FS:-}" = "btrfs" ] && command -v btrfs >/dev/null 2>&1; then
-    btrfs subvolume snapshot -r / /.snapshots/@initial-install 2>/dev/null || true
-fi
-exit 0
-BTRFSEOF
-        chmod +x /etc/calamares/scripts/btrfs-installation-snapshot
-        echo ">>> Wrote fallback /etc/calamares/scripts/btrfs-installation-snapshot"
+        # cachyos-calamares-next ships shellprocess@btrfs_snapshot with
+        # dontChroot: false, so /etc/calamares/scripts/btrfs-installation-snapshot
+        # is resolved INSIDE the target chroot, not on the live ISO. The target
+        # is pacstrapped without calamares, so the script is never there -> exit
+        # 127 -> install aborts at job 45/46 (seen 2026-05-14 and 2026-05-16).
+        # Fix: override the shellprocess config to inline the logic. Same
+        # pattern as the upstream enable_ufw fix in the submodule. No external
+        # script file is needed in the target chroot.
+        for caldir in /etc/calamares/modules /usr/share/calamares/modules; do
+            [ -d "$caldir" ] || continue
+            cat > "$caldir/shellprocess_btrfs_snapshot.conf" <<'BTRFSCONF'
+---
+# Genesi OS: inlined override of cachyos-calamares-next's shellprocess.
+# Best-effort btrfs snapshot inside the target chroot; never aborts the install.
+dontChroot: false
+timeout: 60
+script:
+    - command: |
+        set -u
+        ROOT_FS="$(findmnt -no FSTYPE / 2>/dev/null || true)"
+        if [ "${ROOT_FS:-}" = "btrfs" ] && command -v btrfs >/dev/null 2>&1; then
+            btrfs subvolume snapshot -r / /.snapshots/@initial-install 2>/dev/null || true
+        fi
+        exit 0
+
+i18n:
+    name: "Creating Btrfs installation snapshot"
+BTRFSCONF
+            echo ">>> Overrode $caldir/shellprocess_btrfs_snapshot.conf (inlined, no file dep)"
+        done
 
         # genesi-prepare-pacman.sh upstream strips the [genesi] repo from
         # /etc/pacman.conf (live ISO) AND from the target's pacman.conf right
