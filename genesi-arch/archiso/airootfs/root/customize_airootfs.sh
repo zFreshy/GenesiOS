@@ -602,6 +602,40 @@ else
     echo ">>> WARNING: Failed to clone Tela Circle Icon Theme repository."
 fi
 
+# ============================================================
+# 10. Install Klassy window decoration (AUR workaround)
+# ============================================================
+# Klassy gives us native rounded corners (configurable 0-20px) on every
+# window without an external compositor or custom Aurorae. Genesi's
+# kwinrc sets library=org.kde.klassy by default; klassyrc in the skel
+# pre-sets the Genesi profile (16px corners, no outline, blur friendly).
+echo ">>> Building Klassy window decoration from source..."
+pacman -S --noconfirm --needed \
+    cmake extra-cmake-modules qt6-base qt6-tools \
+    kcmutils kdecoration kguiaddons ki18n kcoreaddons \
+    kwidgetsaddons kwindowsystem frameworkintegration kconfigwidgets \
+    >/dev/null 2>&1 || true
+
+git clone --depth 1 https://github.com/paulmcauley/klassy.git /tmp/klassy
+if [ -d /tmp/klassy ]; then
+    cd /tmp/klassy
+    cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr \
+        -DBUILD_QT5=OFF -DBUILD_QT6=ON >/dev/null 2>&1
+    cmake --build build -j"$(nproc)" >/dev/null 2>&1
+    cmake --install build >/dev/null 2>&1
+    cd /
+    rm -rf /tmp/klassy
+    if [ -f /usr/lib/qt6/plugins/org.kde.kdecoration2/klassydecoration.so ] \
+       || [ -f /usr/lib/qt6/plugins/org.kde.kdecoration3/klassydecoration.so ]; then
+        echo ">>> Klassy installed successfully"
+    else
+        echo ">>> WARNING: Klassy plugin not found after install"
+        find /usr/lib -name 'klassy*' 2>/dev/null | head -5
+    fi
+else
+    echo ">>> WARNING: Failed to clone Klassy repository (skipping)."
+fi
+
 echo ">>> Genesi OS: Branding applied successfully!"
 
 echo ""
