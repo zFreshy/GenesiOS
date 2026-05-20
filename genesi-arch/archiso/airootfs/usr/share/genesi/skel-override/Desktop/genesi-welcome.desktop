@@ -1,9 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=Install Genesi OS
-Name[pt_BR]=Instalar Genesi OS
-Comment=Install Genesi OS to your computer
-Icon=genesi
-Exec=sudo calamares-online.sh
-Terminal=false
-Categories=System;
