@@ -598,11 +598,17 @@ fi
 # kwinrc sets library=org.kde.klassy by default; klassyrc in the skel
 # pre-sets the Genesi profile (16px corners, no outline, blur friendly).
 echo ">>> Building Klassy window decoration from source..."
+# base-devel ships gcc / make / pkgconf — cmake configure aborts immediately
+# with "CMAKE_C_COMPILER not set" if these aren't present. Live ISO ships
+# without a compiler by default, so we must add it explicitly.
+# Logging un-silenced so missing deps surface in build output.
 pacman -S --noconfirm --needed \
+    base-devel \
     cmake extra-cmake-modules qt6-base qt6-tools \
     kcmutils kdecoration kguiaddons ki18n kcoreaddons \
     kwidgetsaddons kwindowsystem frameworkintegration kconfigwidgets \
-    >/dev/null 2>&1 || true
+    2>&1 | tee -a /var/log/genesi-klassy-build.log \
+    | grep -E '^(installing|error|warning|::)' || true
 
 KLASSY_LOG=/var/log/genesi-klassy-build.log
 git clone --depth 1 https://github.com/paulmcauley/klassy.git /tmp/klassy 2>&1 \
