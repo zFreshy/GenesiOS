@@ -749,6 +749,25 @@ if [ -d /tmp/Ant/kde/Dark/plasma ]; then
         echo ">>> Ant-Dark look-and-feel copied"
     fi
     rm -rf /tmp/Ant
+    # Glassmorphism for the bottom panel:
+    # Ant-Dark's panel-background.svgz is opaque dark by default, so even
+    # with appletsrc panelOpacity=2 (Translucent) and KWin's blur effect
+    # enabled, the panel renders as a solid black bar instead of glass.
+    # The theme already ships translucentbackground.svgz (used by Kickoff
+    # popups, blur-friendly with hint-compositing markers), so swap it
+    # in as panel-background and the panel inherits the popup glass look.
+    if [ -f /usr/share/plasma/desktoptheme/Ant-Dark/widgets/translucentbackground.svgz ] \
+       && [ -f /usr/share/plasma/desktoptheme/Ant-Dark/widgets/panel-background.svgz ]; then
+        # Keep the original around in case someone wants to revert (e.g.
+        # they prefer the opaque panel after install).
+        cp -f /usr/share/plasma/desktoptheme/Ant-Dark/widgets/panel-background.svgz \
+              /usr/share/plasma/desktoptheme/Ant-Dark/widgets/panel-background-opaque.svgz.bak
+        cp -f /usr/share/plasma/desktoptheme/Ant-Dark/widgets/translucentbackground.svgz \
+              /usr/share/plasma/desktoptheme/Ant-Dark/widgets/panel-background.svgz
+        echo ">>> Replaced Ant-Dark panel-background with translucent variant (panel glass enabled)"
+    else
+        echo ">>> WARNING: Ant-Dark translucentbackground.svgz missing - panel will render opaque"
+    fi
     # Verification: plasmarc name=Ant-Dark will silently fall back to Breeze
     # if the desktoptheme directory is missing. We MUST surface that here so
     # the next ISO doesn't ship with Ant-Dark configured but not installed.
