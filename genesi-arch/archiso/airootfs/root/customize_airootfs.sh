@@ -573,11 +573,29 @@ echo ">>> Blacklisted vmwgfx (prevents VirtualBox black-screen boot)"
 # 8. Configure SDDM theme
 # ============================================================
 
-# Ensure SDDM uses the Genesi theme
+# Default SDDM theme: Breeze (NOT genesi) until the QML deps are pinned.
+#
+# 2026-05-22: a user installed Genesi inside VirtualBox and the system
+# booted to a black screen with cursor. journalctl showed
+#   sddm-helper exited with 127
+#   Greeter session started successfully ... Greeter stopped
+# Exit 127 = "command not found" - the `genesi` SDDM theme imports
+# QML modules / calls a binary that exists on the live ISO chroot but
+# is not pulled in by the Calamares pacstrap into the target. The
+# greeter starts, tries to render, fails the import, exits, SDDM
+# relaunches it, infinite loop. The user sees nothing because the
+# greeter never reaches the paint phase.
+#
+# Breeze works because it only depends on qt6-declarative + plasma-
+# workspace, both guaranteed in the target. Once we identify the
+# missing piece for the genesi theme (probably plasma-framework /
+# qt6-quickcontrols2 / a specific KF6 module), we can either ensure
+# it's installed in netinstall.yaml or strip the import from the
+# theme. Until then, ship Breeze so installs always reach login.
 mkdir -p /etc/sddm.conf.d
 cat > /etc/sddm.conf.d/genesi-theme.conf << 'SDDMCONF'
 [Theme]
-Current=genesi
+Current=breeze
 CursorTheme=breeze_cursors
 Font=Noto Sans,10
 
