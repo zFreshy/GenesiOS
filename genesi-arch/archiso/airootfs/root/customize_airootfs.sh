@@ -608,6 +608,34 @@ MaximumUid=60513
 MinimumUid=1000
 SDDMCONF
 
+# Force X11 in the live ISO greeter. Wayland sessions on the SDDM
+# greeter fail in any environment without GPU acceleration (vmwgfx
+# disabled, no Intel/AMD/NVIDIA), reproducing the 2026-05-22 black
+# screen even with module_blacklist=vmwgfx nomodeset added at boot.
+# X11 with fbdev/vesa always paints. genesi-write-branding.sh
+# already drops the same file into the installed target; this
+# covers the live ISO before Calamares ever runs.
+cat > /etc/sddm.conf.d/00-display-server.conf << 'X11CONF'
+[General]
+DisplayServer=x11
+X11CONF
+echo ">>> Forced SDDM DisplayServer=x11 in live ISO"
+
+# Autologin liveuser straight into Plasma X11.
+# Without autologin, the live ISO would still show the SDDM greeter,
+# and if the greeter itself fails to render (e.g. its theme depends
+# on a QML import that isn't installed yet), the user lands on a
+# blinking-cursor black screen even though SDDM is "running" per
+# systemctl. Skipping the greeter via [Autologin] is the only
+# reliable way to reach the desktop on every supported guest.
+cat > /etc/sddm.conf.d/01-autologin.conf << 'AUTOCONF'
+[Autologin]
+User=liveuser
+Session=plasmax11
+Relogin=true
+AUTOCONF
+echo ">>> Enabled SDDM autologin for liveuser -> plasmax11 in live ISO"
+
 # ============================================================
 # 9. Install Tela Circle Icon Theme (AUR package workaround)
 # ============================================================
