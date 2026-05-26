@@ -515,11 +515,44 @@ ln -sf /usr/lib/systemd/system/sshd.service /etc/systemd/system/multi-user.targe
 # VirtualBox guest
 ln -sf /usr/lib/systemd/system/vboxservice.service /etc/systemd/system/multi-user.target.wants/vboxservice.service 2>/dev/null || true
 
-# NOTE: SDDM is NOT enabled here for the live ISO
-# The live ISO uses autologin via systemd service
-# SDDM will be enabled by Calamares during installation via the displaymanager module
+# Enable SDDM explicitly + force graphical.target as default for the
+# live ISO. Old comment here said SDDM was NOT enabled in the live
+# ISO because "the live ISO uses autologin via systemd service" -
+# that was when the package was plasma-login-manager (which self-
+# enabled). With plain sddm (post 2026-05-23 swap in
+# packages_desktop.x86_64), nothing enables it implicitly, so the
+# live ISO booted into a text TTY1 with agetty autologin instead of
+# Plasma. Reproduced 2026-05-23 - user saw "[liveuser@genesi ~]$"
+# instead of the desktop.
+#
+# Two symlinks reproduce `systemctl enable sddm` + `systemctl
+# set-default graphical.target` without needing systemctl (which
+# doesn't work inside the chroot at build time).
+mkdir -p /etc/systemd/system
+ln -sf /usr/lib/systemd/system/sddm.service \
+    /etc/systemd/system/display-manager.service
+ln -sf /usr/lib/systemd/system/graphical.target \
+    /etc/systemd/system/default.target
+echo ">>> Enabled sddm.service via display-manager.service symlink"
+echo ">>> Set graphical.target as default.target"
 
-# Run dmcheck to configure display manager for live ISO
+# Kill the getty@tty1 autologin override - it grabs TTY1 before SDDM
+# can claim it, leaving the user stuck at a console prompt while SDDM
+# silently exits because TTY1 is busy. SDDM picks TTY1 by default on
+# Plasma 6; let it.
+rm -f /etc/systemd/system/getty@tty1.service.d/autologin.conf 2>/dev/null
+rmdir /etc/systemd/system/getty@tty1.service.d 2>/dev/null || true
+echo ">>> Removed getty@tty1 autologin override (was preempting SDDM)"
+
+# Strip /etc/plasmalogin.conf.d/ - dead config dir from when the live
+# ISO shipped plasma-login-manager. With sddm in its place, that
+# directory is unreachable noise.
+rm -rf /etc/plasmalogin.conf.d 2>/dev/null
+echo ">>> Removed stale /etc/plasmalogin.conf.d/"
+
+# Run dmcheck to configure display manager for live ISO (now used as
+# a defense-in-depth final pass; the symlinks above already did the
+# real work).
 if [ -f /usr/local/bin/dmcheck ]; then
     echo ">>> Running dmcheck to configure display manager..."
     bash /usr/local/bin/dmcheck
