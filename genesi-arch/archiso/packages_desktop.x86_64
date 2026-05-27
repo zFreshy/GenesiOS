@@ -201,6 +201,10 @@ wpa_supplicant
 wvdial
 xdg-user-dirs-gtk
 xdg-utils
+xf86-video-vesa
 xfsprogs
 xl2tpd
+xorg-server
+xorg-xinit
+xorg-xwayland
 zfs-utils
