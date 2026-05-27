@@ -11,6 +11,20 @@
 
 set -e
 src_dir=$(pwd)
+
+# Lock the build timestamp at script start so iso_version / iso_file /
+# mkarchiso's output filename all agree even if the build crosses midnight.
+# Without this, profiledef.sh (mkarchiso) and util-iso.sh's `mv` line each
+# call `date` at different moments and drift onto different days. Repro
+# 2026-05-26 -> 2026-05-27:
+#   ISO produced: genesi-2026.05.26-x86_64.iso
+#   mv tried:     genesi-2026.05.27-x86_64.iso  -> "No such file"
+# prepare-and-build.sh already does this, but users running buildiso.sh
+# directly skipped that step. Lock it here too so EITHER entry point is
+# safe.
+export SOURCE_DATE_EPOCH="${SOURCE_DATE_EPOCH:-$(date +%s)}"
+echo "🕒 SOURCE_DATE_EPOCH locked to $(date --date="@$SOURCE_DATE_EPOCH" +%Y-%m-%d_%H:%M:%S) ($SOURCE_DATE_EPOCH)"
+
 [[ -r ${src_dir}/util-msg.sh ]] && source ${src_dir}/util-msg.sh
 import ${src_dir}/util.sh
 

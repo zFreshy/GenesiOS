@@ -149,7 +149,9 @@ prepare_profile(){
 
     info "Profile: [%s]" "${profile}"
 
-    local _iso_version="$(date +%y%m%d)"
+    # SOURCE_DATE_EPOCH locked at buildiso.sh start so this matches whatever
+    # gen_iso_fn / mkarchiso's profiledef.sh compute, even across midnight.
+    local _iso_version="$(date --date="@${SOURCE_DATE_EPOCH:-$(date +%s)}" +%y%m%d)"
     change_grub_version "${_iso_version}"
 
     # Fetch up-to-date version of CachyOS repo mirrorlist
@@ -210,7 +212,10 @@ run_build() {
 
     [ -d "$outFolder/$_profile" ] || mkdir -p "$outFolder/$_profile"
     cd ${work_dir}/archiso/
-    sudo mkarchiso -v -w ${work_dir} -o "$outFolder/$_profile" ${work_dir}/archiso/
+    # `sudo` strips the env by default, so SOURCE_DATE_EPOCH would not survive
+    # into mkarchiso -> profiledef.sh -> the output filename. Pass it inline
+    # (sudo preserves vars set on the command line for the target program).
+    sudo SOURCE_DATE_EPOCH="${SOURCE_DATE_EPOCH}" mkarchiso -v -w ${work_dir} -o "$outFolder/$_profile" ${work_dir}/archiso/
 
     sudo chown $USER $outFolder
 
@@ -257,7 +262,9 @@ gen_iso_fn(){
     [[ -n ${profile} ]] && vars+=("${profile}")
 
     vars+=("linux")
-    vars+=("$(date +%y%m%d)")
+    # Use SOURCE_DATE_EPOCH so the pretty filename matches mkarchiso's output
+    # even when the build crosses midnight (see buildiso.sh header).
+    vars+=("$(date --date="@${SOURCE_DATE_EPOCH:-$(date +%s)}" +%y%m%d)")
 
     for n in ${vars[@]}; do
         name=${name:-}${name:+-}${n}
