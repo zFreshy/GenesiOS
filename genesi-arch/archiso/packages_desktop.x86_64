@@ -152,7 +152,6 @@ plasma-desktop
 plasma-integration
 plasma-nm
 plasma-pa
-plasma-wayland-session
 plasma-workspace
 plasma-x11-session
 polkit
