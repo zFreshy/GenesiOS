@@ -103,6 +103,61 @@ BTRFSCONF
                 /etc/calamares/scripts/genesi-prepare-pacman.sh
             echo ">>> Patched genesi-prepare-pacman.sh: keep [genesi] repo"
         fi
+
+        # Reproduced 2026-05-27 inside VirtualBox VMSVGA: SDDM started, the
+        # plasmax11 session file existed, Xorg spawned, then segfaulted in
+        # libglx.so during InitExtensions because no GPU is exposed to the
+        # guest -> screen stuck on boot text forever, three retries then SDDM
+        # gives up. genesi-x11-detect.sh already forces SDDM DisplayServer=x11
+        # when the kernel lacks a real KMS driver; extend it to ALSO drop
+        # /etc/X11/xorg.conf.d/10-genesi-noglx.conf so Xorg loads without the
+        # GLX module and stops crashing. Software-rendered Plasma is slow but
+        # paints, which is the whole point in a VM where the alternative is a
+        # black screen. Real hardware (amdgpu/i915/nvidia/etc.) takes the
+        # else branch and keeps accelerated GLX.
+        if [ -f /etc/calamares/scripts/genesi-x11-detect.sh ]; then
+            cat > /etc/calamares/scripts/genesi-x11-detect.sh <<'X11DETECTEOF'
+#!/bin/bash
+# Drop X11 + GLX fallbacks into the target when the live ISO runs on a
+# broken GPU stack (vmwgfx, vboxvideo, no recognized KMS driver, etc.).
+# Called from shellprocess@copy_genesi (dontChroot: true). Calamares passes
+# the target rootMountPoint as $ROOT.
+set -u
+ROOT="${ROOT:-/mnt}"
+
+mkdir -p "$ROOT/etc/sddm.conf.d" "$ROOT/etc/X11/xorg.conf.d"
+
+need_x11=0
+if lsmod 2>/dev/null | grep -Ewq '^(vmwgfx|vboxvideo)'; then
+    need_x11=1
+elif ! ls /sys/class/drm/card?/device/driver 2>/dev/null \
+       | xargs -r -n1 readlink 2>/dev/null \
+       | grep -Eq 'amdgpu|i915|nouveau|nvidia|radeon|virtio'; then
+    # No recognized KMS driver loaded - safer to fall back to X11.
+    need_x11=1
+fi
+
+if [ "$need_x11" = 1 ]; then
+    printf '[General]\nDisplayServer=x11\n' \
+        > "$ROOT/etc/sddm.conf.d/00-display-server.conf"
+    cat > "$ROOT/etc/X11/xorg.conf.d/10-genesi-noglx.conf" <<'XORGCONF'
+# Genesi OS: disable Xorg's GLX module on systems without GPU accel.
+# libglx.so segfaults during InitExtensions on hypervisors that don't
+# expose a real GPU (VirtualBox VMSVGA reproduced 2026-05-27). Without
+# GLX, Xorg falls back to software rendering - functional, just slow.
+Section "Module"
+    Disable "glx"
+EndSection
+XORGCONF
+    echo "[x11-detect] forced SDDM DisplayServer=x11 + disabled Xorg GLX (no GPU accel)"
+else
+    echo "[x11-detect] keeping SDDM Wayland default + accelerated GLX (KMS driver detected)"
+fi
+exit 0
+X11DETECTEOF
+            chmod +x /etc/calamares/scripts/genesi-x11-detect.sh
+            echo ">>> Rewrote genesi-x11-detect.sh with Xorg noglx fallback"
+        fi
     fi
 
     # Belt-and-suspenders: pre-seed [genesi] into the LIVE ISO's
