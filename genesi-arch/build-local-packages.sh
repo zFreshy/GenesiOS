@@ -43,20 +43,43 @@ for pkg in "${PACKAGES[@]}"; do
     
     cd "$PACKAGES_DIR/$pkg"
     
-    # Build package only if not already built or if forced
-    # We skip building if the package already exists in the repo
-    # This saves a lot of time on subsequent ISO builds
     PKG_NAME=$(grep "^pkgname=" PKGBUILD | cut -d= -f2 | tr -d "'" | tr -d '"')
     PKG_VER=$(grep "^pkgver=" PKGBUILD | cut -d= -f2 | tr -d "'" | tr -d '"')
     PKG_REL=$(grep "^pkgrel=" PKGBUILD | cut -d= -f2 | tr -d "'" | tr -d '"')
-    
-    # Simple check: if a file matching the package name exists in repo, skip
-    if ls "$REPO_DIR/${PKG_NAME}"-*.pkg.tar.zst 1> /dev/null 2>&1; then
-        echo "✅ Package ${PKG_NAME} already exists in repository, skipping build..."
-        cd "$PACKAGES_DIR"
-        echo ""
-        continue
-    fi
+
+    # genesi-* packages MUST always rebuild because their PKGBUILDs use
+    # `source=("git+https://github.com/zFreshy/genesi-*.git")` cloning
+    # HEAD without pinning a commit AND pkgrel is hand-managed. The
+    # previous "skip if .pkg.tar.zst exists" check meant the FIRST build
+    # of genesi-settings/genesi-kde-settings/etc. won, and every ISO
+    # rebuild after that shipped the stale package even when the
+    # upstream repos had dozens of new commits. Reproduced 2026-05-27:
+    # user committed Darkly 70%, klassyrc WindowCornerRadius=14, Kickoff
+    # popup-size fix, etc. across multiple submodule commits and NONE
+    # of them landed on the live ISO because the .pkg.tar.zst in
+    # local-repo/ was older than all of them.
+    #
+    # Third-party packages (libpamac-dummy, etc.) can still be cached
+    # since their PKGBUILD source is pinned to a tarball or upstream
+    # commit and they rarely change.
+    case "$PKG_NAME" in
+        genesi-*)
+            echo "🔄 Forcing rebuild of $PKG_NAME (Genesi packages always rebuild from HEAD)"
+            rm -f "$REPO_DIR/${PKG_NAME}"-*.pkg.tar.zst
+            # Also wipe makepkg's git src cache so it re-clones HEAD
+            # (otherwise makepkg can reuse the previous srcdir's clone
+            # and the new GitHub commits aren't pulled in).
+            rm -rf src
+            ;;
+        *)
+            if ls "$REPO_DIR/${PKG_NAME}"-*.pkg.tar.zst 1> /dev/null 2>&1; then
+                echo "✅ Package ${PKG_NAME} already exists in repository, skipping build..."
+                cd "$PACKAGES_DIR"
+                echo ""
+                continue
+            fi
+            ;;
+    esac
     
     # Clean previous builds
     rm -f *.pkg.tar.zst
