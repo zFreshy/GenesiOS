@@ -4,12 +4,14 @@
 _gitname=genesi-settings
 pkgname=genesi-settings
 pkgver=1.3.4
-# 2026-05-29 v2: bumped 20 -> 21 for genesi-layout.js launcher-array fix.
-# Previous string form left the panel with a single "?" icon containing
-# the concatenated launchers string. Array form makes Plasma 6 write
-# the proper KConfig string-list so each launcher (Dolphin, Firefox,
-# Konsole, System Settings) shows up as a separate icon.
-pkgrel=21
+# 2026-05-29 v3: bumped 21 -> 22 for Kickoff size fixes:
+#   - kwinrc slidingPopupsEnabled=false (stops the visible grow-from-zero
+#     animation that AnimationDurationFactor=0 didn't kill)
+#   - popupHeight 509->300, popupWidth 631->450 (Plasma 6 treats these as
+#     hints and the rendered popup is larger; 300/450 land at a
+#     comfortable ~560x690 instead of the previous oversize)
+# Both kwinrc and genesi-layout.js + the static appletsrc updated.
+pkgrel=22
 epoch=1
 groups=(genesi)
 arch=('any')
