@@ -104,28 +104,33 @@ BTRFSCONF
             echo ">>> Patched genesi-prepare-pacman.sh: keep [genesi] repo"
         fi
 
-        # Reproduced 2026-05-27 inside VirtualBox VMSVGA: SDDM started, the
-        # plasmax11 session file existed, Xorg spawned, then segfaulted in
-        # libglx.so during InitExtensions because no GPU is exposed to the
-        # guest -> screen stuck on boot text forever, three retries then SDDM
-        # gives up. genesi-x11-detect.sh already forces SDDM DisplayServer=x11
-        # when the kernel lacks a real KMS driver; extend it to ALSO drop
-        # /etc/X11/xorg.conf.d/10-genesi-noglx.conf so Xorg loads without the
-        # GLX module and stops crashing. Software-rendered Plasma is slow but
-        # paints, which is the whole point in a VM where the alternative is a
-        # black screen. Real hardware (amdgpu/i915/nvidia/etc.) takes the
-        # else branch and keeps accelerated GLX.
+        # 2026-05-29: dropped the Xorg-noglx write from genesi-x11-detect.sh.
+        # Disabling GLX kept Xorg from segfaulting in VMs but also killed
+        # KWin's OpenGL compositing - so Plasma rendered without rounded
+        # corners, without blur, without transparency. User confirmed
+        # WindowCornerRadius=14 was correctly in ~/.config/klassyrc but
+        # the windows were still square. With this revert, we trust the
+        # natural Xorg fallback path (mesa llvmpipe when no real GPU
+        # exists) and let KWin compose properly.
+        #
+        # genesi-x11-detect.sh's role is now just: force SDDM
+        # DisplayServer=x11 when the target lacks a healthy KMS driver
+        # (Wayland sessions are flaky on hypervisors without GPU accel,
+        # X11 with software rendering is reliable). No more xorg.conf.d
+        # writes from this script.
         if [ -f /etc/calamares/scripts/genesi-x11-detect.sh ]; then
             cat > /etc/calamares/scripts/genesi-x11-detect.sh <<'X11DETECTEOF'
 #!/bin/bash
-# Drop X11 + GLX fallbacks into the target when the live ISO runs on a
-# broken GPU stack (vmwgfx, vboxvideo, no recognized KMS driver, etc.).
-# Called from shellprocess@copy_genesi (dontChroot: true). Calamares passes
-# the target rootMountPoint as $ROOT.
+# Force SDDM DisplayServer=x11 in the target when the live ISO ran on a
+# guest that lacks a healthy KMS driver. Wayland sessions need working
+# GBM/EGL on top of DRM, which most VMs don't provide reliably; X11
+# falls back to software rendering and always paints.
+# Called from shellprocess@copy_genesi (dontChroot: true). Calamares
+# passes the target rootMountPoint as $ROOT.
 set -u
 ROOT="${ROOT:-/mnt}"
 
-mkdir -p "$ROOT/etc/sddm.conf.d" "$ROOT/etc/X11/xorg.conf.d"
+mkdir -p "$ROOT/etc/sddm.conf.d"
 
 need_x11=0
 if lsmod 2>/dev/null | grep -Ewq '^(vmwgfx|vboxvideo)'; then
@@ -133,30 +138,20 @@ if lsmod 2>/dev/null | grep -Ewq '^(vmwgfx|vboxvideo)'; then
 elif ! ls /sys/class/drm/card?/device/driver 2>/dev/null \
        | xargs -r -n1 readlink 2>/dev/null \
        | grep -Eq 'amdgpu|i915|nouveau|nvidia|radeon|virtio'; then
-    # No recognized KMS driver loaded - safer to fall back to X11.
     need_x11=1
 fi
 
 if [ "$need_x11" = 1 ]; then
     printf '[General]\nDisplayServer=x11\n' \
         > "$ROOT/etc/sddm.conf.d/00-display-server.conf"
-    cat > "$ROOT/etc/X11/xorg.conf.d/10-genesi-noglx.conf" <<'XORGCONF'
-# Genesi OS: disable Xorg's GLX module on systems without GPU accel.
-# libglx.so segfaults during InitExtensions on hypervisors that don't
-# expose a real GPU (VirtualBox VMSVGA reproduced 2026-05-27). Without
-# GLX, Xorg falls back to software rendering - functional, just slow.
-Section "Module"
-    Disable "glx"
-EndSection
-XORGCONF
-    echo "[x11-detect] forced SDDM DisplayServer=x11 + disabled Xorg GLX (no GPU accel)"
+    echo "[x11-detect] forced SDDM DisplayServer=x11 (no healthy KMS driver detected)"
 else
-    echo "[x11-detect] keeping SDDM Wayland default + accelerated GLX (KMS driver detected)"
+    echo "[x11-detect] keeping SDDM Wayland default (KMS driver detected)"
 fi
 exit 0
 X11DETECTEOF
             chmod +x /etc/calamares/scripts/genesi-x11-detect.sh
-            echo ">>> Rewrote genesi-x11-detect.sh with Xorg noglx fallback"
+            echo ">>> Rewrote genesi-x11-detect.sh (SDDM x11 fallback only, no GLX disable)"
         fi
     fi
 
@@ -633,29 +628,22 @@ find /etc/xdg/autostart -name "*.desktop" -exec sed -i 's/CachyOS/Genesi OS/g' {
 find /etc -name "*.conf" -path "*/sddm*" -exec sed -i 's/CachyOS/Genesi OS/g' {} + 2>/dev/null || true
 
 # ============================================================
-# 8a. VirtualBox / VMware: blacklist vmwgfx so SDDM survives
+# 8a. (REMOVED 2026-05-29) vmwgfx kernel blacklist.
 # ============================================================
-# 2026-05-22: a user installed Genesi on a VirtualBox VM (default VMSVGA
-# graphics adapter) and the system booted to a black screen with a
-# blinking cursor. journalctl -b -p err showed:
-#   vmwgfx [drm] *ERROR* vmwgfx seems to be running on an unsupported hypervisor
-#   vmwgfx [drm] *ERROR* This configuration is likely broken.
-# The vmwgfx driver tries to bind to VMware-compatible PCI IDs (which
-# VirtualBox's VMSVGA adapter advertises) and explodes because the
-# actual hypervisor is not VMware. SDDM starts, the greeter even
-# authenticates, but renders to a dead framebuffer so the user sees
-# nothing. Blacklisting vmwgfx forces the kernel to fall back to
-# simpledrm/vesa, which is unaccelerated but works on every hypervisor.
-# Real VMware installs that genuinely want vmwgfx are rare enough that
-# this default is the right call; users who actually need vmwgfx can
-# delete this file post-install.
-mkdir -p /etc/modprobe.d
-cat > /etc/modprobe.d/genesi-blacklist-vmwgfx.conf << 'VMWGFXCONF'
-# Genesi OS: vmwgfx misbinds to VirtualBox VMSVGA and breaks the display.
-# See customize_airootfs.sh section 8a for context.
-blacklist vmwgfx
-VMWGFXCONF
-echo ">>> Blacklisted vmwgfx (prevents VirtualBox black-screen boot)"
+# Previously we wrote /etc/modprobe.d/genesi-blacklist-vmwgfx.conf to
+# force vmwgfx out, after one user reported a black screen in VBox
+# VMSVGA on 2026-05-22. The blacklist worked but left VBox VMSVGA with
+# NO DRM driver at all (vboxvideo doesn't bind to VMSVGA, simpledrm
+# only loads on UEFI), which forced us into nomodeset + Xorg noglx
+# workarounds that in turn killed KWin's OpenGL compositing - so
+# Plasma rendered without rounded corners, blur, or transparency.
+#
+# CachyOS doesn't blacklist vmwgfx and the live ISO works there. On
+# modern kernels vmwgfx's "unsupported hypervisor" message is a
+# warning, not a fatal error - the driver still provides a usable
+# framebuffer in most cases. If a specific user reports a regression,
+# add a tailored fix (e.g. modprobe option, runtime detection) instead
+# of carpet-bombing the whole graphics stack.
 
 # ============================================================
 # 8. Configure SDDM theme
