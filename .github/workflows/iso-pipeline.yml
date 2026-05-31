@@ -37,6 +37,13 @@ jobs:
         with:
           submodules: recursive
 
+      - name: 💾 Liberar espaço em disco
+        run: |
+          df -h / || true
+          rm -rf /usr/share/dotnet /opt/ghc /usr/local/share/boost \
+                 /usr/local/lib/android "${AGENT_TOOLSDIRECTORY:-}" 2>/dev/null || true
+          df -h / || true
+
       - name: 🔑 Preparar pacman/keyring
         run: |
           pacman -Sy --noconfirm --needed \
