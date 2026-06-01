@@ -1,43 +1,65 @@
 name: Genesi ISO Pipeline
 
-# Build a fresh ISO on every push to main, but ONLY after validating that the
-# install actually resolves/installs (Job 1). This is completely separate from
-# publish-packages.yml (the package/update feed) and does not touch it.
+# Builds a validated ISO and publishes it as a GitHub Release (fast CDN
+# download), separate from publish-packages.yml (the package/update feed).
 #
 #   Job 1 validate-install : reproduces the Calamares install (dep dry-run +
 #                            real pacstrap in a throwaway root). Fails early so
 #                            a broken package set never reaches a build.
-#   Job 2 build-iso        : runs only if Job 1 passed; mkarchiso -> .iso,
-#                            uploaded as an artifact (and a Release on tags).
-
+#   Job 2 build-iso        : runs only if Job 1 passed; mkarchiso -> .iso ->
+#                            uploaded as an artifact AND published to a Release:
+#                              * tags  v* -> a versioned Release
+#                              * main     -> the always-fresh "rolling" Release
+#
+# ── Why the triggers look the way they do (the "both pipelines race" fix) ────
+# Adding a new genesi-* package means: PKGBUILD under genesi-arch/packages/**
+# (built by publish-packages.yml) PLUS a reference in the Calamares
+# netinstall (the genesi-calamares-config submodule). If the ISO built on the
+# SAME push, validate-install would run before publish-packages had published
+# the package to the [genesi] repo -> "target not found" -> false failure.
+#
+# So the ISO no longer builds on package/calamares pushes directly. Instead:
+#   * workflow_run: build AFTER publish-packages succeeds on main, when the
+#     [genesi] repo already has the new packages. No race, ever.
+#   * push:         only for ISO inputs publish-packages does NOT handle
+#     (archiso profile / build scripts / this workflow). packages/** and repo/**
+#     are excluded so the publish bot-commit + PKGBUILD changes go through the
+#     workflow_run path instead of racing here.
+#   * tags v*:      cut a versioned Release.
 on:
+  workflow_run:
+    workflows: ["Build and Publish Packages"]
+    types: [completed]
   push:
     branches: [main]
     tags: ['v*']
-    # Only build when something that actually changes the ISO changes. A
-    # docs/markdown commit must NOT spend ~30 min building an ISO. ISO inputs:
-    # the archiso profile + build scripts + package lists (genesi-arch/**), the
-    # Calamares config submodule pointer, and this workflow itself. The trailing
-    # !**/*.md drops markdown even inside those paths. Need a build anyway?
-    # use the "Run workflow" button (workflow_dispatch) or push a v* tag.
     paths:
       - 'genesi-arch/**'
-      - 'genesi-calamares-config-full'
+      - '!genesi-arch/packages/**'
+      - '!genesi-arch/repo/**'
       - '.github/workflows/iso-pipeline.yml'
       - '!**/*.md'
   workflow_dispatch:
 
-# A newer push supersedes an in-flight run (saves Actions minutes).
+# A newer run supersedes an in-flight one (saves Actions minutes).
 concurrency:
   group: iso-pipeline-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
-  contents: write   # needed to create a Release on tags
+  contents: write   # needed to create Releases
 
 jobs:
   # ── JOB 1 ────────────────────────────────────────────────────────────────
   validate-install:
+    # When triggered by publish-packages completing, only proceed if that run
+    # SUCCEEDED and was on main (a failed publish must not build an ISO from a
+    # half-published repo). Other events (push to ISO inputs, tag, dispatch)
+    # always run.
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-latest
     container:
       image: cachyos/cachyos-v3:latest
@@ -47,6 +69,9 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: recursive
+          # For workflow_run, default checkout = default branch HEAD (main),
+          # which already includes the publish bot-commit, so the [genesi] repo
+          # served from raw.githubusercontent/main has the new packages.
 
       - name: 💾 Liberar espaço em disco
         run: |
@@ -138,7 +163,8 @@ jobs:
           retention-days: 14
           if-no-files-found: error
 
-      - name: 🚀 Publicar Release (apenas em tags)
+      # ── Releases (fast CDN download, resumable, aria2/IDM-friendly) ────────
+      - name: 🚀 Publicar Release versionado (tags v*)
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
@@ -146,3 +172,31 @@ jobs:
             genesi-arch/out/**/*.iso
             genesi-arch/out/**/*.iso.sha256
           generate_release_notes: true
+
+      - name: 🌀 Preparar asset rolling (nome estável)
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        run: |
+          # Stable filename so the rolling Release always has the same download
+          # URL and softprops replaces the asset instead of piling up dated ones:
+          #   https://github.com/zFreshy/GenesiOS/releases/download/rolling/genesi-os-latest.iso
+          cp "$ISO_PATH" genesi-os-latest.iso
+          sha256sum genesi-os-latest.iso | tee genesi-os-latest.iso.sha256
+
+      - name: 🌀 Publicar/atualizar Release rolling (builds da main)
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: rolling
+          prerelease: true
+          name: "Genesi OS — rolling (latest main build)"
+          body: |
+            Always-fresh ISO rebuilt from the latest `main` build.
+
+            Fast CDN download (resumable, works with aria2/IDM):
+            ```
+            aria2c -x16 -s16 https://github.com/zFreshy/GenesiOS/releases/download/rolling/genesi-os-latest.iso
+            ```
+            For a pinned, versioned ISO use a `v*` tagged Release instead.
+          files: |
+            genesi-os-latest.iso
+            genesi-os-latest.iso.sha256
