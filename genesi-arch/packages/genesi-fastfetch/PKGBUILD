@@ -9,7 +9,8 @@ pkgver=1.0.0
 #    /etc/profile.d (login-only) — Konsole opens a non-login interactive bash.
 #    Now wired into /etc/bash.bashrc (every interactive bash) via the scriptlet.
 #  * Reworked the ASCII logo (the old dot-blob looked bad).
-pkgrel=2
+# 2026-06-01 (rel 3): new Braille-art Genesi leaf logo (user-provided).
+pkgrel=3
 pkgdesc="Branded fastfetch greeting (logo + system info) for Genesi OS terminals"
 arch=('any')
 url="https://github.com/zFreshy/GenesiOS"
