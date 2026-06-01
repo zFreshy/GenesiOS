@@ -81,6 +81,10 @@ jobs:
           # mkarchiso roda como root; prepare-and-build.sh espera um usuário
           # NÃO-root + sudo (recusa rodar como root). Criamos esse usuário.
           pacman -Sy --noconfirm --needed archiso sudo base-devel git
+          # The build-driver scripts are committed without the exec bit
+          # (Windows checkouts), so `sudo ./buildiso.sh` -> "command not found".
+          # mkarchiso handles airootfs script perms itself via profiledef.sh.
+          chmod +x genesi-arch/*.sh
           useradd -m builder || true
           echo "builder ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/builder
           chown -R builder:builder "$GITHUB_WORKSPACE"
