@@ -1,0 +1,24 @@
+# Genesi OS - enable the update-check timer for all users by default.
+#
+# genesi-update.timer is a PER-USER systemd unit (/usr/lib/systemd/user/) that
+# runs the update check at boot + once a day; the tray applet (genesi-update
+# --tray) only lights up / shows its systray icon when that check finds updates.
+# It shipped as `disabled` (preset enabled, but per-user presets aren't applied
+# at install time), so on the 2026-06-01 install the timer never ran -> the tray
+# stayed silent and the "updates available" button never appeared.
+#
+# Symlinking it into the GLOBAL user target enables it for every user (existing
+# and future) on their next login, with no per-user `systemctl --user enable`.
+
+_enable_timer() {
+    install -d /etc/systemd/user/timers.target.wants 2>/dev/null || true
+    ln -sf /usr/lib/systemd/user/genesi-update.timer \
+        /etc/systemd/user/timers.target.wants/genesi-update.timer 2>/dev/null || true
+}
+
+post_install() { _enable_timer; }
+post_upgrade() { _enable_timer; }
+
+post_remove() {
+    rm -f /etc/systemd/user/timers.target.wants/genesi-update.timer 2>/dev/null || true
+}

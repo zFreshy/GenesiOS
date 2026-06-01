@@ -2,8 +2,12 @@
 # Source: https://github.com/zFreshy/genesi-update (fork of CachyOS/cachy-update)
 pkgname=genesi-update
 pkgver=1.0.0
-pkgrel=1
+# 2026-06-01 (2): add genesi-update.install — enable genesi-update.timer for all
+# users globally. It shipped disabled, so the auto update-check never ran and
+# the systray "updates available" icon never lit up on installed systems.
+pkgrel=2
 pkgdesc="Interactive update notifier & applier for Genesi OS with systray applet"
+install='genesi-update.install'
 arch=('any')
 url="https://github.com/zFreshy/genesi-update"
 license=('GPL-3.0-or-later')
