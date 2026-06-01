@@ -146,6 +146,8 @@ jobs:
             "genesi-darkly"
             # Branded GRUB background (no more black "Arch Linux" menu).
             "genesi-grub-theme"
+            # Branded fastfetch greeting (logo + system info) in the terminal.
+            "genesi-fastfetch"
           )
 
           for pkg in "${PACKAGES[@]}"; do

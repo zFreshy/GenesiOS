@@ -1,0 +1,48 @@
+{
+  "$schema": "https://github.com/fastfetch-cli/fastfetch/raw/dev/doc/json_schema.json",
+  "logo": {
+    "type": "file",
+    "source": "/usr/share/genesi/fastfetch/genesi-logo.txt",
+    "color": {
+      "1": "38;2;29;158;117",
+      "2": "38;2;225;245;238"
+    },
+    "padding": { "top": 1, "right": 3, "left": 2 }
+  },
+  "display": {
+    "separator": "  ",
+    "color": {
+      "keys": "38;2;29;158;117",
+      "title": "38;2;29;158;117"
+    }
+  },
+  "modules": [
+    { "type": "title" },
+    "separator",
+    { "type": "os", "key": "OS" },
+    { "type": "host", "key": "Host" },
+    { "type": "kernel", "key": "Kernel" },
+    { "type": "uptime", "key": "Uptime" },
+    { "type": "packages", "key": "Packages" },
+    { "type": "shell", "key": "Shell" },
+    { "type": "display", "key": "Display" },
+    { "type": "de", "key": "DE" },
+    { "type": "wm", "key": "WM" },
+    { "type": "wmtheme", "key": "WM Theme" },
+    { "type": "theme", "key": "Theme" },
+    { "type": "icons", "key": "Icons" },
+    { "type": "font", "key": "Font" },
+    { "type": "cursor", "key": "Cursor" },
+    { "type": "terminal", "key": "Terminal" },
+    { "type": "cpu", "key": "CPU" },
+    { "type": "gpu", "key": "GPU" },
+    { "type": "memory", "key": "Memory" },
+    { "type": "swap", "key": "Swap" },
+    { "type": "disk", "key": "Disk" },
+    { "type": "localip", "key": "Local IP" },
+    { "type": "battery", "key": "Battery" },
+    { "type": "locale", "key": "Locale" },
+    "break",
+    { "type": "colors", "symbol": "circle", "paddingLeft": 2 }
+  ]
+}
