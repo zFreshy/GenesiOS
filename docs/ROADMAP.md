@@ -42,7 +42,7 @@
 - [x] Calamares installer rebranded to "Instalador Genesi OS"
 - [x] KWin blur and translucency enabled (glassmorphism)
 - [x] Floating panel with app icons
-- [ ] Rounded window corners (needs Klassy or kwin-effect-rounded-corners - Phase 5)
+- [x] Rounded window corners (needs Klassy or kwin-effect-rounded-corners - Phase 5)
 
 ---
 
