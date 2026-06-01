@@ -80,7 +80,12 @@ jobs:
         run: |
           # mkarchiso roda como root; prepare-and-build.sh espera um usuário
           # NÃO-root + sudo (recusa rodar como root). Criamos esse usuário.
-          pacman -Sy --noconfirm --needed archiso sudo base-devel git
+          # archiso + the host tools the profile's bootmodes need:
+          #   uefi.grub  -> grub (grub-install)      bios.syslinux -> syslinux
+          #   EFI image  -> mtools + dosfstools       ISO           -> libisoburn (xorriso)
+          #   squashfs airootfs -> squashfs-tools
+          pacman -Sy --noconfirm --needed archiso sudo base-devel git \
+            grub syslinux mtools dosfstools libisoburn squashfs-tools
           # The build-driver scripts are committed without the exec bit
           # (Windows checkouts), so `sudo ./buildiso.sh` -> "command not found".
           # mkarchiso handles airootfs script perms itself via profiledef.sh.
