@@ -45,6 +45,11 @@ DRM_PATH      = "/sys/class/drm"
 POLL_SECONDS = 5
 AI_NICE      = -5
 
+# Thermal guard thresholds (°C), with hysteresis. Only acts on machines that
+# actually expose temps and where we took over the governor — never on a VM.
+CPU_HOT_C, CPU_COOL_C = 90, 82
+GPU_HOT_C, GPU_COOL_C = 85, 77
+
 AI_PROCESSES = [
     "ollama", "llama-server", "llama-cli", "llama.cpp",
     "vllm", "localai", "text-generation-webui", "koboldcpp", "oobabooga",
@@ -225,6 +230,7 @@ class AIOptimizer:
         self.originals = {}
         self.applied = []           # human-readable list for the widget/CLI
         self.ai_processes = []
+        self.throttled = False      # thermal guard eased the governor
         self._restore_originals_on_start()
 
     # ── detection ────────────────────────────────────────────────────────────
@@ -438,6 +444,7 @@ class AIOptimizer:
                 continue
 
         self.ai_mode_active = False
+        self.throttled = False
         self.applied = []
         self._clear_originals()
         logger.info("AI Mode disabled")
@@ -475,6 +482,26 @@ class AIOptimizer:
                     p.resume()
             except (psutil.NoSuchProcess, psutil.AccessDenied):
                 continue
+
+    # ── thermal guard ────────────────────────────────────────────────────────
+    def thermal_guard(self, metrics):
+        """If the machine runs too hot under AI Mode, ease the governor back to
+        its original so we avoid hard thermal throttling (which is net-slower);
+        restore performance once it cools. No-op without temps / governor (VM)."""
+        if not self.aggressive or "governor" not in self.originals:
+            return
+        cpu = metrics.get("cpu_temp_c")
+        gtemps = [g.get("temp_c") for g in metrics.get("gpus", []) if g.get("temp_c")]
+        hot = (cpu is not None and cpu >= CPU_HOT_C) or any(t >= GPU_HOT_C for t in gtemps)
+        cool = (cpu is None or cpu <= CPU_COOL_C) and all(t <= GPU_COOL_C for t in gtemps)
+        if hot and not self.throttled:
+            self._set_governor(self.originals.get("governor") or "schedutil")
+            self.throttled = True
+            logger.warning("Thermal guard: hot (cpu=%sC) — easing governor", cpu)
+        elif cool and self.throttled:
+            self._set_governor("performance")
+            self.throttled = False
+            logger.info("Thermal guard: cooled — performance restored")
 
     # ── live metrics (read-only; GPU polled only while AI Mode is on) ────────
     def collect_metrics(self):
@@ -581,7 +608,7 @@ class AIOptimizer:
             return False
 
     # ── state export ─────────────────────────────────────────────────────────
-    def _save_state(self, force_mode):
+    def _save_state(self, force_mode, metrics):
         procs = []
         for p in self.ai_processes:
             try:
@@ -592,11 +619,12 @@ class AIOptimizer:
             "ai_mode_active": self.ai_mode_active,
             "force_mode": force_mode or "auto",
             "aggressive": self.aggressive,
+            "throttled": self.throttled,
             "applied": self.applied,
             "ai_processes": procs,
             "ollama": self.ollama_status(),
             "hardware": self.hw.summary(),
-            "metrics": self.collect_metrics(),
+            "metrics": metrics,
             "timestamp": time.time(),
         }
         try:
@@ -628,7 +656,10 @@ class AIOptimizer:
                 if self.ai_mode_active:
                     self.prioritize_ai_processes()
 
-                self._save_state(force)
+                metrics = self.collect_metrics()
+                if self.ai_mode_active:
+                    self.thermal_guard(metrics)
+                self._save_state(force, metrics)
                 time.sleep(POLL_SECONDS)
             except KeyboardInterrupt:
                 logger.info("Shutting down...")

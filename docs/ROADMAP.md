@@ -214,8 +214,9 @@ once and gates every optimizer on detected capabilities.
 - [x] Ollama awareness via `/api/ps`: loaded model name, size, CPU/GPU split
 - [ ] Live tokens/s (needs log/stream parsing) surfaced in the widget
 - [ ] Before/after summary of exactly what AI Mode changed
-- [ ] **Thermal guard**: back off if the CPU/GPU is throttling (so "max perf"
-      never becomes net-slower)
+- [x] **Thermal guard**: if the CPU/GPU runs too hot under AI Mode, ease the
+      governor (hysteresis) so "max perf" never becomes net-slower; restore when
+      it cools. No-op on machines without temp sensors (e.g. a VM)
 - [ ] **`genesi-ai-mode bench`**: run an identical prompt with AI Mode OFF then
       ON and print the tokens/s delta (with VM caveat)
 - [ ] **Model advisor**: given model + hardware, recommend quant / offload / context

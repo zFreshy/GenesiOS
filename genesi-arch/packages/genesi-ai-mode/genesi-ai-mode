@@ -63,6 +63,8 @@ procs = s.get("ai_processes", [])
 print("AI procs: " + (", ".join(f"{p['name']}({p['pid']})" for p in procs) or "none"))
 applied = s.get("applied", [])
 print("Applied : " + (", ".join(applied) if applied else "—"))
+if s.get("throttled"):
+    print("Thermal : THROTTLED (governor eased to cool down)")
 mt = s.get("metrics", {})
 if mt:
     ram = f"{mt.get('ram_used_mb',0)}/{mt.get('ram_total_mb',0)}MB"
