@@ -47,6 +47,15 @@ AI_PROCESSES = [
     "vllm", "localai", "text-generation-webui", "koboldcpp", "oobabooga",
 ]
 
+# File indexers that thrash CPU/IO. Safe to SIGSTOP while AI runs and SIGCONT
+# afterwards (they just resume indexing) — pausing them also saves power, so we
+# do it even on battery. We deliberately do NOT touch package managers.
+BACKGROUND_HOGS = (
+    "baloo_file", "baloo_file_extractor",
+    "tracker-miner-fs-3", "tracker-miner-fs",
+    "tracker-extract-3", "tracker-extract",
+)
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -385,6 +394,9 @@ class AIOptimizer:
         if _write(THP_ENABLED, "always"):
             self.applied.append("THP: always")
 
+        # Pause file indexers (CPU/IO hogs) — safe, reversible, also saves power
+        self._pause_background()
+
         # Power-hungry knobs only when on AC (or explicitly forced)
         if self.aggressive:
             o["power_profile"] = self._read_power_profile()
@@ -414,6 +426,7 @@ class AIOptimizer:
             self._restore_power_profile(o["power_profile"])
         self._nvidia_restore(o.get("nvidia"))
         self._amd_restore(o.get("amd"))
+        self._resume_background()
 
         for proc in self.ai_processes:
             try:
@@ -432,6 +445,31 @@ class AIOptimizer:
                 if proc.nice() != AI_NICE:
                     proc.nice(AI_NICE)
                     logger.info(f"Prioritized {proc.name()} (PID {proc.pid})")
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                continue
+
+    # ── background indexers (SIGSTOP while AI runs, SIGCONT after) ────────────
+    def _pause_background(self):
+        paused = 0
+        for p in psutil.process_iter(["pid", "name"]):
+            try:
+                if (p.info["name"] or "") in BACKGROUND_HOGS:
+                    p.suspend()
+                    paused += 1
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                continue
+        if paused:
+            self.applied.append(f"paused indexers ({paused})")
+            logger.info(f"Paused {paused} background indexer(s)")
+        return paused
+
+    def _resume_background(self):
+        # Resume by name (robust to PID churn / a daemon restart). SIGCONT to an
+        # already-running process is a harmless no-op.
+        for p in psutil.process_iter(["pid", "name"]):
+            try:
+                if (p.info["name"] or "") in BACKGROUND_HOGS:
+                    p.resume()
             except (psutil.NoSuchProcess, psutil.AccessDenied):
                 continue
 

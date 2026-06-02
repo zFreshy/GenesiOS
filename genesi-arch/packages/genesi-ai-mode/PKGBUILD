@@ -2,7 +2,7 @@
 
 pkgname=genesi-ai-mode
 pkgver=1.0.0
-pkgrel=4
+pkgrel=5
 pkgdesc='Genesi OS AI Mode - adaptive, reversible local-AI optimizer (CPU/GPU/power) + Plasma widget'
 arch=('any')
 url='https://github.com/zFreshy/GenesiOS'
@@ -33,6 +33,10 @@ package() {
     # Static sysctl tuning
     install -Dm644 "${startdir}/99-genesi-ai.conf" \
         "$pkgdir/etc/sysctl.d/99-genesi-ai.conf"
+
+    # Ollama defaults (only applies once Ollama is installed)
+    install -Dm644 "${startdir}/genesi-ollama.conf" \
+        "$pkgdir/usr/lib/systemd/system/ollama.service.d/10-genesi.conf"
 
     # Plasma widget (status display + manual toggle). Not auto-added to the
     # panel — the org.kde.plasma.icon launcher in the default layout already

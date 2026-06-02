@@ -187,14 +187,16 @@ once and gates every optimizer on detected capabilities.
 - [ ] `cpuset`/cgroup the AI process onto performance cores (system keeps the rest)
 
 #### 2.8.5 ⚡ Quiet the background during inference
-- [ ] Pause CPU/RAM/IO hogs while AI runs: `baloo` (file indexer), update/
-      packagekit jobs, trackers — and resume them on disable
+- [x] Pause file indexers (`baloo`, `tracker`) with SIGSTOP while AI runs, resume
+      with SIGCONT on disable (safe + saves power; package managers untouched)
+- [ ] Also pause other CPU/RAM/IO hogs on demand (opt-in list)
 - [ ] Compositor effect trimming done **in the user session** (helper reads
       `state.json` and toggles KWin blur/effects)
 
 #### 2.8.6 ⚡ Inference-engine auto-tuning
-- [ ] Ollama env: `OLLAMA_FLASH_ATTENTION=1`, `OLLAMA_KV_CACHE_TYPE=q8_0`,
-      `OLLAMA_NUM_PARALLEL`, `OLLAMA_MAX_LOADED_MODELS`, keep-alive
+- [x] Ollama defaults via systemd drop-in: `OLLAMA_FLASH_ATTENTION=1`,
+      `OLLAMA_KV_CACHE_TYPE=q8_0`, `OLLAMA_KEEP_ALIVE=15m`
+- [ ] `OLLAMA_NUM_PARALLEL` / `OLLAMA_MAX_LOADED_MODELS` tuned to RAM/VRAM
 - [ ] Auto-pick `num_gpu` (offload layers) from detected VRAM vs model size
 - [ ] Equivalent flags for llama.cpp / llama-server
 

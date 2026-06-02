@@ -3,6 +3,8 @@ post_install() {
     systemd-tmpfiles --create /usr/lib/tmpfiles.d/genesi-ai-mode.conf 2>/dev/null || true
     echo "==> Applying AI Mode sysctl tuning..."
     sysctl --system >/dev/null 2>&1 || true
+    # Pick up the Ollama drop-in (no-op until Ollama is installed).
+    systemctl daemon-reload 2>/dev/null || true
     echo "==> Enabling genesi-aid service..."
     systemctl enable genesi-aid.service 2>/dev/null || true
     echo "==> AI Mode is ready. Start now with: sudo systemctl start genesi-aid"
