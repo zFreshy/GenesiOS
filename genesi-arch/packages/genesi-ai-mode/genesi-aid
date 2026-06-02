@@ -23,8 +23,11 @@ import shutil
 import logging
 import tempfile
 import subprocess
+import urllib.request
 
 import psutil
+
+OLLAMA_API = "http://127.0.0.1:11434/api/ps"
 
 # ── Paths ────────────────────────────────────────────────────────────────────
 RUN_DIR        = "/run/genesi-ai-mode"
@@ -478,6 +481,7 @@ class AIOptimizer:
         vm = psutil.virtual_memory()
         metrics = {
             "cpu_percent": round(psutil.cpu_percent(interval=None), 1),
+            "cpu_temp_c": self._cpu_temp(),
             "ram_used_mb": int(vm.used / (1024 * 1024)),
             "ram_total_mb": self.hw.total_ram_mb,
             "gpus": [],
@@ -527,6 +531,55 @@ class AIOptimizer:
             pass
         return None
 
+    def _cpu_temp(self):
+        try:
+            temps = psutil.sensors_temperatures()
+        except (AttributeError, OSError):
+            return None
+        for key in ("k10temp", "coretemp", "zenpower", "acpitz", "cpu_thermal"):
+            entries = temps.get(key)
+            if entries:
+                return round(entries[0].current)
+        for entries in temps.values():       # fallback: any available sensor
+            if entries:
+                return round(entries[0].current)
+        return None
+
+    def ollama_status(self):
+        """Loaded Ollama models via the local API — only when ollama is running."""
+        if not any(self._is_ollama(p) for p in self.ai_processes):
+            return None
+        try:
+            with urllib.request.urlopen(OLLAMA_API, timeout=2) as r:
+                data = json.loads(r.read().decode())
+        except Exception as e:
+            logger.debug(f"ollama /api/ps: {e}")
+            return None
+        models = []
+        for mdl in data.get("models", []):
+            size = mdl.get("size") or 0
+            vram = mdl.get("size_vram") or 0
+            if size and vram >= size:
+                where = "GPU"
+            elif vram == 0:
+                where = "CPU"
+            else:
+                where = "CPU+GPU"
+            models.append({
+                "name": mdl.get("name") or mdl.get("model"),
+                "size_mb": int(size / (1024 * 1024)) if size else None,
+                "vram_mb": int(vram / (1024 * 1024)) if vram else None,
+                "where": where,
+            })
+        return models
+
+    @staticmethod
+    def _is_ollama(proc):
+        try:
+            return "ollama" in proc.name().lower()
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            return False
+
     # ── state export ─────────────────────────────────────────────────────────
     def _save_state(self, force_mode):
         procs = []
@@ -541,6 +594,7 @@ class AIOptimizer:
             "aggressive": self.aggressive,
             "applied": self.applied,
             "ai_processes": procs,
+            "ollama": self.ollama_status(),
             "hardware": self.hw.summary(),
             "metrics": self.collect_metrics(),
             "timestamp": time.time(),

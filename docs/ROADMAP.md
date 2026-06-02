@@ -14,8 +14,9 @@
 | **Phase 1 — Visual Identity** | ✅ Complete |
 | **Phase 2 — AI Mode (local AI optimizations)** | 🟩 ~90% (core shipping) |
 | **Phase 3 — Own Packages & Repository** | ✅ Operational (8 packages shipping) |
-| **Phase 4 — IDE & Dev Tools** | ⬜ Pending |
+| **Phase 4 — IDE & Dev Tools** (Genesi Code, fork of Warp) | ⬜ Pending |
 | **Phase 5 — Polish & Distribution** | ⬜ Pending |
+| **Phase 6 — Welcome & Control Center** (app installer + tweaks) | ⬜ Pending |
 
 ### Two production CI pipelines
 
@@ -42,8 +43,9 @@ See [Build & Release Infrastructure](#build--release-infrastructure) for details
 1. **Phase 1** — Visual Identity ✅ **Complete**
 2. **Phase 2** — AI Mode (local AI optimizations) 🟩 **~90%**
 3. **Phase 3** — Own Packages & Repository (infrastructure) ✅ **Operational**
-4. **Phase 4** — IDE & Dev Tools ⬜ Pending
+4. **Phase 4** — IDE & Dev Tools (Genesi Code, fork of Warp) ⬜ Pending
 5. **Phase 5** — Polish & Distribution ⬜ Pending
+6. **Phase 6** — Genesi Welcome & Control Center ⬜ Pending
 
 ---
 
@@ -206,9 +208,11 @@ once and gates every optimizer on detected capabilities.
 - [ ] Integrate CachyOS `sched-ext` throughput schedulers while AI Mode is on
 
 #### 2.8.8 🧠 Intelligence, metrics & UX
-- [x] **Live metrics** in `state.json` + `genesi-ai-mode info`: CPU%, RAM, and
-      (while AI Mode is on) GPU utilization / VRAM / temperature (NVIDIA + AMD)
-- [ ] Surface tokens/s (Ollama `/api/ps`) and package power; show in the widget
+- [x] **Live metrics** in `state.json` + `genesi-ai-mode info`: CPU% +
+      temperature, RAM, and (while AI Mode is on) GPU utilization / VRAM /
+      temperature (NVIDIA + AMD)
+- [x] Ollama awareness via `/api/ps`: loaded model name, size, CPU/GPU split
+- [ ] Live tokens/s (needs log/stream parsing) surfaced in the widget
 - [ ] Before/after summary of exactly what AI Mode changed
 - [ ] **Thermal guard**: back off if the CPU/GPU is throttling (so "max perf"
       never becomes net-slower)
@@ -221,6 +225,20 @@ once and gates every optimizer on detected capabilities.
 - [ ] Explicit huge pages allocated on enable, freed on disable
 - [ ] Disable CPU security mitigations (opt-in, clearly flagged) for max throughput
 - [ ] Disable PCIe ASPM / USB autosuspend for the inference GPU
+
+### 2.9 Genesi AI Mode Monitor (dedicated app) 📊
+> A standalone GUI app (beyond the panel widget) to watch and control AI Mode —
+> the visual front-end for everything `genesi-aid` already exposes in
+> `state.json`.
+
+- [ ] Live dashboard: AI Mode state, CPU/RAM/GPU utilization, VRAM, temperatures
+- [ ] Detected AI processes + loaded Ollama models (name, size, CPU/GPU split)
+- [ ] Tokens/s history graph (per model)
+- [ ] Shows exactly which optimizations are applied, with on/off/auto control
+- [ ] Profile switch (Max Performance / Balanced / Battery-aware)
+- [ ] One-click benchmark (wraps `genesi-ai-mode bench`) with a results chart
+- [ ] **MemPalace integration**: surface AI memory/usage stats
+- [ ] Reads `state.json` for display; control via the `genesi-ai-mode` CLI
 
 ---
 
@@ -264,13 +282,18 @@ packages** built and published by CI.
 ## PHASE 4: IDE & Dev Tools ⬜ PENDING
 > Developer-focused tools and integrations (secondary differentiator).
 
-### 4.1 Genesi IDE (based on VS Code or Zed)
-- [ ] Fork of VS Code or Zed with Genesi branding
-- [ ] Pre-installed Genesi theme
-- [ ] Pre-configured extensions (Git, Docker, AI, popular languages)
-- [ ] Native integration with the local AI daemon
-- [ ] Integration with MemPalace (project context)
-- [ ] Desktop and menu shortcut
+### 4.1 Genesi Code — AI-native dev tool (fork of Warp)
+> Direction: fork **Warp** (Rust, AI-native terminal/dev tool) instead of
+> VS Code/Zed, so the AI workflow is first-class. (License/feasibility of a Warp
+> fork still to be confirmed; Zed is the fallback if it doesn't pan out.)
+
+- [ ] Fork of Warp with Genesi branding + theme
+- [ ] Native integration with the local AI daemon (`genesi-aid`) — uses the
+      machine's own Ollama models, fully local, no cloud
+- [ ] **MemPalace integration**: the editor/terminal feeds project context into
+      MemPalace and recalls it (the shared memory layer across all Genesi apps)
+- [ ] Pre-wired for Git, Docker, and the popular languages
+- [ ] Desktop + menu shortcut
 
 ### 4.2 Container widget in Plasma
 - [ ] Taskbar widget showing running Docker containers
@@ -328,6 +351,39 @@ packages** built and published by CI.
       different SDDM session forcing than Plasma)
 - [ ] `genesi-welcome` detects the running DE and adjusts its buttons per-DE
 - [ ] Doc page explaining the DE choice and when each one shines
+
+---
+
+## PHASE 6: Genesi Welcome & Control Center (installed system) 🎛️
+> A post-install hub — the **same app as the live-ISO welcome**, minus the
+> "install system" action, plus a lot more. Modeled on CachyOS Hello (Docs /
+> Support / Project links) but built around a one-click **App Installer** and a
+> **Tweaks/Settings** center. The everyday front door of Genesi OS.
+
+### 6.1 Welcome hub (Hello-style)
+- [ ] Shared codebase with the live-ISO welcome; a flag hides the installer and
+      shows the post-install features instead
+- [ ] Documentation / Support / Project sections (read-me, version info, wiki,
+      forum, contribute, donate) — like CachyOS Hello
+- [ ] Language selector + "open on startup" toggle
+
+### 6.2 App Installer (one-click) ⭐ flagship
+- [ ] Curated catalog (browsers, dev tools, media, comms, …) — one click
+      installs, pacman/flatpak under the hood, with progress + rollback
+- [ ] **Gaming bundle**: one click installs GPU drivers + Steam + Proton/
+      ProtonUp + Lutris + MangoHud + gamemode (the CachyOS gaming set), with the
+      right driver auto-picked per detected GPU
+- [ ] **AI bundle (Genesi differentiator)**: one click installs Ollama + pulls a
+      default model — instant local AI, and AI Mode kicks in automatically
+
+### 6.3 Tweaks / Settings center
+- [ ] Basic system settings like CachyOS (drivers, kernel, services, mirrors,
+      shell, performance toggles) — safe, reversible, clearly described
+- [ ] Genesi performance presets, including an AI Mode profile toggle
+
+### 6.4 Integration
+- [ ] Launches the AI Mode Monitor (2.9) and Genesi Code (4.1)
+- [ ] MemPalace status surfaced here too
 
 ---
 

@@ -66,12 +66,17 @@ print("Applied : " + (", ".join(applied) if applied else "—"))
 mt = s.get("metrics", {})
 if mt:
     ram = f"{mt.get('ram_used_mb',0)}/{mt.get('ram_total_mb',0)}MB"
-    print(f"Live    : CPU {mt.get('cpu_percent','?')}%, RAM {ram}")
+    ct = mt.get("cpu_temp_c")
+    temp = f", {ct}C" if ct is not None else ""
+    print(f"Live    : CPU {mt.get('cpu_percent','?')}%{temp}, RAM {ram}")
     for g in mt.get("gpus", []):
         vu, vt = g.get("vram_used_mb"), g.get("vram_total_mb")
         vram = f"{vu}/{vt}MB" if vu is not None and vt is not None else "?"
         print(f"  GPU {g.get('vendor')}: {g.get('util','?')}% util, "
               f"VRAM {vram}, {g.get('temp_c','?')}C")
+for mdl in (s.get("ollama") or []):
+    sz = f"{mdl['size_mb']}MB" if mdl.get("size_mb") else "?"
+    print(f"Ollama  : {mdl.get('name')} ({sz}, {mdl.get('where','?')})")
 PY
         ;;
     bench)
