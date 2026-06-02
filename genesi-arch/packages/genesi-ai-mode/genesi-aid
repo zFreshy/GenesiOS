@@ -1,21 +1,17 @@
 #!/usr/bin/env python3
 """
-Genesi AI Daemon (genesi-aid)
+Genesi AI Daemon (genesi-aid) — adaptive local-AI optimizer.
 
-Detects local-AI inference processes and applies reversible system
-optimizations while they run. When the AI workload stops (and no manual
-override is set) every tweak is restored to the value it had before.
+Profiles the host once, then while an AI inference process runs it applies only
+the optimizations that THIS machine can benefit from (CPU governor, memory, GPU
+clocks/power, platform power profile, process priority). Every change is
+captured before it's touched and restored when the workload stops — and the
+snapshot lives in /run so even a daemon restart restores cleanly.
 
-Manual control (user -> daemon) and status (daemon -> user) flow through a
-world-readable runtime directory created by tmpfiles.d, so the daemon can keep
-`PrivateTmp=true` hardening:
-
-    /run/genesi-ai-mode/force      user-written: "on" | "off" | absent(=auto)
-    /run/genesi-ai-mode/state.json daemon-written status (read by the widget/CLI)
-
-The pre-change values are stashed in a root-only file under /run so a daemon
-restart (same boot) restores correctly instead of "restoring" the already
-modified value. /run is a tmpfs, so a real reboot starts clean.
+IPC (so the daemon can keep PrivateTmp hardening):
+    /run/genesi-ai-mode/force      "on" | "off" | absent(=auto)   (user-written)
+    /run/genesi-ai-mode/state.json daemon status (widget / CLI read this)
+    /run/genesi-aid-originals.json  pre-change snapshot, root-only (0600)
 """
 
 import os
@@ -23,49 +19,55 @@ import re
 import sys
 import json
 import time
+import shutil
 import logging
 import tempfile
+import subprocess
 
 import psutil
 
 # ── Paths ────────────────────────────────────────────────────────────────────
-RUN_DIR     = "/run/genesi-ai-mode"          # 0777, created by tmpfiles.d
-FORCE_FILE  = os.path.join(RUN_DIR, "force")  # user-writable control file
-STATE_FILE  = os.path.join(RUN_DIR, "state.json")
-ORIGINALS_FILE = "/run/genesi-aid-originals.json"  # root-only (0600)
+RUN_DIR        = "/run/genesi-ai-mode"
+FORCE_FILE     = os.path.join(RUN_DIR, "force")
+STATE_FILE     = os.path.join(RUN_DIR, "state.json")
+ORIGINALS_FILE = "/run/genesi-aid-originals.json"
 
 GOVERNOR_GLOB = "/sys/devices/system/cpu/cpu{}/cpufreq/scaling_governor"
 SWAPPINESS    = "/proc/sys/vm/swappiness"
 THP_ENABLED   = "/sys/kernel/mm/transparent_hugepage/enabled"
+PLATFORM_PROFILE = "/sys/firmware/acpi/platform_profile"
+POWER_SUPPLY  = "/sys/class/power_supply"
+DRM_PATH      = "/sys/class/drm"
 
-POLL_SECONDS  = 5
-AI_NICE       = -5
+POLL_SECONDS = 5
+AI_NICE      = -5
 
-# AI process patterns (matched against process name and full cmdline).
 AI_PROCESSES = [
-    "ollama",
-    "llama-server",
-    "llama-cli",
-    "llama.cpp",
-    "vllm",
-    "localai",
-    "text-generation-webui",
-    "koboldcpp",
-    "oobabooga",
+    "ollama", "llama-server", "llama-cli", "llama.cpp",
+    "vllm", "localai", "text-generation-webui", "koboldcpp", "oobabooga",
 ]
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[logging.StreamHandler()],   # journal captures stdout/stderr
+    handlers=[logging.StreamHandler()],
 )
 logger = logging.getLogger("genesi-aid")
 
 
-def _atomic_write(path: str, data: str, mode: int = 0o644):
-    """Write a file atomically so readers never see a half-written file."""
-    directory = os.path.dirname(path)
-    fd, tmp = tempfile.mkstemp(dir=directory, prefix=".tmp-")
+def _run(cmd, timeout=8):
+    """Run an external tool, never let it hang the daemon. Returns (rc, out)."""
+    try:
+        p = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+        return p.returncode, (p.stdout or "").strip()
+    except (subprocess.TimeoutExpired, OSError) as e:
+        logger.debug(f"cmd {cmd!r} failed: {e}")
+        return 1, ""
+
+
+def _atomic_write(path, data, mode=0o644):
+    d = os.path.dirname(path)
+    fd, tmp = tempfile.mkstemp(dir=d, prefix=".tmp-")
     try:
         with os.fdopen(fd, "w") as f:
             f.write(data)
@@ -79,107 +81,266 @@ def _atomic_write(path: str, data: str, mode: int = 0o644):
         raise
 
 
-class AIOptimizer:
+def _read(path):
+    try:
+        with open(path) as f:
+            return f.read().strip()
+    except OSError:
+        return None
+
+
+def _write(path, value):
+    try:
+        with open(path, "w") as f:
+            f.write(str(value))
+        return True
+    except OSError as e:
+        logger.debug(f"write {path}={value} failed: {e}")
+        return False
+
+
+# ── Hardware detection ───────────────────────────────────────────────────────
+class HardwareProfile:
+    """One-shot profile of the host. `on_battery` is re-checked live."""
+
     def __init__(self):
+        self.virtualized = self._detect_virt()
+        self.cpu_vendor = self._cpu_vendor()
+        self.logical_cores = psutil.cpu_count() or 1
+        self.physical_cores = psutil.cpu_count(logical=False) or self.logical_cores
+        self.has_governor = os.path.exists(GOVERNOR_GLOB.format(0))
+        self.gpus = self._detect_gpus()
+        self.total_ram_mb = int(psutil.virtual_memory().total / (1024 * 1024))
+        self.chassis = self._chassis()
+        self.has_power_profiles = shutil.which("powerprofilesctl") is not None
+        self.has_platform_profile = os.path.exists(PLATFORM_PROFILE)
+
+    def _detect_virt(self):
+        rc, out = _run(["systemd-detect-virt"], timeout=4)
+        return rc == 0 and out not in ("", "none")
+
+    def _cpu_vendor(self):
+        info = _read("/proc/cpuinfo") or ""
+        if "AuthenticAMD" in info:
+            return "amd"
+        if "GenuineIntel" in info:
+            return "intel"
+        return "unknown"
+
+    def _detect_gpus(self):
+        gpus = []
+        # NVIDIA via nvidia-smi (authoritative for VRAM + control surface)
+        if shutil.which("nvidia-smi"):
+            rc, out = _run(["nvidia-smi",
+                            "--query-gpu=index,memory.total",
+                            "--format=csv,noheader,nounits"])
+            if rc == 0:
+                for line in out.splitlines():
+                    parts = [p.strip() for p in line.split(",")]
+                    if len(parts) >= 2 and parts[0].isdigit():
+                        gpus.append({"vendor": "nvidia", "index": int(parts[0]),
+                                     "vram_mb": _to_int(parts[1])})
+        # AMD/Intel via DRM sysfs
+        try:
+            for card in sorted(os.listdir(DRM_PATH)):
+                if not re.fullmatch(r"card\d+", card):
+                    continue
+                dev = os.path.join(DRM_PATH, card, "device")
+                vendor = _read(os.path.join(dev, "vendor"))
+                if vendor == "0x1002":
+                    dpm = os.path.join(dev, "power_dpm_force_performance_level")
+                    if os.path.exists(dpm):
+                        gpus.append({"vendor": "amd", "card": card, "dpm": dpm})
+                elif vendor == "0x8086":
+                    gpus.append({"vendor": "intel", "card": card})
+        except OSError:
+            pass
+        return gpus
+
+    def _chassis(self):
+        # A battery present => treat as laptop.
+        try:
+            for ps in os.listdir(POWER_SUPPLY):
+                if (_read(os.path.join(POWER_SUPPLY, ps, "type")) or "") == "Battery":
+                    return "laptop"
+        except OSError:
+            pass
+        return "desktop"
+
+    def on_battery(self):
+        """True only if a battery is discharging (AC absent)."""
+        try:
+            for ps in os.listdir(POWER_SUPPLY):
+                base = os.path.join(POWER_SUPPLY, ps)
+                t = _read(os.path.join(base, "type"))
+                if t == "Mains":
+                    online = _read(os.path.join(base, "online"))
+                    if online == "1":
+                        return False
+                elif t == "Battery":
+                    if (_read(os.path.join(base, "status")) or "") == "Discharging":
+                        return True
+        except OSError:
+            pass
+        return False
+
+    def summary(self):
+        return {
+            "virtualized": self.virtualized,
+            "cpu_vendor": self.cpu_vendor,
+            "physical_cores": self.physical_cores,
+            "logical_cores": self.logical_cores,
+            "ram_mb": self.total_ram_mb,
+            "chassis": self.chassis,
+            "gpus": [{k: v for k, v in g.items() if k in ("vendor", "vram_mb")}
+                     for g in self.gpus],
+        }
+
+
+def _to_int(s, default=None):
+    try:
+        return int(float(s))
+    except (TypeError, ValueError):
+        return default
+
+
+# ── The optimizer ────────────────────────────────────────────────────────────
+class AIOptimizer:
+    def __init__(self, hw):
+        self.hw = hw
         self.ai_mode_active = False
-        self.originals = {}              # {'governor','swappiness','thp'}
-        self.ai_processes = []           # list[psutil.Process]
+        self.aggressive = False     # full power (AC or forced) vs battery-safe
+        self.originals = {}
+        self.applied = []           # human-readable list for the widget/CLI
+        self.ai_processes = []
         self._restore_originals_on_start()
 
-    # ── Detection ────────────────────────────────────────────────────────────
+    # ── detection ────────────────────────────────────────────────────────────
     def detect_ai_processes(self):
         found = []
         for proc in psutil.process_iter(["pid", "name", "cmdline"]):
             try:
                 name = (proc.info["name"] or "").lower()
-                cmdline = " ".join(proc.info["cmdline"] or []).lower()
-                for pattern in AI_PROCESSES:
-                    if pattern in name or pattern in cmdline:
-                        found.append(proc)
-                        break
+                cmd = " ".join(proc.info["cmdline"] or []).lower()
+                if any(p in name or p in cmd for p in AI_PROCESSES):
+                    found.append(proc)
             except (psutil.NoSuchProcess, psutil.AccessDenied):
                 continue
         return found
 
     def read_force(self):
-        """Return 'on', 'off' or None (auto). Only exact values act."""
-        try:
-            with open(FORCE_FILE) as f:
-                value = f.read().strip().lower()
-            if value in ("on", "off"):
-                return value
-        except FileNotFoundError:
-            pass
-        except OSError as e:
-            logger.debug(f"Could not read force file: {e}")
+        v = (_read(FORCE_FILE) or "").lower()
+        return v if v in ("on", "off") else None
+
+    # ── CPU governor ─────────────────────────────────────────────────────────
+    def _read_governor(self):
+        return _read(GOVERNOR_GLOB.format(0))
+
+    def _set_governor(self, gov):
+        if not gov:
+            return
+        n = 0
+        for cpu in range(self.hw.logical_cores):
+            if _write(GOVERNOR_GLOB.format(cpu), gov):
+                n += 1
+        if n:
+            logger.info(f"CPU governor -> {gov} ({n} cores)")
+
+    # ── THP ──────────────────────────────────────────────────────────────────
+    def _read_thp(self):
+        data = _read(THP_ENABLED) or ""
+        m = re.search(r"\[(\w+)\]", data)
+        return m.group(1) if m else None
+
+    # ── power profile ────────────────────────────────────────────────────────
+    def _read_power_profile(self):
+        if self.hw.has_power_profiles:
+            rc, out = _run(["powerprofilesctl", "get"])
+            if rc == 0 and out:
+                return ("ppd", out)
+        if self.hw.has_platform_profile:
+            v = _read(PLATFORM_PROFILE)
+            if v:
+                return ("platform", v)
         return None
 
-    # ── Low-level knobs ──────────────────────────────────────────────────────
-    def _read_governor(self):
-        try:
-            with open(GOVERNOR_GLOB.format(0)) as f:
-                return f.read().strip()
-        except OSError:
-            return None
+    def _set_power_profile(self, target):
+        if self.hw.has_power_profiles:
+            _run(["powerprofilesctl", "set", target])
+            logger.info(f"power profile -> {target}")
+        elif self.hw.has_platform_profile:
+            _write(PLATFORM_PROFILE, target)
+            logger.info(f"platform_profile -> {target}")
 
-    def _set_governor(self, governor):
-        if not governor:
+    def _restore_power_profile(self, saved):
+        if not saved:
             return
-        changed = False
-        for cpu in range(psutil.cpu_count() or 0):
-            path = GOVERNOR_GLOB.format(cpu)
-            try:
-                with open(path, "w") as f:
-                    f.write(governor)
-                changed = True
-            except OSError:
-                continue  # core offline / governor not settable on this CPU
-        if changed:
-            logger.info(f"CPU governor set to: {governor}")
+        kind, value = saved
+        if kind == "ppd":
+            _run(["powerprofilesctl", "set", value])
+        elif kind == "platform":
+            _write(PLATFORM_PROFILE, value)
+        logger.info(f"power profile restored -> {value}")
 
-    def _read_swappiness(self):
-        try:
-            with open(SWAPPINESS) as f:
-                return int(f.read().strip())
-        except (OSError, ValueError):
-            return None
+    # ── GPU: NVIDIA ──────────────────────────────────────────────────────────
+    def _nvidia_capture_and_apply(self):
+        saved = []
+        for gpu in [g for g in self.hw.gpus if g["vendor"] == "nvidia"]:
+            idx = str(gpu["index"])
+            rc, out = _run(["nvidia-smi", "-i", idx,
+                            "--query-gpu=persistence_mode,power.limit,power.max_limit",
+                            "--format=csv,noheader,nounits"])
+            if rc != 0 or not out:
+                continue
+            parts = [p.strip() for p in out.split(",")]
+            pm, cur_pl, max_pl = (parts + ["", "", ""])[:3]
+            saved.append({"index": idx, "pm": pm, "pl": cur_pl})
+            # Persistence keeps the driver loaded (lower latency between runs).
+            _run(["nvidia-smi", "-i", idx, "-pm", "1"])
+            mp = _to_int(max_pl)
+            if mp:
+                _run(["nvidia-smi", "-i", idx, "-pl", str(mp)])
+            logger.info(f"NVIDIA GPU {idx}: persistence on, power limit -> {max_pl}W")
+        if saved:
+            self.applied.append(f"NVIDIA max power ({len(saved)} GPU)")
+        return saved
 
-    def _set_swappiness(self, value):
-        if value is None:
-            return
-        try:
-            with open(SWAPPINESS, "w") as f:
-                f.write(str(value))
-            logger.info(f"Swappiness set to: {value}")
-        except OSError as e:
-            logger.error(f"Failed to set swappiness: {e}")
+    def _nvidia_restore(self, saved):
+        for s in saved or []:
+            idx = s["index"]
+            pl = _to_int(s.get("pl"))
+            if pl:
+                _run(["nvidia-smi", "-i", idx, "-pl", str(pl)])
+            if (s.get("pm") or "").lower().startswith("disab"):
+                _run(["nvidia-smi", "-i", idx, "-pm", "0"])
+            logger.info(f"NVIDIA GPU {idx} restored")
 
-    def _read_thp(self):
-        """Current THP mode is the bracketed token: 'always [madvise] never'."""
-        try:
-            with open(THP_ENABLED) as f:
-                data = f.read()
-            m = re.search(r"\[(\w+)\]", data)
-            return m.group(1) if m else None
-        except OSError:
-            return None
+    # ── GPU: AMD ─────────────────────────────────────────────────────────────
+    def _amd_capture_and_apply(self):
+        saved = []
+        for gpu in [g for g in self.hw.gpus if g["vendor"] == "amd"]:
+            dpm = gpu["dpm"]
+            cur = _read(dpm)
+            if cur is None:
+                continue
+            saved.append({"dpm": dpm, "level": cur})
+            _write(dpm, "high")
+            logger.info(f"AMD GPU {gpu['card']}: dpm {cur} -> high")
+        if saved:
+            self.applied.append(f"AMD GPU high ({len(saved)})")
+        return saved
 
-    def _set_thp(self, value):
-        if not value:
-            return
-        try:
-            with open(THP_ENABLED, "w") as f:
-                f.write(value)
-            logger.info(f"Transparent huge pages set to: {value}")
-        except OSError as e:
-            logger.error(f"Failed to set THP: {e}")
+    def _amd_restore(self, saved):
+        for s in saved or []:
+            _write(s["dpm"], s.get("level", "auto"))
+            logger.info(f"AMD GPU restored -> {s.get('level')}")
 
-    # ── Originals persistence (survives daemon restart, not reboot) ───────────
+    # ── originals persistence ────────────────────────────────────────────────
     def _persist_originals(self):
         try:
             _atomic_write(ORIGINALS_FILE, json.dumps(self.originals), mode=0o600)
         except OSError as e:
-            logger.error(f"Failed to persist originals: {e}")
+            logger.error(f"persist originals failed: {e}")
 
     def _clear_originals(self):
         self.originals = {}
@@ -188,51 +349,72 @@ class AIOptimizer:
         except FileNotFoundError:
             pass
         except OSError as e:
-            logger.debug(f"Could not remove originals file: {e}")
+            logger.debug(f"clear originals: {e}")
 
     def _restore_originals_on_start(self):
-        """If a previous instance left AI Mode active (crash/restart), adopt the
-        saved originals and mark ourselves active so the loop can restore them
-        cleanly instead of capturing the already-tuned values as 'original'."""
         try:
             with open(ORIGINALS_FILE) as f:
                 self.originals = json.load(f)
             self.ai_mode_active = True
-            logger.info("Recovered AI Mode state from previous run")
+            self.aggressive = self.originals.get("_aggressive", False)
+            logger.info("Recovered AI Mode state from a previous run")
         except FileNotFoundError:
             pass
         except (OSError, ValueError) as e:
-            logger.warning(f"Ignoring unreadable originals file: {e}")
+            logger.warning(f"ignoring unreadable originals: {e}")
 
-    # ── Mode transitions ─────────────────────────────────────────────────────
-    def enable_ai_mode(self):
+    # ── transitions ──────────────────────────────────────────────────────────
+    def enable_ai_mode(self, forced):
         if self.ai_mode_active:
             return
-        logger.info("Enabling AI Mode...")
-        self.originals = {
-            "governor": self._read_governor(),
-            "swappiness": self._read_swappiness(),
-            "thp": self._read_thp(),
-        }
+        self.aggressive = forced or not self.hw.on_battery()
+        logger.info("Enabling AI Mode (%s)" %
+                    ("max" if self.aggressive else "battery-safe"))
+        self.applied = []
+        o = {"_aggressive": self.aggressive}
+
+        # CPU + memory (cheap, safe even on battery)
+        if self.hw.has_governor:
+            o["governor"] = self._read_governor()
+            self._set_governor("performance")
+            self.applied.append("CPU governor: performance")
+        o["swappiness"] = _to_int(_read(SWAPPINESS))
+        if _write(SWAPPINESS, 10):
+            self.applied.append("swappiness: 10")
+        o["thp"] = self._read_thp()
+        if _write(THP_ENABLED, "always"):
+            self.applied.append("THP: always")
+
+        # Power-hungry knobs only when on AC (or explicitly forced)
+        if self.aggressive:
+            o["power_profile"] = self._read_power_profile()
+            if o["power_profile"]:
+                self._set_power_profile("performance")
+                self.applied.append("power profile: performance")
+            o["nvidia"] = self._nvidia_capture_and_apply()
+            o["amd"] = self._amd_capture_and_apply()
+
+        self.originals = o
         self._persist_originals()
-
-        self._set_governor("performance")
-        self._set_swappiness(10)
-        self._set_thp("always")
-
         self.ai_mode_active = True
-        logger.info("AI Mode enabled")
+        logger.info("AI Mode enabled: " + ", ".join(self.applied))
 
     def disable_ai_mode(self):
         if not self.ai_mode_active:
             return
         logger.info("Disabling AI Mode...")
+        o = self.originals
+        if "governor" in o:
+            self._set_governor(o.get("governor"))
+        if o.get("swappiness") is not None:
+            _write(SWAPPINESS, o["swappiness"])
+        if o.get("thp"):
+            _write(THP_ENABLED, o["thp"])
+        if o.get("power_profile"):
+            self._restore_power_profile(o["power_profile"])
+        self._nvidia_restore(o.get("nvidia"))
+        self._amd_restore(o.get("amd"))
 
-        self._set_governor(self.originals.get("governor"))
-        self._set_swappiness(self.originals.get("swappiness"))
-        self._set_thp(self.originals.get("thp"))
-
-        # Drop the priority bump on any AI process still running.
         for proc in self.ai_processes:
             try:
                 proc.nice(0)
@@ -240,16 +422,11 @@ class AIOptimizer:
                 continue
 
         self.ai_mode_active = False
+        self.applied = []
         self._clear_originals()
         logger.info("AI Mode disabled")
 
     def prioritize_ai_processes(self):
-        """Give AI processes more CPU time. Idempotent, so processes that spawn
-        after AI Mode is already active still get prioritized.
-
-        We intentionally do NOT pin to a subset of cores: CPU inference scales
-        with ALL cores, so affinity-limiting it would hurt the main use case.
-        """
         for proc in self.ai_processes:
             try:
                 if proc.nice() != AI_NICE:
@@ -258,7 +435,7 @@ class AIOptimizer:
             except (psutil.NoSuchProcess, psutil.AccessDenied):
                 continue
 
-    # ── State export for the widget / CLI ────────────────────────────────────
+    # ── state export ─────────────────────────────────────────────────────────
     def _save_state(self, force_mode):
         procs = []
         for p in self.ai_processes:
@@ -269,32 +446,36 @@ class AIOptimizer:
         state = {
             "ai_mode_active": self.ai_mode_active,
             "force_mode": force_mode or "auto",
+            "aggressive": self.aggressive,
+            "applied": self.applied,
             "ai_processes": procs,
+            "hardware": self.hw.summary(),
             "timestamp": time.time(),
         }
         try:
             _atomic_write(STATE_FILE, json.dumps(state))
         except OSError as e:
-            logger.debug(f"Could not write state file: {e}")
+            logger.debug(f"state write: {e}")
 
-    # ── Main loop ────────────────────────────────────────────────────────────
+    # ── main loop ────────────────────────────────────────────────────────────
     def run(self):
-        logger.info("Genesi AI Daemon started")
+        logger.info("Genesi AI Daemon started | %s",
+                    json.dumps(self.hw.summary()))
         while True:
             try:
                 force = self.read_force()
                 self.ai_processes = self.detect_ai_processes()
 
                 if force == "off":
-                    want_active = False
+                    want = False
                 elif force == "on":
-                    want_active = True
+                    want = True
                 else:
-                    want_active = bool(self.ai_processes)
+                    want = bool(self.ai_processes)
 
-                if want_active and not self.ai_mode_active:
-                    self.enable_ai_mode()
-                elif not want_active and self.ai_mode_active:
+                if want and not self.ai_mode_active:
+                    self.enable_ai_mode(forced=(force == "on"))
+                elif not want and self.ai_mode_active:
                     self.disable_ai_mode()
 
                 if self.ai_mode_active:
@@ -308,7 +489,7 @@ class AIOptimizer:
                     self.disable_ai_mode()
                 break
             except Exception as e:
-                logger.error(f"Error in main loop: {e}")
+                logger.error(f"main loop error: {e}")
                 time.sleep(POLL_SECONDS)
 
 
@@ -317,7 +498,7 @@ def main():
         print("Error: genesi-aid must run as root", file=sys.stderr)
         sys.exit(1)
     os.makedirs(RUN_DIR, exist_ok=True)
-    AIOptimizer().run()
+    AIOptimizer(HardwareProfile()).run()
 
 
 if __name__ == "__main__":

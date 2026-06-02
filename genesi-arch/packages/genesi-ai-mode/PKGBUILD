@@ -2,12 +2,17 @@
 
 pkgname=genesi-ai-mode
 pkgver=1.0.0
-pkgrel=3
-pkgdesc='Genesi OS AI Mode - automatic, reversible AI optimization daemon + Plasma widget'
+pkgrel=4
+pkgdesc='Genesi OS AI Mode - adaptive, reversible local-AI optimizer (CPU/GPU/power) + Plasma widget'
 arch=('any')
 url='https://github.com/zFreshy/GenesiOS'
 license=('GPL-3.0-or-later')
 depends=('python' 'python-psutil' 'plasma-workspace')
+optdepends=(
+    'power-profiles-daemon: switch to the performance power profile while AI runs'
+    'nvidia-utils: NVIDIA GPU performance mode (persistence + max power limit)'
+    'ollama: run local models (genesi-ai-mode bench)'
+)
 install="$pkgname.install"
 source=()
 sha256sums=()

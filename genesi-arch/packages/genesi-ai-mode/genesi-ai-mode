@@ -6,6 +6,8 @@
 #   genesi-ai-mode auto      remove the override, follow automatic detection
 #   genesi-ai-mode toggle    flip between forced-ON and automatic
 #   genesi-ai-mode status    print the daemon state (JSON)
+#   genesi-ai-mode info      human-readable status (hardware + applied tweaks)
+#   genesi-ai-mode bench [m] benchmark a model (default llama3.2) OFF vs ON
 #
 # The override is just a file in the daemon's world-writable runtime dir, so no
 # sudo is needed to flip it.
@@ -40,8 +42,52 @@ case "${1:-status}" in
             echo '{"error":"genesi-aid not running"}'
         fi
         ;;
+    info)
+        if [ ! -r "$STATE" ]; then
+            echo "genesi-aid not running"; exit 1
+        fi
+        python3 - "$STATE" <<'PY'
+import json, sys
+s = json.load(open(sys.argv[1]))
+hw = s.get("hardware", {})
+gpus = hw.get("gpus", []) or [{"vendor": "none"}]
+gpu_s = ", ".join(g.get("vendor", "?") +
+                  (f" {g['vram_mb']}MB" if g.get("vram_mb") else "") for g in gpus)
+print(f"AI Mode : {'ON' if s.get('ai_mode_active') else 'OFF'} "
+      f"(force={s.get('force_mode')}, mode={'max' if s.get('aggressive') else 'battery-safe'})")
+print(f"Hardware: {hw.get('cpu_vendor','?')} {hw.get('physical_cores','?')}c/"
+      f"{hw.get('logical_cores','?')}t, {hw.get('ram_mb',0)}MB RAM, "
+      f"{hw.get('chassis','?')}{' (VM)' if hw.get('virtualized') else ''}")
+print(f"GPU     : {gpu_s}")
+procs = s.get("ai_processes", [])
+print("AI procs: " + (", ".join(f"{p['name']}({p['pid']})" for p in procs) or "none"))
+applied = s.get("applied", [])
+print("Applied : " + (", ".join(applied) if applied else "—"))
+PY
+        ;;
+    bench)
+        MODEL="${2:-llama3.2}"
+        PROMPT="Write a Python function that returns the nth Fibonacci number, with a short explanation."
+        command -v ollama >/dev/null || { echo "ollama is not installed (sudo pacman -S ollama)"; exit 1; }
+        rate() { ollama run "$MODEL" --verbose "$PROMPT" 2>&1 \
+                   | grep -i 'eval rate' | grep -oE '[0-9.]+ tokens/s' | head -1; }
+        echo ":: warming up $MODEL ..."
+        ollama run "$MODEL" "hi" >/dev/null 2>&1 || { echo "could not run $MODEL (pull it first?)"; exit 1; }
+        echo ":: AI Mode OFF"
+        genesi-ai-mode off >/dev/null; sleep 6
+        OFF="$(rate)"
+        echo ":: AI Mode ON"
+        genesi-ai-mode on  >/dev/null; sleep 6
+        ON="$(rate)"
+        genesi-ai-mode auto >/dev/null
+        echo
+        echo "  OFF: ${OFF:-?}"
+        echo "  ON : ${ON:-?}"
+        echo "(compare tokens/s — on a VM expect little difference; the CPU"
+        echo " governor, the biggest lever, is a no-op without real cpufreq)"
+        ;;
     *)
-        echo "usage: genesi-ai-mode {on|off|auto|toggle|status}" >&2
+        echo "usage: genesi-ai-mode {on|off|auto|toggle|status|info|bench [model]}" >&2
         exit 2
         ;;
 esac

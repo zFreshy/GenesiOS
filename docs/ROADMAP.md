@@ -81,41 +81,48 @@ A systemd service that monitors AI processes and tunes the system automatically.
 
 - [x] Detect when Ollama / llama.cpp / vLLM / LocalAI is running
 - [x] Automatically enable optimizations when AI is in use
-- [x] Disable optimizations when AI stops (return to normal)
+- [x] Disable optimizations when AI stops (**fully reversible** — captures and
+      restores every knob; survives a daemon restart via `/run` snapshot)
+- [x] Reliable user↔daemon IPC over `/run/genesi-ai-mode` (works under the
+      service's `PrivateTmp` hardening)
+- [x] `genesi-ai-mode` CLI — `on` / `off` / `auto` / `toggle` / `status`
 - [x] Plasma widget showing status (AI Mode ON/OFF, detected processes)
 
 ### 2.2 VRAM/RAM management
-- [x] Free VRAM from non-essential processes when AI runs (reduce compositor effects)
-- [x] Set `vm.swappiness=10` when AI Mode is active
-- [ ] Automatically detect available VRAM (requires GPU detection logic)
+- [x] Set `vm.swappiness=10` when AI Mode is active (restored on exit)
+- [ ] Detect available VRAM per GPU (NVIDIA `nvidia-smi`, AMD sysfs) → see 2.8
 - [ ] Configure optimal GPU/CPU split for the model (partial offloading)
-- [ ] Use `mlock` to keep model weights in RAM without swap
+- [ ] Use `mlock`/`vmtouch` to keep model weights in RAM without swap
+- [ ] Free VRAM by trimming compositor effects **from the user session** (the
+      old root-side `qdbus` call could never reach the user's KWin — removed)
 
 ### 2.3 Huge pages for models
-- [x] Configure Transparent Huge Pages (THP) of 2MB for inference
-- [x] Pre-allocate huge pages when AI Mode is activated
-- [x] Optimized sysctl configs: `vm.nr_hugepages`, `vm.hugetlb_shm_group`
+- [x] Toggle Transparent Huge Pages to `always` while AI runs (restored on exit)
+- [x] Slim sysctl (`vm.max_map_count`, `vm.vfs_cache_pressure`) — **dropped the
+      permanent `vm.nr_hugepages=512`** that reserved ~1 GB even with no AI running
+- [ ] Allocate explicit huge pages **on demand** at enable, free them at disable
 
 ### 2.4 CPU governor and scheduler
-- [x] Switch CPU governor to `performance` when inference is running
-- [x] Use CachyOS BORE scheduler with high priority for AI processes (`nice -5`)
-- [x] CPU pinning: pin inference threads to performance cores (basic heuristic)
-- [ ] Disable power saving on cores used by AI (requires deeper kernel integration)
+- [x] Switch CPU governor to `performance` when inference is running (restored)
+- [x] High priority for AI processes (`nice -5`, idempotent — also catches
+      processes that spawn after AI Mode is already on)
+- [x] **Removed** the naive "pin to first half of cores" heuristic — it halved
+      CPU-inference throughput. Replaced by hybrid-core awareness in 2.8
+- [ ] amd-pstate / EPP → performance; per-core power-save off (see 2.8)
 
 ### 2.5 Optimized I/O for models
-- [x] Optimize kernel readahead for large GGUF files (sysctl configs)
+- [x] Optimize kernel readahead for large GGUF files (sysctl)
 - [ ] Pre-cache frequently used models in RAM with `vmtouch`
-- [ ] Configure I/O scheduler to prioritize large sequential reads
+- [ ] I/O scheduler tuned for large sequential reads on the model NVMe
 
 ### 2.6 "AI Mode" widget in Plasma
 - [x] Taskbar widget showing AI Mode status
 - [x] Display detected AI processes with PIDs
 - [x] Show applied optimizations (governor, swappiness, huge pages, priority)
-- [x] Auto-refresh every 5 seconds
-- [x] Pulsing animation when AI Mode is active
-- [x] Auto-add widget to panel on first boot
-- [x] Manual ON/OFF toggle (force AI Mode)
-- [ ] Display VRAM usage and tokens/second metrics (requires GPU integration)
+- [x] Auto-refresh every 5 seconds + pulsing animation when active
+- [x] Manual ON/OFF toggle (force AI Mode) — wired to the `genesi-ai-mode` CLI
+- [ ] Live VRAM / GPU / tokens-per-second metrics (see 2.8)
+- [ ] Rewrite for Plasma 6 API (current QML uses Plasma 5 imports)
 
 ### 2.7 Integrated MemPalace
 [MemPalace](https://github.com/MemPalace/mempalace) is a local-first AI memory
@@ -132,6 +139,84 @@ nothing leaves the machine.
 
 Benefit: local AI on Genesi OS gains long-term memory. The dev talks to the AI,
 closes everything, and next time the AI still remembers the context.
+
+---
+
+### 2.8 AI Mode 2.0 — Universal Hardware Optimizer 🚀
+> Turn AI Mode from a fixed CPU/RAM tweak into an **adaptive optimizer that
+> profiles the machine and applies only what that hardware can benefit from** —
+> bare-metal desktop, gaming laptop, NVIDIA/AMD/Intel GPU, hybrid CPU, low-RAM
+> box, or a VM. Every change stays **fully reversible**.
+
+#### 2.8.0 Foundation — hardware detection & architecture
+The brain that makes "optimize for ANY PC" real. The daemon profiles the host
+once and gates every optimizer on detected capabilities.
+
+- [ ] `HardwareProfile`: CPU (vendor, physical cores, **hybrid P/E split**,
+      virtualized?), GPU (NVIDIA/AMD/Intel + VRAM), total RAM, chassis
+      (laptop/desktop), power source (AC/battery)
+- [ ] Capability-gated optimizer plugins — each captures original → applies →
+      restores, and is skipped when the hardware can't use it
+- [ ] **VM awareness**: report "virtualized — limited gains" and skip no-op knobs
+      (e.g. CPU governor doesn't exist under VirtualBox)
+- [ ] Profiles: **Max Performance / Balanced / Battery-aware** (don't nuke power
+      on battery unless the user forces it)
+- [ ] Enrich `state.json` with the hardware profile + exactly-what-changed list
+
+#### 2.8.1 🔥 GPU performance mode (biggest missing win)
+- [ ] **NVIDIA**: persistence mode (`nvidia-smi -pm 1`), power limit to max
+      (`-pl`), lock GPU/mem clocks at max, report VRAM use
+- [ ] **AMD**: `power_dpm_force_performance_level=high`, compute power profile
+      via sysfs (`pp_power_profile_mode`)
+- [ ] **Intel Arc/iGPU**: max GPU frequency via sysfs where supported
+- [ ] Restore each GPU to its prior power/clock state on disable
+
+#### 2.8.2 🔥 Power / platform profile
+- [ ] `powerprofilesctl set performance` while AI runs (restore prior profile)
+- [ ] `/sys/firmware/acpi/platform_profile` → `performance` where available
+- [ ] On laptops this unlocks the full CPU+GPU power/thermal budget
+
+#### 2.8.3 🔥 Model in RAM (load fast, never stall)
+- [ ] `vmtouch` to preload the active GGUF into page cache
+- [ ] `mlock` the model so it can't be evicted mid-inference
+- [ ] Optionally pre-cache the most-recently-used models
+
+#### 2.8.4 🔥 Smart CPU threads & core placement
+- [ ] Detect **physical** cores and P-core/E-core topology (`/sys` capacity)
+- [ ] Set inference thread count to physical P-cores; avoid SMT/E-core contention
+- [ ] `cpuset`/cgroup the AI process onto performance cores (system keeps the rest)
+
+#### 2.8.5 ⚡ Quiet the background during inference
+- [ ] Pause CPU/RAM/IO hogs while AI runs: `baloo` (file indexer), update/
+      packagekit jobs, trackers — and resume them on disable
+- [ ] Compositor effect trimming done **in the user session** (helper reads
+      `state.json` and toggles KWin blur/effects)
+
+#### 2.8.6 ⚡ Inference-engine auto-tuning
+- [ ] Ollama env: `OLLAMA_FLASH_ATTENTION=1`, `OLLAMA_KV_CACHE_TYPE=q8_0`,
+      `OLLAMA_NUM_PARALLEL`, `OLLAMA_MAX_LOADED_MODELS`, keep-alive
+- [ ] Auto-pick `num_gpu` (offload layers) from detected VRAM vs model size
+- [ ] Equivalent flags for llama.cpp / llama-server
+
+#### 2.8.7 ⚡ I/O, NUMA & scheduler
+- [ ] I/O scheduler (`none`/`mq-deadline`) + readahead on the model's NVMe
+- [ ] NUMA pinning (`numactl`) on multi-socket / Threadripper
+- [ ] Integrate CachyOS `sched-ext` throughput schedulers while AI Mode is on
+
+#### 2.8.8 🧠 Intelligence, metrics & UX
+- [ ] **Live metrics** in the widget: tokens/s (Ollama `/api/ps`), GPU/VRAM/CPU,
+      temperature, package power — plus a before/after of what AI Mode changed
+- [ ] **Thermal guard**: back off if the CPU/GPU is throttling (so "max perf"
+      never becomes net-slower)
+- [ ] **`genesi-ai-mode bench`**: run an identical prompt with AI Mode OFF then
+      ON and print the tokens/s delta (with VM caveat)
+- [ ] **Model advisor**: given model + hardware, recommend quant / offload / context
+- [ ] Rewrite the widget for the Plasma 6 API with a richer dashboard
+
+#### 2.8.9 ✨ Advanced / opt-in (with tradeoffs)
+- [ ] Explicit huge pages allocated on enable, freed on disable
+- [ ] Disable CPU security mitigations (opt-in, clearly flagged) for max throughput
+- [ ] Disable PCIe ASPM / USB autosuspend for the inference GPU
 
 ---
 
