@@ -1,0 +1,55 @@
+# Maintainer: Genesi OS Team <dev@genesios.org>
+#
+# Genesi fork of CachyOS/packageinstaller (Qt6 + Rust backend). The app fetches
+# its catalog at runtime from the Genesi repo, so OUR catalog lives in this
+# monorepo (pkglist.yaml) and is also overlaid as the offline fallback at build
+# time. Build recipe mirrors upstream but drops LTO / single-codegen-unit so it
+# fits comfortably inside CI's per-package time budget (runtime perf of a GUI
+# installer doesn't need LTO).
+
+pkgname=genesi-packageinstaller
+pkgver=1.6.2
+pkgrel=1
+pkgdesc='Genesi OS Package Installer - one-click app, gaming and local-AI setup'
+arch=(x86_64 aarch64)
+url='https://github.com/zFreshy/genesi-packageinstaller'
+license=(GPL-3.0-or-later)
+depends=('qt6-base' 'polkit')
+makedepends=('cmake' 'ninja' 'git' 'polkit-qt6' 'qt6-tools' 'cargo' 'lld' 'clang' 'llvm')
+provides=('cachyos-packageinstaller')
+conflicts=('cachyos-packageinstaller')
+groups=('genesi')
+source=("genesi-packageinstaller::git+https://github.com/zFreshy/genesi-packageinstaller.git#branch=develop")
+sha256sums=('SKIP')
+
+prepare() {
+  # Overlay the Genesi catalog as the in-tree (offline fallback) list.
+  install -Dm644 "${startdir}/pkglist.yaml" \
+    "${srcdir}/genesi-packageinstaller/pkglist.yaml"
+}
+
+build() {
+  cd "${srcdir}/genesi-packageinstaller"
+
+  # llvm stack (the Rust backend expects it), but WITHOUT LTO so CI stays fast.
+  export AR=llvm-ar CC=clang CXX=clang++ NM=llvm-nm RANLIB=llvm-ranlib
+  export RUSTFLAGS="-Copt-level=2 -Ccodegen-units=16 -Clinker=clang -Clink-arg=-fuse-ld=/usr/bin/ld.lld"
+
+  cmake -S . -Bbuild \
+        -GNinja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=OFF \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_INSTALL_LIBDIR=lib
+  cmake --build build --parallel
+}
+
+package() {
+  cd "${srcdir}/genesi-packageinstaller"
+  export AR=llvm-ar CC=clang CXX=clang++ NM=llvm-nm RANLIB=llvm-ranlib
+  export RUSTFLAGS="-Copt-level=2 -Ccodegen-units=16 -Clinker=clang -Clink-arg=-fuse-ld=/usr/bin/ld.lld"
+
+  DESTDIR="${pkgdir}" cmake --build build --target install
+}
+
+# vim:set sw=2 sts=2 et:

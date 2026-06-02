@@ -1,0 +1,87 @@
+# Genesi OS — Package Installer catalog
+# Schema (same as upstream cachyos packageinstaller): a flat list of categories,
+# each with a name and a list of package names. A package entry can bundle a few
+# packages on one line separated by spaces (installed together).
+#
+# Keep names to packages available in the Arch/CachyOS repos. This catalog is
+# overlaid onto the genesi-packageinstaller fork at build time, so editing it
+# here (genesi-arch/packages/**) rebuilds + ships via the update pipeline.
+
+- name: "Browsers"
+  packages:
+    - firefox
+    - chromium
+    - librewolf-bin
+    - brave-bin
+    - vivaldi
+
+- name: "Communication"
+  packages:
+    - discord
+    - telegram-desktop
+    - signal-desktop
+    - thunderbird
+    - element-desktop
+
+- name: "Development"
+  packages:
+    - git
+    - visual-studio-code-bin
+    - neovim
+    - "docker docker-compose docker-buildx"
+    - github-cli
+    - meld
+    - dbeaver
+
+- name: "AI / Local Models"
+  packages:
+    # Genesi's differentiator — local AI. AI Mode (genesi-aid) optimizes the
+    # system automatically once any of these is running.
+    - ollama
+    - alpaca   # GTK Ollama front-end
+    - gpt4all-chat
+
+- name: "Gaming"
+  packages:
+    - steam
+    - lutris
+    - heroic-games-launcher-bin
+    - mangohud
+    - gamemode
+    - goverlay
+    - "wine winetricks"
+    - protontricks
+    - vkbasalt
+
+- name: "Multimedia"
+  packages:
+    - vlc
+    - mpv
+    - obs-studio
+    - audacity
+    - "kdenlive"
+    - strawberry
+
+- name: "Graphics"
+  packages:
+    - gimp
+    - inkscape
+    - krita
+    - blender
+
+- name: "Office"
+  packages:
+    - libreoffice-fresh
+    - onlyoffice-bin
+    - okular
+    - obsidian
+
+- name: "System & Utilities"
+  packages:
+    - htop
+    - btop
+    - fastfetch
+    - timeshift
+    - gnome-disk-utility
+    - "p7zip unrar unzip"
+    - flatpak

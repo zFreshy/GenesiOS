@@ -1,0 +1,58 @@
+name: Test genesi-packageinstaller build
+
+# Standalone, manual-only smoke build for the heavy Qt6 + Rust package, so we
+# can confirm it compiles inside the cachyos-v3 CI (and time it) WITHOUT risking
+# the load-bearing publish-packages.yml pipeline. Once this passes, the package
+# is added to publish-packages.yml's PACKAGES array.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: cachyos/cachyos-v3:latest
+    steps:
+      - name: Install git in container
+        run: pacman -Sy --needed --noconfirm git openssh
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install build deps
+        run: |
+          set -euxo pipefail
+          pacman -Sy --noconfirm
+          # systemd + sysvcompat together to avoid the partial-upgrade break.
+          pacman -S --needed --noconfirm --overwrite='*' \
+            base-devel git \
+            systemd systemd-sysvcompat \
+            cmake ninja polkit-qt6 qt6-tools qt6-base polkit \
+            cargo lld clang llvm
+
+      - name: Build the package (timed)
+        shell: bash
+        run: |
+          set -euo pipefail
+          useradd -m builder
+          echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+          chown -R builder:builder "$GITHUB_WORKSPACE"
+
+          cd "$GITHUB_WORKSPACE/genesi-arch/packages/genesi-packageinstaller"
+          start=$(date +%s)
+          # 35-min ceiling: longer than publish-packages' 25-min budget on
+          # purpose — this tells us whether the package fits that budget.
+          if timeout 2100 runuser -u builder -- makepkg -f --noconfirm --noprogressbar; then
+            rc=0
+          else
+            rc=$?
+          fi
+          dur=$(( $(date +%s) - start ))
+          echo "::notice::genesi-packageinstaller build took ${dur}s (rc=$rc)"
+          if [ "$rc" -ne 0 ]; then
+            echo "::error::build failed (rc=$rc) — see log above"
+            exit 1
+          fi
+          echo "✅ built in ${dur}s — fits the 25-min publish budget: $([ $dur -lt 1500 ] && echo YES || echo 'NO, needs optimization')"
+          ls -lh *.pkg.tar.zst

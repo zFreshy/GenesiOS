@@ -22,3 +22,6 @@
 [submodule "genesi-update-full"]
 	path = genesi-update-full
 	url = https://github.com/zFreshy/genesi-update.git
+[submodule "genesi-packageinstaller-full"]
+	path = genesi-packageinstaller-full
+	url = https://github.com/zFreshy/genesi-packageinstaller.git
