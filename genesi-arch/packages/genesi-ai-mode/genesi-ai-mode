@@ -63,6 +63,15 @@ procs = s.get("ai_processes", [])
 print("AI procs: " + (", ".join(f"{p['name']}({p['pid']})" for p in procs) or "none"))
 applied = s.get("applied", [])
 print("Applied : " + (", ".join(applied) if applied else "—"))
+mt = s.get("metrics", {})
+if mt:
+    ram = f"{mt.get('ram_used_mb',0)}/{mt.get('ram_total_mb',0)}MB"
+    print(f"Live    : CPU {mt.get('cpu_percent','?')}%, RAM {ram}")
+    for g in mt.get("gpus", []):
+        vu, vt = g.get("vram_used_mb"), g.get("vram_total_mb")
+        vram = f"{vu}/{vt}MB" if vu is not None and vt is not None else "?"
+        print(f"  GPU {g.get('vendor')}: {g.get('util','?')}% util, "
+              f"VRAM {vram}, {g.get('temp_c','?')}C")
 PY
         ;;
     bench)

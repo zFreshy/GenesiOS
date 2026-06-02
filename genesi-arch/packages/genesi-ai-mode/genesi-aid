@@ -473,6 +473,60 @@ class AIOptimizer:
             except (psutil.NoSuchProcess, psutil.AccessDenied):
                 continue
 
+    # ── live metrics (read-only; GPU polled only while AI Mode is on) ────────
+    def collect_metrics(self):
+        vm = psutil.virtual_memory()
+        metrics = {
+            "cpu_percent": round(psutil.cpu_percent(interval=None), 1),
+            "ram_used_mb": int(vm.used / (1024 * 1024)),
+            "ram_total_mb": self.hw.total_ram_mb,
+            "gpus": [],
+        }
+        # Don't poll the GPU 24/7 — only while AI Mode is actually engaged.
+        if not self.ai_mode_active:
+            return metrics
+
+        if any(g["vendor"] == "nvidia" for g in self.hw.gpus):
+            rc, out = _run([
+                "nvidia-smi",
+                "--query-gpu=index,utilization.gpu,memory.used,memory.total,temperature.gpu",
+                "--format=csv,noheader,nounits"])
+            if rc == 0:
+                for line in out.splitlines():
+                    p = [x.strip() for x in line.split(",")]
+                    if len(p) >= 5:
+                        metrics["gpus"].append({
+                            "vendor": "nvidia", "index": _to_int(p[0]),
+                            "util": _to_int(p[1]), "vram_used_mb": _to_int(p[2]),
+                            "vram_total_mb": _to_int(p[3]), "temp_c": _to_int(p[4]),
+                        })
+
+        for g in self.hw.gpus:
+            if g["vendor"] != "amd":
+                continue
+            dev = os.path.dirname(g["dpm"])
+            used = _to_int(_read(os.path.join(dev, "mem_info_vram_used")))
+            total = _to_int(_read(os.path.join(dev, "mem_info_vram_total")))
+            metrics["gpus"].append({
+                "vendor": "amd", "card": g.get("card"),
+                "util": _to_int(_read(os.path.join(dev, "gpu_busy_percent"))),
+                "vram_used_mb": int(used / (1024 * 1024)) if used else None,
+                "vram_total_mb": int(total / (1024 * 1024)) if total else None,
+                "temp_c": self._amd_temp(dev),
+            })
+        return metrics
+
+    def _amd_temp(self, dev):
+        try:
+            hwmon = os.path.join(dev, "hwmon")
+            for h in os.listdir(hwmon):
+                t = _read(os.path.join(hwmon, h, "temp1_input"))
+                if t:
+                    return round(int(t) / 1000)
+        except (OSError, ValueError):
+            pass
+        return None
+
     # ── state export ─────────────────────────────────────────────────────────
     def _save_state(self, force_mode):
         procs = []
@@ -488,6 +542,7 @@ class AIOptimizer:
             "applied": self.applied,
             "ai_processes": procs,
             "hardware": self.hw.summary(),
+            "metrics": self.collect_metrics(),
             "timestamp": time.time(),
         }
         try:

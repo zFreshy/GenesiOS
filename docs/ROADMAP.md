@@ -206,8 +206,10 @@ once and gates every optimizer on detected capabilities.
 - [ ] Integrate CachyOS `sched-ext` throughput schedulers while AI Mode is on
 
 #### 2.8.8 🧠 Intelligence, metrics & UX
-- [ ] **Live metrics** in the widget: tokens/s (Ollama `/api/ps`), GPU/VRAM/CPU,
-      temperature, package power — plus a before/after of what AI Mode changed
+- [x] **Live metrics** in `state.json` + `genesi-ai-mode info`: CPU%, RAM, and
+      (while AI Mode is on) GPU utilization / VRAM / temperature (NVIDIA + AMD)
+- [ ] Surface tokens/s (Ollama `/api/ps`) and package power; show in the widget
+- [ ] Before/after summary of exactly what AI Mode changed
 - [ ] **Thermal guard**: back off if the CPU/GPU is throttling (so "max perf"
       never becomes net-slower)
 - [ ] **`genesi-ai-mode bench`**: run an identical prompt with AI Mode OFF then
