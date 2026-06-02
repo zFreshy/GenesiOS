@@ -45,6 +45,18 @@ DRM_PATH      = "/sys/class/drm"
 POLL_SECONDS = 5
 AI_NICE      = -5
 
+# Model-weight files we warm into the page cache / whose NVMe we tune. Ollama
+# stores weights as extension-less blobs under .../models/blobs/sha256-*, while
+# llama.cpp & friends use real GGUF/safetensors files. The size gate keeps us
+# from touching tokenizers, shared libs and other small mmaps.
+MODEL_EXTS      = (".gguf", ".bin", ".safetensors")
+MODEL_MIN_BYTES = 64 * 1024 * 1024
+
+# I/O scheduler preference for the disk holding the weights. NVMe/SSD inference
+# is large sequential reads — `none` (no reordering) is ideal, `mq-deadline` is
+# the safe fallback. We only switch if the device actually offers the target.
+IO_SCHED_PREFS = ("none", "mq-deadline")
+
 # Thermal guard thresholds (°C), with hysteresis. Only acts on machines that
 # actually expose temps and where we took over the governor — never on a VM.
 CPU_HOT_C, CPU_COOL_C = 90, 82
@@ -228,9 +240,12 @@ class AIOptimizer:
         self.ai_mode_active = False
         self.aggressive = False     # full power (AC or forced) vs battery-safe
         self.originals = {}
-        self.applied = []           # human-readable list for the widget/CLI
+        self.applied = []           # static enable-time tweaks (governor, …)
+        self.io_applied = []        # dynamic: I/O schedulers we switched
         self.ai_processes = []
         self.throttled = False      # thermal guard eased the governor
+        self._preloaded = set()     # model files already warmed into RAM
+        self.preloaded_mb = 0
         self._restore_originals_on_start()
 
     # ── detection ────────────────────────────────────────────────────────────
@@ -435,6 +450,7 @@ class AIOptimizer:
             self._restore_power_profile(o["power_profile"])
         self._nvidia_restore(o.get("nvidia"))
         self._amd_restore(o.get("amd"))
+        self._restore_io(o.get("io_sched"))
         self._resume_background()
 
         for proc in self.ai_processes:
@@ -446,6 +462,9 @@ class AIOptimizer:
         self.ai_mode_active = False
         self.throttled = False
         self.applied = []
+        self.io_applied = []
+        self._preloaded.clear()
+        self.preloaded_mb = 0
         self._clear_originals()
         logger.info("AI Mode disabled")
 
@@ -457,6 +476,132 @@ class AIOptimizer:
                     logger.info(f"Prioritized {proc.name()} (PID {proc.pid})")
             except (psutil.NoSuchProcess, psutil.AccessDenied):
                 continue
+
+    # ── model weights: preload into RAM + tune the disk they live on ─────────
+    def _find_model_files(self):
+        """Large weight files currently mmapped by the running AI processes.
+        Reads /proc/<pid>/maps (the daemon is root, so this works across the
+        ollama user). Returns {path: size_bytes}."""
+        files = {}
+        for proc in self.ai_processes:
+            try:
+                pid = proc.pid
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                continue
+            maps = _read(f"/proc/{pid}/maps")
+            if not maps:
+                continue
+            for line in maps.splitlines():
+                # addr perms offset dev inode pathname
+                parts = line.split(None, 5)
+                if len(parts) < 6:
+                    continue
+                path = parts[5]
+                if not path.startswith("/") or path in files:
+                    continue
+                low = path.lower()
+                if not (low.endswith(MODEL_EXTS) or "/blobs/" in low):
+                    continue
+                try:
+                    sz = os.path.getsize(path)
+                except OSError:
+                    continue
+                if sz >= MODEL_MIN_BYTES:
+                    files[path] = sz
+        return files
+
+    def maybe_preload(self):
+        """Ask the kernel to pull the active model weights into the page cache
+        (async readahead) so the next load is instant and inference never stalls
+        on a cold read. Pure cache warming — nothing to restore. Skipped for
+        weights already on a RAM-backed fs (tmpfs/overlay, e.g. a live ISO) and
+        when free RAM is too tight to hold them safely."""
+        for path, size in self._find_model_files().items():
+            if path in self._preloaded:
+                continue
+            self._preloaded.add(path)   # mark once; never thrash on churn
+            try:
+                st = os.stat(path)
+            except OSError:
+                continue
+            if os.major(st.st_dev) == 0:            # tmpfs/overlay → already RAM
+                continue
+            avail = psutil.virtual_memory().available
+            if size > avail * 0.6:                  # don't induce memory pressure
+                logger.info("preload skip %s (%dMB > free budget)",
+                            os.path.basename(path), int(size / (1024 * 1024)))
+                continue
+            try:
+                fd = os.open(path, os.O_RDONLY)
+                try:
+                    os.posix_fadvise(fd, 0, 0, os.POSIX_FADV_WILLNEED)
+                finally:
+                    os.close(fd)
+            except OSError as e:
+                logger.debug(f"preload {path} failed: {e}")
+                continue
+            mb = int(size / (1024 * 1024))
+            self.preloaded_mb += mb
+            logger.info("Preloaded %s (%dMB) into page cache",
+                        os.path.basename(path), mb)
+
+    def _queue_dir_for(self, path):
+        """The /sys block-queue dir (the one with queue/scheduler) of the disk
+        backing `path` — walking partition → parent disk."""
+        try:
+            dev = os.stat(path).st_dev
+        except OSError:
+            return None
+        if os.major(dev) == 0:                      # virtual fs, no real disk
+            return None
+        real = os.path.realpath(f"/sys/dev/block/{os.major(dev)}:{os.minor(dev)}")
+        cur = real
+        for _ in range(4):                          # partition up to whole disk
+            if os.path.exists(os.path.join(cur, "queue", "scheduler")):
+                return cur
+            cur = os.path.dirname(cur)
+        return None
+
+    def maybe_tune_io(self):
+        """Switch the model disk's I/O scheduler to one tuned for big sequential
+        reads, capturing the original so disable restores it. Only on AC/forced
+        (it's a system-wide knob), and only when the device offers a target."""
+        if not self.aggressive:
+            return
+        io_orig = self.originals.setdefault("io_sched", {})
+        for path in self._find_model_files():
+            qd = self._queue_dir_for(path)
+            if not qd:
+                continue
+            dev = os.path.basename(qd)
+            if dev in io_orig:                      # already handled this disk
+                continue
+            sched_file = os.path.join(qd, "queue", "scheduler")
+            raw = _read(sched_file) or ""
+            avail = [s.strip("[]") for s in raw.split()]
+            m = re.search(r"\[([\w-]+)\]", raw)
+            cur = m.group(1) if m else None
+            target = next((t for t in IO_SCHED_PREFS if t in avail), None)
+            io_orig[dev] = cur                      # record even if we skip
+            if not target or target == cur:
+                continue
+            if _write(sched_file, target):
+                self.io_applied.append(f"I/O sched {dev}: {target}")
+                self._persist_originals()
+                logger.info("I/O scheduler %s: %s -> %s", dev, cur, target)
+
+    def _restore_io(self, io_sched):
+        for dev, cur in (io_sched or {}).items():
+            if cur and _write(f"/sys/block/{dev}/queue/scheduler", cur):
+                logger.info("I/O scheduler %s restored -> %s", dev, cur)
+
+    def effective_applied(self):
+        """Static enable tweaks plus the dynamic ones (preload, I/O) for display."""
+        out = list(self.applied)
+        if self.preloaded_mb:
+            out.append(f"model preloaded ({self.preloaded_mb}MB in RAM)")
+        out.extend(self.io_applied)
+        return out
 
     # ── background indexers (SIGSTOP while AI runs, SIGCONT after) ────────────
     def _pause_background(self):
@@ -620,7 +765,7 @@ class AIOptimizer:
             "force_mode": force_mode or "auto",
             "aggressive": self.aggressive,
             "throttled": self.throttled,
-            "applied": self.applied,
+            "applied": self.effective_applied(),
             "ai_processes": procs,
             "ollama": self.ollama_status(),
             "hardware": self.hw.summary(),
@@ -655,6 +800,8 @@ class AIOptimizer:
 
                 if self.ai_mode_active:
                     self.prioritize_ai_processes()
+                    self.maybe_preload()
+                    self.maybe_tune_io()
 
                 metrics = self.collect_metrics()
                 if self.ai_mode_active:

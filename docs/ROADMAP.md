@@ -179,8 +179,11 @@ once and gates every optimizer on detected capabilities.
 - [ ] On laptops this unlocks the full CPU+GPU power/thermal budget
 
 #### 2.8.3 🔥 Model in RAM (load fast, never stall)
-- [ ] `vmtouch` to preload the active GGUF into page cache
-- [ ] `mlock` the model so it can't be evicted mid-inference
+- [x] Preload the active weights into the page cache (`posix_fadvise WILLNEED`
+      on the GGUF/blob files the engine has mmapped) — RAM-gated, skipped on a
+      RAM-backed fs (live ISO). No `vmtouch` dependency, nothing to restore.
+- [ ] `mlock` the model so it can't be evicted mid-inference (opt-in; risky on
+      low-RAM / live-ISO where weights are already in RAM)
 - [ ] Optionally pre-cache the most-recently-used models
 
 #### 2.8.4 🔥 Smart CPU threads & core placement
@@ -203,7 +206,8 @@ once and gates every optimizer on detected capabilities.
 - [ ] Equivalent flags for llama.cpp / llama-server
 
 #### 2.8.7 ⚡ I/O, NUMA & scheduler
-- [ ] I/O scheduler (`none`/`mq-deadline`) + readahead on the model's NVMe
+- [x] I/O scheduler → `none`/`mq-deadline` on the disk backing the weights
+      (resolved from the mmapped files), captured & restored; AC/forced only
 - [ ] NUMA pinning (`numactl`) on multi-socket / Threadripper
 - [ ] Integrate CachyOS `sched-ext` throughput schedulers while AI Mode is on
 

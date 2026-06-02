@@ -27,6 +27,14 @@ text-generation-webui, KoboldCPP, Oobabooga.
 | `vm.swappiness` | 10 | yes |
 | Transparent huge pages | `always` | yes |
 | AI process priority | `nice -5` | reset to 0 |
+| Model weights | preloaded into page cache (RAM) | n/a (pure cache warming) |
+| Model-disk I/O scheduler | `none`/`mq-deadline` (AC/forced only) | yes (to captured original) |
+
+Model preload and the I/O-scheduler switch target the actual weight files the
+running engine has mmapped (detected via `/proc/<pid>/maps`). Preload is skipped
+when the weights already live on a RAM-backed fs (e.g. a live ISO) or when free
+RAM is tight; the I/O knob is system-wide so it only engages on AC or when
+forced.
 
 CPU affinity pinning was intentionally removed — CPU inference scales with all
 cores, so limiting affinity hurt the main use case.
