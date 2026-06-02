@@ -846,6 +846,28 @@ class AIOptimizer:
         except (psutil.NoSuchProcess, psutil.AccessDenied):
             return False
 
+    def tokens_per_second(self):
+        """Best-effort live generation rate, scraped from the ollama journal
+        (the llama runner logs an `eval rate: N tokens/s` line per request).
+        Returns the most recent value seen in the last couple of minutes, or
+        None — the format is engine/version-dependent, so treat it as a hint."""
+        if not any(self._is_ollama(p) for p in self.ai_processes):
+            return None
+        rc, out = _run(["journalctl", "-u", "ollama", "--no-pager",
+                        "-o", "cat", "-n", "120", "--since", "-2min"], timeout=4)
+        if rc != 0 or not out:
+            return None
+        rate = None
+        for line in out.splitlines():
+            m = (re.search(r"eval rate:\s*([\d.]+)\s*tokens/s", line) or
+                 re.search(r"([\d.]+)\s*tokens per second", line))
+            if m:
+                try:
+                    rate = round(float(m.group(1)), 1)
+                except ValueError:
+                    pass
+        return rate
+
     # ── state export ─────────────────────────────────────────────────────────
     def _save_state(self, force_mode, metrics):
         procs = []
@@ -862,6 +884,7 @@ class AIOptimizer:
             "applied": self.effective_applied(),
             "ai_processes": procs,
             "ollama": self.ollama_status(),
+            "tokens_per_second": self.tokens_per_second() if self.ai_mode_active else None,
             "hardware": self.hw.summary(),
             "metrics": metrics,
             "timestamp": time.time(),

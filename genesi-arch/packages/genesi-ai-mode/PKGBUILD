@@ -2,8 +2,8 @@
 
 pkgname=genesi-ai-mode
 pkgver=1.0.0
-pkgrel=13
-pkgdesc='Genesi OS AI Mode - adaptive, reversible local-AI optimizer (CPU/GPU/power) + Plasma widget'
+pkgrel=14
+pkgdesc='Genesi OS AI Mode - adaptive, reversible local-AI optimizer (CPU/GPU/power) + Plasma 6 widget + monitor app'
 arch=('any')
 url='https://github.com/zFreshy/GenesiOS'
 license=('GPL-3.0-or-later')
@@ -12,6 +12,9 @@ optdepends=(
     'power-profiles-daemon: switch to the performance power profile while AI runs'
     'nvidia-utils: NVIDIA GPU performance mode (persistence + max power limit)'
     'ollama: run local models (genesi-ai-mode bench)'
+    'pyside6: Genesi AI Mode Monitor (standalone dashboard app)'
+    'kirigami: UI toolkit for the Monitor app and the Plasma widget'
+    'qt6-tools: qdbus for the KWin desktop-effect trimmer'
 )
 install="$pkgname.install"
 source=()
@@ -38,10 +41,26 @@ package() {
     install -Dm644 "${startdir}/genesi-ollama.conf" \
         "$pkgdir/usr/lib/systemd/system/ollama.service.d/10-genesi.conf"
 
-    # Plasma widget (status display + manual toggle). Not auto-added to the
+    # Plasma 6 widget (live dashboard + on/auto/off). Not auto-added to the
     # panel — the org.kde.plasma.icon launcher in the default layout already
     # provides the toggle UX; this is here for users who want the status view.
     install -dm755 "$pkgdir/usr/share/plasma/plasmoids/org.genesi.aimode"
     cp -r "${startdir}/plasmoid-aimode/"* \
         "$pkgdir/usr/share/plasma/plasmoids/org.genesi.aimode/"
+
+    # AI Mode Monitor — standalone Qt6/Kirigami dashboard app
+    install -Dm644 "${startdir}/monitor/genesi_ai_monitor.py" \
+        "$pkgdir/usr/share/genesi-ai-mode/monitor/genesi_ai_monitor.py"
+    install -Dm644 "${startdir}/monitor/Main.qml" \
+        "$pkgdir/usr/share/genesi-ai-mode/monitor/Main.qml"
+    install -Dm755 "${startdir}/monitor/genesi-ai-monitor" \
+        "$pkgdir/usr/local/bin/genesi-ai-monitor"
+    install -Dm644 "${startdir}/monitor/org.genesi.aimonitor.desktop" \
+        "$pkgdir/usr/share/applications/org.genesi.aimonitor.desktop"
+
+    # KWin desktop-effect trimmer (user session) + KDE autostart entry
+    install -Dm755 "${startdir}/genesi-ai-kwin-helper" \
+        "$pkgdir/usr/local/bin/genesi-ai-kwin-helper"
+    install -Dm644 "${startdir}/genesi-ai-kwin-helper.desktop" \
+        "$pkgdir/etc/xdg/autostart/genesi-ai-kwin-helper.desktop"
 }

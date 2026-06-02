@@ -12,7 +12,11 @@ the workload stops (and there's no manual override) every tweak is restored.
 - `genesi-aid.service` — systemd service (root)
 - `genesi-ai-mode.tmpfiles.conf` — creates `/run/genesi-ai-mode` for IPC
 - `99-genesi-ai.conf` — static sysctl tuning (no permanent resource reservation)
-- `plasmoid-aimode/` — Plasma widget: status + manual toggle
+- `plasmoid-aimode/` — Plasma 6 widget: live dashboard + on/auto/off
+- `monitor/` — **AI Mode Monitor**, a standalone Qt6/Kirigami dashboard app
+  (`genesi-ai-monitor`, needs `pyside6`)
+- `genesi-ai-kwin-helper` — user-session helper that trims KWin desktop effects
+  (blur/contrast) while AI Mode is on (KDE autostart, needs `qdbus`)
 
 ## Detected frameworks
 

@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Genesi AI Mode — KWin effect trimmer
+Comment=Pauses GPU-heavy desktop effects while AI Mode is running
+Exec=/usr/local/bin/genesi-ai-kwin-helper
+Icon=cpu
+Terminal=false
+OnlyShowIn=KDE;
+X-KDE-autostart-phase=2
+NoDisplay=true

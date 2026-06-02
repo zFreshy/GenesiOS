@@ -79,6 +79,9 @@ if mt:
 for mdl in (s.get("ollama") or []):
     sz = f"{mdl['size_mb']}MB" if mdl.get("size_mb") else "?"
     print(f"Ollama  : {mdl.get('name')} ({sz}, {mdl.get('where','?')})")
+tps = s.get("tokens_per_second")
+if tps:
+    print(f"Speed   : {tps} tokens/s (live)")
 PY
         ;;
     bench)

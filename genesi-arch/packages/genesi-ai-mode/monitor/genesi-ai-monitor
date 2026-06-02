@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# Launch the Genesi AI Mode Monitor (Qt6/Kirigami dashboard).
+exec python3 /usr/share/genesi-ai-mode/monitor/genesi_ai_monitor.py "$@"

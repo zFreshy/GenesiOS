@@ -123,8 +123,8 @@ A systemd service that monitors AI processes and tunes the system automatically.
 - [x] Show applied optimizations (governor, swappiness, huge pages, priority)
 - [x] Auto-refresh every 5 seconds + pulsing animation when active
 - [x] Manual ON/OFF toggle (force AI Mode) — wired to the `genesi-ai-mode` CLI
-- [ ] Live VRAM / GPU / tokens-per-second metrics (see 2.8)
-- [ ] Rewrite for Plasma 6 API (current QML uses Plasma 5 imports)
+- [x] Live VRAM / GPU / tokens-per-second metrics (see 2.8)
+- [x] Rewrite for Plasma 6 API (PlasmoidItem / Kirigami / plasma5support)
 
 ### 2.7 Integrated MemPalace
 [MemPalace](https://github.com/MemPalace/mempalace) is a local-first AI memory
@@ -197,8 +197,9 @@ once and gates every optimizer on detected capabilities.
       with SIGCONT on disable (safe + saves power; package managers untouched)
 - [x] Also pause other CPU/RAM/IO hogs on demand (opt-in list at
       `/etc/genesi-ai-mode/hogs.conf`, read live, SIGSTOP/SIGCONT)
-- [ ] Compositor effect trimming done **in the user session** (helper reads
-      `state.json` and toggles KWin blur/effects)
+- [x] Compositor effect trimming done **in the user session** (helper reads
+      `state.json` and unloads/reloads KWin blur + contrast via qdbus; KDE
+      autostart, fully guarded on non-KWin sessions)
 
 #### 2.8.6 ⚡ Inference-engine auto-tuning
 - [x] Ollama defaults via systemd drop-in: `OLLAMA_FLASH_ATTENTION=1`,
@@ -219,7 +220,8 @@ once and gates every optimizer on detected capabilities.
       temperature, RAM, and (while AI Mode is on) GPU utilization / VRAM /
       temperature (NVIDIA + AMD)
 - [x] Ollama awareness via `/api/ps`: loaded model name, size, CPU/GPU split
-- [ ] Live tokens/s (needs log/stream parsing) surfaced in the widget
+- [x] Live tokens/s (best-effort scrape of the ollama journal) in `state.json`,
+      the widget, the Monitor app, and `genesi-ai-mode info`
 - [ ] Before/after summary of exactly what AI Mode changed
 - [x] **Thermal guard**: if the CPU/GPU runs too hot under AI Mode, ease the
       governor (hysteresis) so "max perf" never becomes net-slower; restore when
@@ -227,7 +229,9 @@ once and gates every optimizer on detected capabilities.
 - [x] **`genesi-ai-mode bench`**: run an identical prompt with AI Mode OFF then
       ON and print the tokens/s delta (with VM caveat)
 - [ ] **Model advisor**: given model + hardware, recommend quant / offload / context
-- [ ] Rewrite the widget for the Plasma 6 API with a richer dashboard
+- [x] Rewrite the widget for the Plasma 6 API with a richer dashboard
+      (status, live CPU/RAM/GPU, loaded models, tokens/s, applied tweaks,
+      on/auto/off controls)
 
 #### 2.8.9 ✨ Advanced / opt-in (with tradeoffs)
 - [ ] Explicit huge pages allocated on enable, freed on disable
@@ -239,14 +243,16 @@ once and gates every optimizer on detected capabilities.
 > the visual front-end for everything `genesi-aid` already exposes in
 > `state.json`.
 
-- [ ] Live dashboard: AI Mode state, CPU/RAM/GPU utilization, VRAM, temperatures
-- [ ] Detected AI processes + loaded Ollama models (name, size, CPU/GPU split)
-- [ ] Tokens/s history graph (per model)
-- [ ] Shows exactly which optimizations are applied, with on/off/auto control
-- [ ] Profile switch (Max Performance / Balanced / Battery-aware)
+- [x] Live dashboard: AI Mode state, CPU/RAM/GPU utilization, VRAM, temperatures
+- [x] Detected AI processes + loaded Ollama models (name, size, CPU/GPU split)
+- [x] Tokens/s history graph (Canvas sparkline of the live rate)
+- [x] Shows exactly which optimizations are applied, with on/auto/off control
+- [ ] Profile switch (Max Performance / Balanced / Battery-aware) — currently
+      on/auto/off; explicit named profiles still TODO
 - [ ] One-click benchmark (wraps `genesi-ai-mode bench`) with a results chart
 - [ ] **MemPalace integration**: surface AI memory/usage stats
-- [ ] Reads `state.json` for display; control via the `genesi-ai-mode` CLI
+- [x] Reads `state.json` for display; control via the `genesi-ai-mode` CLI
+      (PySide6 + Kirigami app, `genesi-ai-monitor`)
 
 ---
 

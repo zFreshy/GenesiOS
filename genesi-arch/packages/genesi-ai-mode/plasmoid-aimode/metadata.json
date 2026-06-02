@@ -7,13 +7,14 @@
             }
         ],
         "Category": "System Information",
-        "Description": "Shows AI Mode status and allows manual toggle",
+        "Description": "Live AI Mode dashboard (CPU/GPU/RAM, loaded models, tokens/s) with on/auto/off control",
         "Icon": "cpu",
         "Id": "org.genesi.aimode",
         "License": "GPL-3.0",
         "Name": "Genesi AI Mode",
-        "Version": "1.0",
+        "Version": "2.0",
         "Website": "https://github.com/zFreshy/GenesiOS"
     },
-    "KPackageStructure": "Plasma/Applet"
+    "KPackageStructure": "Plasma/Applet",
+    "X-Plasma-API-Minimum-Version": "6.0"
 }
