@@ -78,26 +78,47 @@ PY
         MODEL="${2:-llama3.2}"
         PROMPT="Write a Python function that returns the nth Fibonacci number, with a short explanation."
         command -v ollama >/dev/null || { echo "ollama is not installed (sudo pacman -S ollama)"; exit 1; }
-        # Measure the GENERATION rate ("eval rate:") — NOT "prompt eval rate:",
-        # which is prompt-processing speed and gets skewed by prompt caching
-        # between the two runs.
-        rate() { ollama run "$MODEL" --verbose "$PROMPT" 2>&1 \
-                   | grep -i 'eval rate' | grep -vi 'prompt' \
-                   | grep -oE '[0-9.]+ tokens/s' | head -1; }
         echo ":: warming up $MODEL ..."
         ollama run "$MODEL" "hi" >/dev/null 2>&1 || { echo "could not run $MODEL (pull it first?)"; exit 1; }
-        echo ":: AI Mode OFF"
+        echo ":: AI Mode OFF ..."
         genesi-ai-mode off >/dev/null; sleep 6
-        OFF="$(rate)"
-        echo ":: AI Mode ON"
+        OFF_OUT="$(ollama run "$MODEL" --verbose "$PROMPT" 2>&1)"
+        echo ":: AI Mode ON ..."
         genesi-ai-mode on  >/dev/null; sleep 6
-        ON="$(rate)"
+        ON_OUT="$(ollama run "$MODEL" --verbose "$PROMPT" 2>&1)"
         genesi-ai-mode auto >/dev/null
-        echo
-        echo "  OFF: ${OFF:-?}"
-        echo "  ON : ${ON:-?}"
-        echo "(compare tokens/s — on a VM expect little difference; the CPU"
-        echo " governor, the biggest lever, is a no-op without real cpufreq)"
+        OFF_OUT="$OFF_OUT" ON_OUT="$ON_OUT" MODEL="$MODEL" python3 <<'PY'
+import os, re
+def parse(t):
+    d = {}
+    for line in t.splitlines():
+        if ":" in line:
+            k, _, v = line.partition(":")
+            d[k.strip().lower()] = v.strip()
+    return d
+off, on = parse(os.environ["OFF_OUT"]), parse(os.environ["ON_OUT"])
+def num(s):
+    m = re.search(r"[-+]?[0-9]*\.?[0-9]+", s or "")
+    return float(m.group()) if m else None
+rows = [
+    ("generation rate", "eval rate"),
+    ("prompt rate",     "prompt eval rate"),
+    ("tokens generated","eval count"),
+    ("generation time", "eval duration"),
+    ("model load",      "load duration"),
+    ("total time",      "total duration"),
+]
+print(f"\n  benchmark: {os.environ['MODEL']}\n")
+print(f"  {'metric':16} {'OFF':>14} {'ON':>14}")
+print("  " + "-" * 46)
+for label, key in rows:
+    print(f"  {label:16} {off.get(key,'?'):>14} {on.get(key,'?'):>14}")
+ro, rn = num(off.get("eval rate")), num(on.get("eval rate"))
+if ro and rn:
+    print(f"\n  >> generation: {ro:.2f} -> {rn:.2f} tokens/s  ({(rn-ro)/ro*100:+.1f}%)")
+print("\n  (on a VM expect ~0%: the CPU governor, the biggest lever, is a")
+print("   no-op without real cpufreq. Run on bare metal for the true gain.)")
+PY
         ;;
     *)
         echo "usage: genesi-ai-mode {on|off|auto|toggle|status|info|bench [model]}" >&2
