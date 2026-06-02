@@ -26,7 +26,14 @@ pkgver=1.3.4
 # when org.freedesktop.Notifications was unavailable, so the toggle felt dead
 # even though it wrote the force file. Fire notify-send detached, with a 3s
 # timeout, output suppressed — the mode flips instantly regardless.
-pkgrel=28
+# 2026-06-02 (29): fix system-wide notifications. genesi-apply-theme.sh ran
+# genesi-layout.js which rebuilt the panel from scratch; the script-built
+# systemtray never loaded the notifications applet, so org.freedesktop.
+# Notifications was never registered (no notify popups at all — update icon
+# missing, AI Mode toasts dead). Dropped the layout rebuild; the static skel
+# appletsrc already has floating panel + sized Kickoff + a tray with
+# shownItems=notifications. New installs now get a working notification server.
+pkgrel=29
 epoch=1
 groups=(genesi)
 arch=('any')
