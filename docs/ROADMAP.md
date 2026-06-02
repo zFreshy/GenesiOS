@@ -110,12 +110,12 @@ A systemd service that monitors AI processes and tunes the system automatically.
       processes that spawn after AI Mode is already on)
 - [x] **Removed** the naive "pin to first half of cores" heuristic — it halved
       CPU-inference throughput. Replaced by hybrid-core awareness in 2.8
-- [ ] amd-pstate / EPP → performance; per-core power-save off (see 2.8)
+- [x] amd-pstate / EPP → `performance` while AI Mode is on (AC/forced), restored
 
 ### 2.5 Optimized I/O for models
 - [x] Optimize kernel readahead for large GGUF files (sysctl)
-- [ ] Pre-cache frequently used models in RAM with `vmtouch`
-- [ ] I/O scheduler tuned for large sequential reads on the model NVMe
+- [x] Pre-cache the active model in RAM (page cache via `posix_fadvise`, see 2.8.3)
+- [x] I/O scheduler tuned for large sequential reads on the model NVMe (see 2.8.7)
 
 ### 2.6 "AI Mode" widget in Plasma
 - [x] Taskbar widget showing AI Mode status
@@ -154,29 +154,30 @@ closes everything, and next time the AI still remembers the context.
 The brain that makes "optimize for ANY PC" real. The daemon profiles the host
 once and gates every optimizer on detected capabilities.
 
-- [ ] `HardwareProfile`: CPU (vendor, physical cores, **hybrid P/E split**,
-      virtualized?), GPU (NVIDIA/AMD/Intel + VRAM), total RAM, chassis
-      (laptop/desktop), power source (AC/battery)
-- [ ] Capability-gated optimizer plugins — each captures original → applies →
+- [x] `HardwareProfile`: CPU (vendor, physical cores, virtualized?), GPU
+      (NVIDIA/AMD/Intel + VRAM), total RAM, chassis (laptop/desktop), power
+      source (AC/battery). _(hybrid P/E split still pending — see 2.8.4)_
+- [x] Capability-gated optimizer plugins — each captures original → applies →
       restores, and is skipped when the hardware can't use it
-- [ ] **VM awareness**: report "virtualized — limited gains" and skip no-op knobs
+- [x] **VM awareness**: report "virtualized — limited gains" and skip no-op knobs
       (e.g. CPU governor doesn't exist under VirtualBox)
-- [ ] Profiles: **Max Performance / Balanced / Battery-aware** (don't nuke power
-      on battery unless the user forces it)
-- [ ] Enrich `state.json` with the hardware profile + exactly-what-changed list
+- [x] Profiles: **Max Performance / Battery-aware** (don't nuke power on battery
+      unless the user forces it; aggressive knobs are AC/forced-gated)
+- [x] Enrich `state.json` with the hardware profile + exactly-what-changed list
 
 #### 2.8.1 🔥 GPU performance mode (biggest missing win)
-- [ ] **NVIDIA**: persistence mode (`nvidia-smi -pm 1`), power limit to max
-      (`-pl`), lock GPU/mem clocks at max, report VRAM use
-- [ ] **AMD**: `power_dpm_force_performance_level=high`, compute power profile
-      via sysfs (`pp_power_profile_mode`)
-- [ ] **Intel Arc/iGPU**: max GPU frequency via sysfs where supported
-- [ ] Restore each GPU to its prior power/clock state on disable
+- [x] **NVIDIA**: persistence mode (`nvidia-smi -pm 1`), power limit to max
+      (`-pl`), report VRAM use _(explicit clock locking via `-lgc` still optional)_
+- [x] **AMD**: `power_dpm_force_performance_level=high` (restored). Compute
+      power profile via `pp_power_profile_mode` still optional.
+- [x] **Intel Arc/iGPU**: lift the i915 GT frequency cap (`gt_max_freq_mhz`) to
+      the hardware ceiling (`gt_RP0_freq_mhz`); restored on disable
+- [x] Restore each GPU to its prior power/clock state on disable
 
 #### 2.8.2 🔥 Power / platform profile
-- [ ] `powerprofilesctl set performance` while AI runs (restore prior profile)
-- [ ] `/sys/firmware/acpi/platform_profile` → `performance` where available
-- [ ] On laptops this unlocks the full CPU+GPU power/thermal budget
+- [x] `powerprofilesctl set performance` while AI runs (restore prior profile)
+- [x] `/sys/firmware/acpi/platform_profile` → `performance` where available
+- [x] On laptops this unlocks the full CPU+GPU power/thermal budget
 
 #### 2.8.3 🔥 Model in RAM (load fast, never stall)
 - [x] Preload the active weights into the page cache (`posix_fadvise WILLNEED`
@@ -221,7 +222,7 @@ once and gates every optimizer on detected capabilities.
 - [x] **Thermal guard**: if the CPU/GPU runs too hot under AI Mode, ease the
       governor (hysteresis) so "max perf" never becomes net-slower; restore when
       it cools. No-op on machines without temp sensors (e.g. a VM)
-- [ ] **`genesi-ai-mode bench`**: run an identical prompt with AI Mode OFF then
+- [x] **`genesi-ai-mode bench`**: run an identical prompt with AI Mode OFF then
       ON and print the tokens/s delta (with VM caveat)
 - [ ] **Model advisor**: given model + hardware, recommend quant / offload / context
 - [ ] Rewrite the widget for the Plasma 6 API with a richer dashboard

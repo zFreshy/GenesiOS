@@ -36,6 +36,7 @@ STATE_FILE     = os.path.join(RUN_DIR, "state.json")
 ORIGINALS_FILE = "/run/genesi-aid-originals.json"
 
 GOVERNOR_GLOB = "/sys/devices/system/cpu/cpu{}/cpufreq/scaling_governor"
+EPP_GLOB      = "/sys/devices/system/cpu/cpu{}/cpufreq/energy_performance_preference"
 SWAPPINESS    = "/proc/sys/vm/swappiness"
 THP_ENABLED   = "/sys/kernel/mm/transparent_hugepage/enabled"
 PLATFORM_PROFILE = "/sys/firmware/acpi/platform_profile"
@@ -138,6 +139,7 @@ class HardwareProfile:
         self.logical_cores = psutil.cpu_count() or 1
         self.physical_cores = psutil.cpu_count(logical=False) or self.logical_cores
         self.has_governor = os.path.exists(GOVERNOR_GLOB.format(0))
+        self.has_epp = os.path.exists(EPP_GLOB.format(0))
         self.gpus = self._detect_gpus()
         self.total_ram_mb = int(psutil.virtual_memory().total / (1024 * 1024))
         self.chassis = self._chassis()
@@ -181,7 +183,16 @@ class HardwareProfile:
                     if os.path.exists(dpm):
                         gpus.append({"vendor": "amd", "card": card, "dpm": dpm})
                 elif vendor == "0x8086":
-                    gpus.append({"vendor": "intel", "card": card})
+                    g = {"vendor": "intel", "card": card}
+                    # i915 exposes the GT frequency window directly under the
+                    # card; gt_RP0 is the hardware ceiling we lift the cap to.
+                    base = os.path.join(DRM_PATH, card)
+                    gt_max = os.path.join(base, "gt_max_freq_mhz")
+                    gt_rp0 = os.path.join(base, "gt_RP0_freq_mhz")
+                    if os.path.exists(gt_max) and os.path.exists(gt_rp0):
+                        g["gt_max"] = gt_max
+                        g["gt_rp0"] = gt_rp0
+                    gpus.append(g)
         except OSError:
             pass
         return gpus
@@ -279,6 +290,20 @@ class AIOptimizer:
         if n:
             logger.info(f"CPU governor -> {gov} ({n} cores)")
 
+    # ── EPP (energy/performance bias on amd-pstate / intel_pstate) ────────────
+    def _read_epp(self):
+        return _read(EPP_GLOB.format(0))
+
+    def _set_epp(self, value):
+        if not value:
+            return
+        n = 0
+        for cpu in range(self.hw.logical_cores):
+            if _write(EPP_GLOB.format(cpu), value):
+                n += 1
+        if n:
+            logger.info(f"EPP -> {value} ({n} cores)")
+
     # ── THP ──────────────────────────────────────────────────────────────────
     def _read_thp(self):
         data = _read(THP_ENABLED) or ""
@@ -368,6 +393,26 @@ class AIOptimizer:
             _write(s["dpm"], s.get("level", "auto"))
             logger.info(f"AMD GPU restored -> {s.get('level')}")
 
+    # ── GPU: Intel (i915 GT frequency cap) ───────────────────────────────────
+    def _intel_capture_and_apply(self):
+        saved = []
+        for gpu in [g for g in self.hw.gpus if g["vendor"] == "intel" and g.get("gt_max")]:
+            cur = _read(gpu["gt_max"])
+            rp0 = _read(gpu["gt_rp0"])
+            if cur is None or not rp0:
+                continue
+            saved.append({"path": gpu["gt_max"], "value": cur})
+            if _write(gpu["gt_max"], rp0):
+                logger.info(f"Intel GPU {gpu['card']}: max freq {cur} -> {rp0} MHz")
+        if saved:
+            self.applied.append(f"Intel GPU max freq ({len(saved)})")
+        return saved
+
+    def _intel_restore(self, saved):
+        for s in saved or []:
+            if _write(s["path"], s.get("value")):
+                logger.info(f"Intel GPU max freq restored -> {s.get('value')} MHz")
+
     # ── originals persistence ────────────────────────────────────────────────
     def _persist_originals(self):
         try:
@@ -423,12 +468,17 @@ class AIOptimizer:
 
         # Power-hungry knobs only when on AC (or explicitly forced)
         if self.aggressive:
+            if self.hw.has_epp:
+                o["epp"] = self._read_epp()
+                self._set_epp("performance")
+                self.applied.append("EPP: performance")
             o["power_profile"] = self._read_power_profile()
             if o["power_profile"]:
                 self._set_power_profile("performance")
                 self.applied.append("power profile: performance")
             o["nvidia"] = self._nvidia_capture_and_apply()
             o["amd"] = self._amd_capture_and_apply()
+            o["intel"] = self._intel_capture_and_apply()
 
         self.originals = o
         self._persist_originals()
@@ -442,6 +492,8 @@ class AIOptimizer:
         o = self.originals
         if "governor" in o:
             self._set_governor(o.get("governor"))
+        if o.get("epp"):
+            self._set_epp(o["epp"])
         if o.get("swappiness") is not None:
             _write(SWAPPINESS, o["swappiness"])
         if o.get("thp"):
@@ -450,6 +502,7 @@ class AIOptimizer:
             self._restore_power_profile(o["power_profile"])
         self._nvidia_restore(o.get("nvidia"))
         self._amd_restore(o.get("amd"))
+        self._intel_restore(o.get("intel"))
         self._restore_io(o.get("io_sched"))
         self._resume_background()
 

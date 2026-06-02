@@ -24,6 +24,10 @@ text-generation-webui, KoboldCPP, Oobabooga.
 | Knob | AI Mode | Restored on exit |
 |------|---------|------------------|
 | CPU governor | `performance` | yes (to captured original) |
+| CPU EPP (amd-pstate/intel_pstate) | `performance` (AC/forced) | yes |
+| NVIDIA GPU | persistence + max power limit (AC/forced) | yes |
+| AMD GPU | `power_dpm_force_performance_level=high` (AC/forced) | yes |
+| Intel GPU | GT freq cap lifted to hardware max (AC/forced) | yes |
 | `vm.swappiness` | 10 | yes |
 | Transparent huge pages | `always` | yes |
 | AI process priority | `nice -5` | reset to 0 |
