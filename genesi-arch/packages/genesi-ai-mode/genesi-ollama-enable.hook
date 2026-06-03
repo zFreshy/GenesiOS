@@ -1,0 +1,19 @@
+# Genesi OS — auto-enable Ollama the moment it's installed.
+#
+# Arch policy is to never auto-enable services, so a freshly-installed ollama
+# leaves the user staring at "could not connect to ollama server, run 'ollama
+# serve'". On an AI-first OS that's the wrong default: we want `ollama pull` /
+# `ollama run` to just work. This fires whenever the ollama.service unit lands
+# (pacman, the Genesi package installer, an upgrade) and enables + starts it.
+# Best-effort: `|| true` so a Calamares chroot (no running systemd) still
+# succeeds — the enable symlink is created and the service starts on first boot.
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Type = Path
+Target = usr/lib/systemd/system/ollama.service
+
+[Action]
+Description = Genesi: enabling + starting ollama.service...
+When = PostTransaction
+Exec = /bin/sh -c '/usr/bin/systemctl enable --now ollama.service 2>/dev/null || true'

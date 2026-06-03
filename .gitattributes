@@ -22,6 +22,7 @@ genesi-arch/packages/genesi-ai-mode/monitor/genesi-ai-monitor text eol=lf
 *.service     text eol=lf
 *.conf        text eol=lf
 *.tmpfiles    text eol=lf
+*.hook        text eol=lf
 # Python is run on Linux, QML is parsed by Qt, .desktop by the XDG stack — all
 # happier as LF, and it keeps the extensionless launchers above consistent.
 *.py          text eol=lf

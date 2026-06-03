@@ -2,7 +2,7 @@
 
 pkgname=genesi-ai-mode
 pkgver=1.0.0
-pkgrel=18
+pkgrel=19
 pkgdesc='Genesi OS AI Mode - adaptive, reversible local-AI optimizer (CPU/GPU/power) + Plasma 6 widget + monitor app'
 arch=('any')
 url='https://github.com/zFreshy/GenesiOS'
@@ -43,6 +43,10 @@ package() {
     # Ollama defaults (only applies once Ollama is installed)
     install -Dm644 "${startdir}/genesi-ollama.conf" \
         "$pkgdir/usr/lib/systemd/system/ollama.service.d/10-genesi.conf"
+
+    # pacman hook: auto-enable + start ollama.service when ollama is installed
+    install -Dm644 "${startdir}/genesi-ollama-enable.hook" \
+        "$pkgdir/usr/share/libalpm/hooks/zz-genesi-ollama-enable.hook"
 
     # Plasma 6 widget (live dashboard + on/auto/off). Not auto-added to the
     # panel — the org.kde.plasma.icon launcher in the default layout already
