@@ -33,7 +33,7 @@ text-generation-webui, KoboldCPP, Oobabooga.
 | AMD GPU | `power_dpm_force_performance_level=high` (AC/forced) | yes |
 | Intel GPU | GT freq cap lifted to hardware max (AC/forced) | yes |
 | `vm.swappiness` | 10 | yes |
-| Transparent huge pages | `always` | yes |
+| Transparent huge pages | `madvise` (not `always` — avoids khugepaged stalls) | yes |
 | AI process priority | `nice -5` | reset to 0 |
 | Model weights | preloaded into page cache (RAM) | n/a (pure cache warming) |
 | Model-disk I/O scheduler | `none`/`mq-deadline` (AC/forced only) | yes (to captured original) |

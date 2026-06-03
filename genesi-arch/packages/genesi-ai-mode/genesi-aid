@@ -494,9 +494,14 @@ class AIOptimizer:
         o["swappiness"] = _to_int(_read(SWAPPINESS))
         if _write(SWAPPINESS, 10):
             self.applied.append("swappiness: 10")
+        # THP `madvise`, NOT `always`. Forcing `always` makes khugepaged churn
+        # and stalls allocations on synchronous compaction — that showed up as
+        # run-to-run jitter where AI Mode was occasionally *slower* on the same
+        # prompt. `madvise` lets apps opt in without the forced-collapse penalty
+        # (the standard high-performance recommendation). Captured + restored.
         o["thp"] = self._read_thp()
-        if _write(THP_ENABLED, "always"):
-            self.applied.append("THP: always")
+        if _write(THP_ENABLED, "madvise"):
+            self.applied.append("THP: madvise")
 
         # Pause file indexers (CPU/IO hogs) — safe, reversible, also saves power
         self._pause_background()
