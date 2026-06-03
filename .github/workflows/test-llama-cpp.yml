@@ -1,0 +1,64 @@
+name: Test genesi-llama-cpp build
+
+# Standalone, manual-only smoke build for the Vulkan llama.cpp package, so we
+# can confirm it compiles inside the cachyos-v3 CI (and time it) WITHOUT risking
+# the load-bearing publish-packages.yml pipeline (a failing package there aborts
+# the whole publish via `exit 1`). Once this passes, genesi-llama-cpp is added
+# to publish-packages.yml's PACKAGES array and the install lists.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: cachyos/cachyos-v3:latest
+    steps:
+      - name: Install git in container
+        run: pacman -Sy --needed --noconfirm git openssh
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install build deps
+        run: |
+          set -euxo pipefail
+          pacman -Sy --noconfirm
+          # systemd + sysvcompat together to avoid the partial-upgrade break.
+          pacman -S --needed --noconfirm --overwrite='*' \
+            base-devel git \
+            systemd systemd-sysvcompat \
+            cmake vulkan-headers shaderc glslang vulkan-icd-loader
+
+      - name: Build the package (timed)
+        shell: bash
+        run: |
+          set -euo pipefail
+          useradd -m builder
+          echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+          chown -R builder:builder "$GITHUB_WORKSPACE"
+
+          cd "$GITHUB_WORKSPACE/genesi-arch/packages/genesi-llama-cpp"
+          start=$(date +%s)
+          # 35-min ceiling: longer than publish-packages' 25-min budget on
+          # purpose — this tells us whether the package fits that budget.
+          if timeout 2100 runuser -u builder -- makepkg -f --noconfirm --noprogressbar; then
+            rc=0
+          else
+            rc=$?
+          fi
+          echo "build took $(( $(date +%s) - start ))s, exit=$rc"
+          if [ "$rc" -ne 0 ]; then
+            echo "::error::genesi-llama-cpp failed to build (exit $rc)"
+            exit "$rc"
+          fi
+          echo "Built artifacts:"
+          ls -lh ./*.pkg.tar.zst
+          # Sanity: the Turbo tool needs llama-server in the package.
+          if tar tf ./*.pkg.tar.zst | grep -q 'usr/bin/llama-server'; then
+            echo "OK: usr/bin/llama-server present"
+          else
+            echo "::error::package is missing usr/bin/llama-server"
+            exit 1
+          fi

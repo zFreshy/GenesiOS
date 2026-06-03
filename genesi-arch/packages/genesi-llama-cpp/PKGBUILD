@@ -1,0 +1,43 @@
+# Maintainer: Genesi OS Team <dev@genesios.org>
+#
+# llama.cpp with the VULKAN backend — GPU-accelerated local inference on ANY GPU
+# (NVIDIA / AMD / Intel), with no CUDA toolkit needed. Genesi ships this so
+# Genesi Turbo (speculative decoding, via `genesi-ai-turbo` -> llama-server)
+# works out of the box instead of forcing an AUR source build. Genesi already
+# ships the Vulkan ICDs (vulkan-radeon/nouveau/intel), so this lights up on real
+# hardware; the CPU fallback (generic, GGML_NATIVE=OFF) keeps it portable.
+pkgname=genesi-llama-cpp
+pkgver=r0
+pkgrel=1
+pkgdesc='llama.cpp (Vulkan) — local LLM inference backing Genesi Turbo'
+arch=('x86_64')
+url='https://github.com/ggml-org/llama.cpp'
+license=('MIT')
+depends=('vulkan-icd-loader' 'gcc-libs' 'glibc')
+makedepends=('git' 'cmake' 'vulkan-headers' 'shaderc' 'glslang')
+provides=('llama.cpp')
+conflicts=('llama.cpp' 'llama.cpp-vulkan' 'llama.cpp-cuda' 'llama.cpp-git')
+source=("git+https://github.com/ggml-org/llama.cpp.git")
+sha256sums=('SKIP')
+
+pkgver() {
+    cd llama.cpp
+    git describe --tags --abbrev=0 2>/dev/null | sed 's/^b/r/' || echo "r0"
+}
+
+build() {
+    cmake -B build -S llama.cpp \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DGGML_VULKAN=ON \
+        -DGGML_NATIVE=OFF \
+        -DLLAMA_CURL=OFF \
+        -DBUILD_SHARED_LIBS=ON
+    cmake --build build --config Release -j"$(nproc)"
+}
+
+package() {
+    DESTDIR="$pkgdir" cmake --install build
+    install -Dm644 llama.cpp/LICENSE \
+        "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}
