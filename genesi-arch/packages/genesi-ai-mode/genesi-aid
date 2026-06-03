@@ -357,20 +357,50 @@ class AIOptimizer:
                 continue
             parts = [p.strip() for p in out.split(",")]
             pm, cur_pl, max_pl = (parts + ["", "", ""])[:3]
-            saved.append({"index": idx, "pm": pm, "pl": cur_pl})
+            entry = {"index": idx, "pm": pm, "pl": cur_pl, "clocks_locked": False}
             # Persistence keeps the driver loaded (lower latency between runs).
             _run(["nvidia-smi", "-i", idx, "-pm", "1"])
             mp = _to_int(max_pl)
             if mp:
                 _run(["nvidia-smi", "-i", idx, "-pl", str(mp)])
-            logger.info(f"NVIDIA GPU {idx}: persistence on, power limit -> {max_pl}W")
+            # Lock graphics + memory clocks at max so the card doesn't drop to a
+            # lower P-state between requests — LLM inference is memory-bandwidth
+            # bound, so a memory clock stuck below P0 costs tokens/s. Best-effort:
+            # some GeForce cards reject -lmc; -rgc/-rmc on disable undoes it.
+            entry["clocks_locked"] = self._nvidia_lock_clocks(idx)
+            saved.append(entry)
+            logger.info("NVIDIA GPU %s: persistence on, power limit -> %sW%s",
+                        idx, max_pl, ", clocks locked max" if entry["clocks_locked"] else "")
         if saved:
-            self.applied.append(f"NVIDIA max power ({len(saved)} GPU)")
+            locked = sum(1 for s in saved if s.get("clocks_locked"))
+            self.applied.append("NVIDIA max power+clocks (%d GPU)" % len(saved)
+                                if locked else "NVIDIA max power (%d GPU)" % len(saved))
         return saved
+
+    def _nvidia_lock_clocks(self, idx):
+        rc, out = _run(["nvidia-smi", "-i", idx,
+                        "--query-gpu=clocks.max.graphics,clocks.max.memory",
+                        "--format=csv,noheader,nounits"])
+        if rc != 0 or not out:
+            return False
+        parts = [p.strip() for p in out.split(",")]
+        gmax, mmax = _to_int(parts[0] if parts else None), \
+            _to_int(parts[1] if len(parts) > 1 else None)
+        locked = False
+        if gmax:
+            rc, _ = _run(["nvidia-smi", "-i", idx, "-lgc", f"{gmax},{gmax}"])
+            locked = locked or rc == 0
+        if mmax:
+            # -lmc may be unsupported on consumer cards; ignore failures.
+            _run(["nvidia-smi", "-i", idx, "-lmc", f"{mmax},{mmax}"])
+        return locked
 
     def _nvidia_restore(self, saved):
         for s in saved or []:
             idx = s["index"]
+            if s.get("clocks_locked"):
+                _run(["nvidia-smi", "-i", idx, "-rgc"])   # reset graphics clocks
+                _run(["nvidia-smi", "-i", idx, "-rmc"])   # reset memory clocks
             pl = _to_int(s.get("pl"))
             if pl:
                 _run(["nvidia-smi", "-i", idx, "-pl", str(pl)])

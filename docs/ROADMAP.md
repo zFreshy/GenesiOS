@@ -167,7 +167,8 @@ once and gates every optimizer on detected capabilities.
 
 #### 2.8.1 🔥 GPU performance mode (biggest missing win)
 - [x] **NVIDIA**: persistence mode (`nvidia-smi -pm 1`), power limit to max
-      (`-pl`), report VRAM use _(explicit clock locking via `-lgc` still optional)_
+      (`-pl`), graphics+memory clock lock at max (`-lgc`/`-lmc`, reset on
+      disable), report VRAM use
 - [x] **AMD**: `power_dpm_force_performance_level=high` (restored). Compute
       power profile via `pp_power_profile_mode` still optional.
 - [x] **Intel Arc/iGPU**: lift the i915 GT frequency cap (`gt_max_freq_mhz`) to
