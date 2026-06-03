@@ -52,6 +52,10 @@ Kirigami.ApplicationWindow {
         title: "AI Mode"
         actions: [
             Kirigami.Action {
+                text: "Chat com a IA"; icon.name: "dialog-messages"
+                onTriggered: win.pageStack.push(Qt.resolvedUrl("ChatPage.qml"))
+            },
+            Kirigami.Action {
                 text: "Force ON"; icon.name: "run-build"
                 checked: win.forceMode === "on"
                 onTriggered: backend.setMode("on")

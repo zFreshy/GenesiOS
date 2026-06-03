@@ -11,10 +11,12 @@ import os
 import sys
 import json
 import shutil
+import threading
 import subprocess
+import urllib.request
 
 try:
-    from PySide6.QtCore import QObject, Slot, QUrl
+    from PySide6.QtCore import QObject, Slot, Signal, QUrl
     from PySide6.QtGui import QGuiApplication, QIcon
     from PySide6.QtQml import QQmlApplicationEngine
 except ImportError:
@@ -24,9 +26,20 @@ except ImportError:
     sys.exit(1)
 
 STATE_FILE = "/run/genesi-ai-mode/state.json"
+OLLAMA = "http://127.0.0.1:11434"
 
 
 class Backend(QObject):
+    # Chat signals (emitted from a worker thread; Qt queues them to the GUI).
+    chatToken = Signal(str)      # one streamed token
+    chatDone = Signal(str)       # verbose stats line ("" if none)
+    chatError = Signal(str)
+    modelsLoaded = Signal(str)   # JSON array of model names
+
+    def __init__(self):
+        super().__init__()
+        self._stop = False
+
     @Slot(result=str)
     def state(self):
         try:
@@ -48,6 +61,65 @@ class Backend(QObject):
                                  stderr=subprocess.DEVNULL)
             except OSError:
                 pass
+
+    # ── chat (talk to the locally-running Ollama, stream + verbose stats) ─────
+    @Slot()
+    def loadModels(self):
+        def work():
+            try:
+                with urllib.request.urlopen(OLLAMA + "/api/tags", timeout=4) as r:
+                    data = json.loads(r.read().decode())
+                names = [m.get("name") for m in data.get("models", []) if m.get("name")]
+            except Exception:
+                names = []
+            self.modelsLoaded.emit(json.dumps(names))
+        threading.Thread(target=work, daemon=True).start()
+
+    @Slot(str, str)
+    def sendPrompt(self, model, prompt):
+        self._stop = False
+
+        def work():
+            body = json.dumps({"model": model, "prompt": prompt,
+                               "stream": True}).encode()
+            req = urllib.request.Request(
+                OLLAMA + "/api/generate", data=body,
+                headers={"Content-Type": "application/json"})
+            try:
+                with urllib.request.urlopen(req, timeout=600) as r:
+                    for raw in r:
+                        if self._stop:
+                            break
+                        raw = raw.strip()
+                        if not raw:
+                            continue
+                        obj = json.loads(raw.decode())
+                        tok = obj.get("response", "")
+                        if tok:
+                            self.chatToken.emit(tok)
+                        if obj.get("done"):
+                            self.chatDone.emit(self._stats(obj))
+                            return
+                self.chatDone.emit("")
+            except Exception as e:
+                self.chatError.emit(str(e))
+        threading.Thread(target=work, daemon=True).start()
+
+    @Slot()
+    def stopChat(self):
+        self._stop = True
+
+    @staticmethod
+    def _stats(obj):
+        ec = obj.get("eval_count") or 0
+        ed = obj.get("eval_duration") or 0           # ns
+        pc = obj.get("prompt_eval_count") or 0
+        total = obj.get("total_duration") or 0
+        tps = (ec / (ed / 1e9)) if ed else 0
+        if not ec:
+            return ""
+        return (f"{tps:.1f} tok/s   •   {ec} tokens   •   "
+                f"prompt {pc}   •   total {total / 1e9:.1f}s")
 
 
 def main():
