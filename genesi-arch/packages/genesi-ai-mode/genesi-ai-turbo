@@ -12,7 +12,10 @@ already downloaded — no re-download.
   genesi-ai-turbo serve <model> [draft]   run a Turbo server on :11435
   genesi-ai-turbo <model>                 same as `serve`
 
-Needs llama.cpp:  sudo pacman -S llama.cpp-cuda   (or llama.cpp for CPU)
+Needs llama.cpp (from the AUR — not in the repos yet):
+  paru -S llama.cpp-cuda     # NVIDIA
+  paru -S llama.cpp-vulkan   # any GPU (NVIDIA/AMD/Intel)
+  paru -S llama.cpp          # CPU-only
 """
 import os
 import sys
@@ -167,7 +170,8 @@ def cmd_bench(main, draft):
     if not main_g:
         sys.exit(f"could not resolve/pull {main}")
     if not llama_bin("llama-server"):
-        sys.exit("llama.cpp not installed.  sudo pacman -S llama.cpp-cuda  (or llama.cpp)")
+        sys.exit("llama-server not found — install llama.cpp from the AUR:\n"
+                 "  paru -S llama.cpp-vulkan   (any GPU)   or   llama.cpp  (CPU)")
     draft = draft or pick_draft(main)
     if not draft:
         sys.exit(f"no same-family draft for {main}; pass one explicitly:\n"
@@ -212,7 +216,8 @@ def cmd_serve(main, draft):
         sys.exit(f"could not resolve/pull {main}")
     cmd = server_cmd(main_g, None)
     if not cmd:
-        sys.exit("llama.cpp not installed.  sudo pacman -S llama.cpp-cuda  (or llama.cpp)")
+        sys.exit("llama-server not found — install llama.cpp from the AUR:\n"
+                 "  paru -S llama.cpp-vulkan   (any GPU)   or   llama.cpp  (CPU)")
     draft = draft or pick_draft(main)
     draft_g = ensure(draft) if draft else None
     cmd = server_cmd(main_g, draft_g)
