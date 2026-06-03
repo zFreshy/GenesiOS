@@ -17,6 +17,15 @@ the workload stops (and there's no manual override) every tweak is restored.
   (`genesi-ai-monitor`, needs `pyside6`)
 - `genesi-ai-kwin-helper` — user-session helper that trims KWin desktop effects
   (blur/contrast) while AI Mode is on (KDE autostart, needs `qdbus`)
+- `genesi-ai-turbo` — **speculative decoding** (opt-in): a small same-family draft
+  model proposes tokens, the big model verifies several at once → 1.5–3× faster
+  generation, identical output. Drives llama.cpp's `llama-server` (ollama doesn't
+  expose this), reusing the GGUFs ollama already pulled. Needs `llama.cpp-cuda`.
+
+  ```bash
+  genesi-ai-turbo bench llama3.1:8b     # prove the speedup (spec vs no-spec)
+  genesi-ai-turbo serve llama3.1:8b     # Turbo server on :11435 (OpenAI API)
+  ```
 
 ## Detected frameworks
 

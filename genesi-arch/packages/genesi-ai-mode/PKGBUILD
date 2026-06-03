@@ -2,7 +2,7 @@
 
 pkgname=genesi-ai-mode
 pkgver=1.0.0
-pkgrel=24
+pkgrel=25
 pkgdesc='Genesi OS AI Mode - adaptive, reversible local-AI optimizer (CPU/GPU/power) + Plasma 6 widget + monitor app'
 arch=('any')
 url='https://github.com/zFreshy/GenesiOS'
@@ -18,6 +18,8 @@ optdepends=(
     'nvidia-utils: NVIDIA GPU performance mode (persistence + max power limit)'
     'ollama: run local models (genesi-ai-mode bench)'
     'qt6-tools: qdbus for the KWin desktop-effect trimmer'
+    'llama.cpp-cuda: Genesi Turbo speculative decoding (NVIDIA) — genesi-ai-turbo'
+    'llama.cpp: Genesi Turbo speculative decoding (CPU/other GPUs)'
 )
 install="$pkgname.install"
 source=()
@@ -27,6 +29,7 @@ package() {
     # Daemon + user-facing control CLI
     install -Dm755 "${startdir}/genesi-aid"      "$pkgdir/usr/local/bin/genesi-aid"
     install -Dm755 "${startdir}/genesi-ai-mode"  "$pkgdir/usr/local/bin/genesi-ai-mode"
+    install -Dm755 "${startdir}/genesi-ai-turbo"  "$pkgdir/usr/local/bin/genesi-ai-turbo"
 
     # systemd service
     install -Dm644 "${startdir}/genesi-aid.service" \

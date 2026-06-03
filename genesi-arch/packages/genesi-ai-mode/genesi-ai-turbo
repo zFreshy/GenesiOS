@@ -1,0 +1,242 @@
+#!/usr/bin/env python3
+"""
+Genesi Turbo — speculative decoding for local models (faster than any stock OS).
+
+ollama doesn't expose speculative decoding, so Turbo drives llama.cpp's
+`llama-server` directly: a small same-family DRAFT model proposes tokens and the
+big TARGET model verifies several at once. The output is IDENTICAL to the target
+model, but decode is typically 1.5-3x faster. Reuses the GGUF weights ollama
+already downloaded — no re-download.
+
+  genesi-ai-turbo bench <model> [draft]   prove the speedup (spec vs no-spec)
+  genesi-ai-turbo serve <model> [draft]   run a Turbo server on :11435
+  genesi-ai-turbo <model>                 same as `serve`
+
+Needs llama.cpp:  sudo pacman -S llama.cpp-cuda   (or llama.cpp for CPU)
+"""
+import os
+import sys
+import json
+import time
+import signal
+import shutil
+import tempfile
+import subprocess
+import urllib.request
+
+TURBO_PORT = 11435
+PROMPT = "Explain how a CPU instruction pipeline works, in about 200 words."
+
+# (family substring in the target tag -> a tiny, same-tokenizer draft model)
+DRAFT_FOR = [
+    ("llama3.3", "llama3.2:1b"),
+    ("llama3.1", "llama3.2:1b"),
+    ("llama3.2", "llama3.2:1b"),
+    ("llama3",   "llama3.2:1b"),
+    ("qwen2.5",  "qwen2.5:0.5b"),
+    ("qwen2",    "qwen2.5:0.5b"),
+    ("qwen3",    "qwen3:0.6b"),
+]
+TINY = (":0.5b", ":0.6b", ":1b", ":1.5b")
+
+
+def models_dir():
+    for d in (os.environ.get("OLLAMA_MODELS"),
+              "/usr/share/ollama/.ollama/models",
+              os.path.expanduser("~/.ollama/models")):
+        if d and os.path.isdir(os.path.join(d, "manifests")):
+            return d
+    return None
+
+
+def gguf_path(tag):
+    """The GGUF blob ollama stored for `tag` (e.g. 'llama3.1:8b'), or None."""
+    md = models_dir()
+    if not md:
+        return None
+    name, _, ver = tag.partition(":")
+    ver = ver or "latest"
+    man = os.path.join(md, "manifests", "registry.ollama.ai", "library", name, ver)
+    if not os.path.isfile(man):
+        return None
+    try:
+        m = json.load(open(man))
+    except Exception:
+        return None
+    for layer in m.get("layers", []):
+        if layer.get("mediaType", "").endswith("image.model"):
+            blob = os.path.join(md, "blobs", layer.get("digest", "").replace(":", "-"))
+            return blob if os.path.isfile(blob) else None
+    return None
+
+
+def ensure(tag):
+    """Make sure `tag` is pulled; return its GGUF path (or None on failure)."""
+    p = gguf_path(tag)
+    if p:
+        return p
+    print(f":: pulling {tag} ...", flush=True)
+    if subprocess.run(["ollama", "pull", tag]).returncode != 0:
+        return None
+    return gguf_path(tag)
+
+
+def pick_draft(main):
+    low = main.lower()
+    if any(t in low for t in TINY):
+        return None                       # already tiny — nothing to speculate
+    for key, draft in DRAFT_FOR:
+        if low.startswith(key):
+            return draft
+    return None
+
+
+def llama_bin(name):
+    for cand in (name, "/usr/bin/" + name):
+        b = shutil.which(cand) or (cand if os.path.exists(cand) else None)
+        if b:
+            return b
+    return None
+
+
+def have_gpu():
+    try:
+        s = json.load(open("/run/genesi-ai-mode/state.json"))
+        return bool((s.get("hardware") or {}).get("gpus"))
+    except Exception:
+        return shutil.which("nvidia-smi") is not None
+
+
+def server_cmd(main_gguf, draft_gguf):
+    binp = llama_bin("llama-server")
+    if not binp:
+        return None
+    cmd = [binp, "-m", main_gguf, "--host", "127.0.0.1",
+           "--port", str(TURBO_PORT), "-c", "4096", "-fa"]
+    if have_gpu():
+        cmd += ["-ngl", "999"]
+    if draft_gguf:
+        cmd += ["-md", draft_gguf]
+    return cmd
+
+
+def wait_ready(timeout=180):
+    end = time.time() + timeout
+    while time.time() < end:
+        try:
+            with urllib.request.urlopen(f"http://127.0.0.1:{TURBO_PORT}/health",
+                                        timeout=2) as r:
+                if json.loads(r.read()).get("status") == "ok":
+                    return True
+        except Exception:
+            pass
+        time.sleep(1)
+    return False
+
+
+def measure(n=256):
+    body = json.dumps({"prompt": PROMPT, "n_predict": n,
+                       "temperature": 0.7, "cache_prompt": False}).encode()
+    req = urllib.request.Request(f"http://127.0.0.1:{TURBO_PORT}/completion",
+                                 data=body, headers={"Content-Type": "application/json"})
+    with urllib.request.urlopen(req, timeout=900) as r:
+        t = json.loads(r.read()).get("timings", {})
+    return t.get("predicted_per_second"), t.get("predicted_n")
+
+
+def stop(proc):
+    try:
+        proc.send_signal(signal.SIGINT)
+        proc.wait(timeout=10)
+    except Exception:
+        try:
+            proc.kill()
+        except Exception:
+            pass
+
+
+def _tail(path, n=18):
+    try:
+        return "".join(open(path).readlines()[-n:])
+    except Exception:
+        return ""
+
+
+def cmd_bench(main, draft):
+    main_g = ensure(main)
+    if not main_g:
+        sys.exit(f"could not resolve/pull {main}")
+    if not llama_bin("llama-server"):
+        sys.exit("llama.cpp not installed.  sudo pacman -S llama.cpp-cuda  (or llama.cpp)")
+    draft = draft or pick_draft(main)
+    if not draft:
+        sys.exit(f"no same-family draft for {main}; pass one explicitly:\n"
+                 f"  genesi-ai-turbo bench {main} qwen2.5:0.5b")
+    draft_g = ensure(draft)
+    if not draft_g:
+        sys.exit(f"could not resolve/pull draft {draft}")
+
+    results = {}
+    for label, dg in (("no-spec", None), ("turbo (spec)", draft_g)):
+        print(f":: starting {label} ...", flush=True)
+        cmd = server_cmd(main_g, dg)
+        print("   " + " ".join(cmd), flush=True)
+        log = tempfile.NamedTemporaryFile("w", delete=False, suffix=".log").name
+        proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=open(log, "w"))
+        try:
+            if not wait_ready():
+                print(f"   {label}: server never became ready — last log lines:")
+                print(_tail(log))
+                continue
+            tps, ntok = measure()
+            results[label] = tps
+            print(f"   {label}: {tps:.1f} tok/s ({ntok} tokens)")
+        finally:
+            stop(proc)
+        time.sleep(2)
+
+    a, b = results.get("no-spec"), results.get("turbo (spec)")
+    print(f"\n  Genesi Turbo — {main}  (draft: {draft})\n")
+    if a and b:
+        print(f"  {'no-spec':16}{a:8.1f} tok/s")
+        print(f"  {'turbo (spec)':16}{b:8.1f} tok/s")
+        print(f"\n  >> {a:.1f} -> {b:.1f} tok/s   ({(b - a) / a * 100:+.0f}%)  "
+              f"same output, speculative decoding")
+    else:
+        print("  (incomplete — run `genesi-ai-turbo serve %s` to see server logs)" % main)
+
+
+def cmd_serve(main, draft):
+    main_g = ensure(main)
+    if not main_g:
+        sys.exit(f"could not resolve/pull {main}")
+    cmd = server_cmd(main_g, None)
+    if not cmd:
+        sys.exit("llama.cpp not installed.  sudo pacman -S llama.cpp-cuda  (or llama.cpp)")
+    draft = draft or pick_draft(main)
+    draft_g = ensure(draft) if draft else None
+    cmd = server_cmd(main_g, draft_g)
+    print(f":: Genesi Turbo serving {main}" +
+          (f" + draft {draft}" if draft_g else " (no draft — no speedup)"))
+    print(f"   API: http://127.0.0.1:{TURBO_PORT}/v1   (OpenAI-compatible)  Ctrl-C to stop")
+    print("   " + " ".join(cmd), flush=True)
+    os.execvp(cmd[0], cmd)
+
+
+def main():
+    args = sys.argv[1:]
+    if not args or args[0] in ("-h", "--help"):
+        print(__doc__)
+        return
+    action, rest = args[0], args[1:]
+    if action in ("bench", "serve"):
+        if not rest:
+            sys.exit(f"usage: genesi-ai-turbo {action} <model> [draft-model]")
+        cmd = cmd_bench if action == "bench" else cmd_serve
+        cmd(rest[0], rest[1] if len(rest) > 1 else None)
+    else:
+        cmd_serve(action, rest[0] if rest else None)
+
+
+if __name__ == "__main__":
+    main()
