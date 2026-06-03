@@ -29,7 +29,8 @@ jobs:
           pacman -S --needed --noconfirm --overwrite='*' \
             base-devel git \
             systemd systemd-sysvcompat \
-            cmake vulkan-headers shaderc glslang vulkan-icd-loader
+            cmake vulkan-headers shaderc glslang vulkan-icd-loader \
+            spirv-headers spirv-tools
 
       - name: Build the package (timed)
         shell: bash

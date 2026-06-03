@@ -14,7 +14,8 @@ arch=('x86_64')
 url='https://github.com/ggml-org/llama.cpp'
 license=('MIT')
 depends=('vulkan-icd-loader' 'gcc-libs' 'glibc')
-makedepends=('git' 'cmake' 'vulkan-headers' 'shaderc' 'glslang')
+makedepends=('git' 'cmake' 'vulkan-headers' 'shaderc' 'glslang'
+             'spirv-headers' 'spirv-tools')
 provides=('llama.cpp')
 conflicts=('llama.cpp' 'llama.cpp-vulkan' 'llama.cpp-cuda' 'llama.cpp-git')
 source=("git+https://github.com/ggml-org/llama.cpp.git")
