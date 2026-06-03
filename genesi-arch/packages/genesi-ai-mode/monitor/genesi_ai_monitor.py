@@ -52,6 +52,16 @@ class Backend(QObject):
     def hasOllama(self):
         return shutil.which("ollama") is not None
 
+    @Slot(result=str)
+    def advise(self):
+        """Model Advisor text — single source of truth is the CLI."""
+        try:
+            r = subprocess.run(["genesi-ai-mode", "advise"],
+                               capture_output=True, text=True, timeout=10)
+            return (r.stdout or r.stderr or "").strip()
+        except Exception as e:
+            return f"erro ao consultar o advisor: {e}"
+
     @Slot(str)
     def setMode(self, mode):
         if mode in ("on", "off", "auto", "toggle"):

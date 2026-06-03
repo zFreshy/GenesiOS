@@ -229,7 +229,9 @@ once and gates every optimizer on detected capabilities.
       it cools. No-op on machines without temp sensors (e.g. a VM)
 - [x] **`genesi-ai-mode bench`**: run an identical prompt with AI Mode OFF then
       ON and print the tokens/s delta (with VM caveat)
-- [ ] **Model advisor**: given model + hardware, recommend quant / offload / context
+- [x] **Model advisor**: `genesi-ai-mode advise` (+ Monitor page) — given VRAM/RAM,
+      shows which models/quants stay 100% on the GPU vs spill to CPU, recommends
+      the biggest that fits, with the exact `ollama pull` command
 - [x] Rewrite the widget for the Plasma 6 API with a richer dashboard
       (status, live CPU/RAM/GPU, loaded models, tokens/s, applied tweaks,
       on/auto/off controls)

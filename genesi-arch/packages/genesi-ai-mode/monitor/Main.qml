@@ -56,6 +56,10 @@ Kirigami.ApplicationWindow {
                 onTriggered: win.pageStack.push(Qt.resolvedUrl("ChatPage.qml"))
             },
             Kirigami.Action {
+                text: "Modelos"; icon.name: "applications-science"
+                onTriggered: win.pageStack.push(Qt.resolvedUrl("AdvisorPage.qml"))
+            },
+            Kirigami.Action {
                 text: "Force ON"; icon.name: "run-build"
                 checked: win.forceMode === "on"
                 onTriggered: backend.setMode("on")
