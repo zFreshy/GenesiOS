@@ -689,14 +689,18 @@ class AIOptimizer:
                 logger.info("I/O scheduler %s restored -> %s", dev, cur)
 
     def write_ollama_env(self):
-        """Pick Ollama concurrency limits from RAM/VRAM and drop them where the
-        ollama unit's EnvironmentFile picks them up. Always-on sane defaults (not
-        part of the reversible on/off cycle), same spirit as genesi-ollama.conf.
-        Each parallel slot and each loaded model costs KV-cache memory, so we
-        scale by the real memory budget — GPU VRAM if present, else system RAM."""
+        """Pick Ollama concurrency limits and drop them where the ollama unit's
+        EnvironmentFile picks them up. Always-on sane defaults (not part of the
+        reversible on/off cycle), same spirit as genesi-ollama.conf.
+
+        NUM_PARALLEL=1: Genesi is a single-user desktop, so one parallel slot
+        gives that one request the FULL context window and all the VRAM — the
+        fastest single-request speed, and it stops a borderline model from
+        spilling onto the CPU (each extra slot reserves another KV cache). A
+        throughput/multi-user box can override this with its own drop-in."""
         ram_gb = self.hw.total_ram_mb / 1024
         vram_gb = sum(g.get("vram_mb") or 0 for g in self.hw.gpus) / 1024
-        parallel = 1 if ram_gb < 8 else 2 if ram_gb < 32 else 4
+        parallel = 1
         budget_gb = vram_gb if vram_gb >= 2 else ram_gb
         loaded = 1 if budget_gb < 12 else 2 if budget_gb < 32 else 3
         body = (f"OLLAMA_NUM_PARALLEL={parallel}\n"
