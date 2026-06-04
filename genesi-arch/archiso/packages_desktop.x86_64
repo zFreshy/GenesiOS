@@ -32,6 +32,10 @@ genesi-ai-mode
 genesi-llama-cpp
 genesi-packageinstaller
 genesi-kde-settings
+# Meta-package pulling the full Genesi component set. Listed alongside the
+# explicit packages (redundant but harmless) so the meta is present on the live
+# ISO too; on installed systems it's what lets future components arrive on -Syu.
+genesi-desktop
 ckbcomp
 clonezilla
 cloud-init

@@ -81,7 +81,11 @@ jobs:
           # Collect every depends/makedepends/checkdepends declared by the
           # Genesi PKGBUILDs so makepkg never needs `-s` (which would call
           # `sudo pacman` from the unprivileged builder and is fragile).
-          # Strip version constraints — pacman -S takes plain names.
+          # Strip version constraints — pacman -S takes plain names. Also drop
+          # genesi-* deps: those are built by THIS pipeline and aren't in any
+          # repo yet, so `pacman -S genesi-foo` would fail. (Only the
+          # genesi-desktop meta-package has genesi-* deps; it's built with
+          # `makepkg -d` so its dep check is skipped at build time.)
           DEPS=$(
             for pkgbuild in genesi-arch/packages/*/PKGBUILD; do
               bash -c "
@@ -92,6 +96,7 @@ jobs:
               "
             done \
               | sed -E 's/[<>=].*//' \
+              | grep -vE '^genesi-' \
               | sort -u \
               | grep -v '^$' \
               | tr '\n' ' '
@@ -177,6 +182,10 @@ jobs:
             # green via test-llama-cpp.yml (~10min, well under the 25-min budget).
             # Kept LAST so if its build ever flakes it can't block the others.
             "genesi-llama-cpp"
+            # Meta-package (depends on all the above). Built with `makepkg -d`
+            # (see MAKEPKG_NODEPS) since its genesi-* deps aren't in a repo yet.
+            # Last so every component it lists has already been built this run.
+            "genesi-desktop"
           )
 
           for pkg in "${PACKAGES[@]}"; do
@@ -208,6 +217,12 @@ jobs:
             fi
             echo "--- /diag ---"
 
+            # The genesi-desktop meta depends on other Genesi packages that
+            # aren't in any repo at build time; skip makepkg's dep check for it
+            # (-d). Install-time resolution from the genesi repo still applies.
+            MAKEPKG_NODEPS=""
+            if [ "$pkg" = "genesi-desktop" ]; then MAKEPKG_NODEPS="-d"; fi
+
             rc=0
             for attempt in 1 2; do
               # Do NOT set PACMAN='pacman --overwrite=*'. makepkg does
@@ -219,7 +234,7 @@ jobs:
               if timeout 1500 bash -c "cd '$pkg' && rm -f *.pkg.tar.zst && \
                 runuser -u builder -- env \
                   PKGDEST='$GITHUB_WORKSPACE/genesi-arch/packages/repo' \
-                  makepkg -f --noconfirm --noprogressbar --log"; then
+                  makepkg -f $MAKEPKG_NODEPS --noconfirm --noprogressbar --log"; then
                 rc=0
                 break
               else

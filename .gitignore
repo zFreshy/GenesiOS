@@ -16,7 +16,9 @@ Thumbs.db
 .verdent/
 build/
 example/
-genesi-desktop/
+# Anchored to repo root so it doesn't also ignore the genesi-desktop
+# meta-package under genesi-arch/packages/.
+/genesi-desktop/
 kernel_legacy/
 
 # Temporary documentation (don't commit)

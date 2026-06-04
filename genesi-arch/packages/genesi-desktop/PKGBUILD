@@ -1,0 +1,44 @@
+# Maintainer: Genesi OS Team <dev@genesios.org>
+#
+# Meta-package: pulls in the full set of Genesi OS desktop components. Its whole
+# job is to make the Genesi experience a SINGLE dependency, so that:
+#   * a fresh install only needs `genesi-desktop` (it drags in everything), and
+#   * adding a new component later = add it here + bump pkgrel; every system that
+#     has genesi-desktop then pulls the new component automatically on `pacman
+#     -Syu` (a plain -Syu never installs brand-new packages on its own, which is
+#     why older installs were missing AI Mode, the package installer, etc.).
+#
+# Build note: this is the one Genesi package that depends on OTHER Genesi
+# packages, which aren't in any repo at CI build-deps time. publish-packages.yml
+# therefore (a) filters genesi-* out of the pre-installed build deps and (b)
+# builds this package with `makepkg -d` (skip the dep check). At INSTALL time the
+# genesi repo has all of them, so the dependencies resolve normally.
+pkgname=genesi-desktop
+pkgver=1.0.0
+pkgrel=1
+pkgdesc='Genesi OS desktop meta-package (AI Mode, installer, theming, updater)'
+arch=('any')
+url='https://github.com/zFreshy/GenesiOS'
+license=('GPL-3.0-or-later')
+# The full default Genesi component set for an INSTALLED system. Installer-only
+# packages (genesi-calamares, genesi-calamares-branding) are deliberately NOT
+# here — they belong on the live ISO, not the target.
+depends=(
+    'genesi-settings'
+    'genesi-kde-settings'
+    'genesi-ai-mode'
+    'genesi-llama-cpp'
+    'genesi-update'
+    'genesi-channel'
+    'genesi-welcome'
+    'genesi-packageinstaller'
+    'genesi-klassy'
+    'genesi-darkly'
+    'genesi-grub-theme'
+    'genesi-fastfetch'
+)
+
+package() {
+    # Pure meta-package: no payload of its own.
+    :
+}
