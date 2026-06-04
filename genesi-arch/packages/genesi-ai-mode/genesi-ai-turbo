@@ -95,6 +95,48 @@ def gguf_path(tag):
     return None
 
 
+def _fix_ollama_permissions():
+    """Try to open up the Ollama models tree so any local user can read the
+    GGUF blobs. Ollama's systemd service runs as the `ollama` user, so newly
+    pulled files are readable only by root/ollama.  The genesi-ollama.conf
+    drop-in fixes this on service start, but models pulled *after* that need
+    a one-shot chmod. We try pkexec first (graphical polkit prompt, no
+    terminal), then fall back to sudo (works in a tty session)."""
+    # Candidate roots — the daemon may use any of these.
+    candidates = [
+        "/var/lib/ollama",
+        "/usr/share/ollama/.ollama",
+    ]
+    # Also consider OLLAMA_MODELS env if set.
+    env_models = os.environ.get("OLLAMA_MODELS")
+    if env_models:
+        candidates.insert(0, os.path.dirname(env_models)
+                          if env_models.endswith("/models") else env_models)
+
+    for root in candidates:
+        models = os.path.join(root, "models")
+        # Also check the hidden .ollama/models subpath common in systemd setups.
+        for mdir in (models, os.path.join(root, ".ollama", "models")):
+            if not os.path.isdir(mdir):
+                continue
+            # Build the chmod command: make dirs traversable, files readable.
+            sh = (f"chmod a+rx {root} {mdir} 2>/dev/null; "
+                  f"chmod -R a+rX {mdir}/blobs {mdir}/manifests 2>/dev/null || true")
+            # Try pkexec (graphical prompt), then sudo (tty).
+            for escalator in ("pkexec", "sudo"):
+                if not shutil.which(escalator):
+                    continue
+                print(f":: fixing model permissions via {escalator}…",
+                      flush=True)
+                rc = subprocess.run(
+                    [escalator, "/bin/sh", "-c", sh],
+                    timeout=120).returncode
+                if rc == 0:
+                    return True
+            break  # found the dir, no point checking more candidates
+    return False
+
+
 def ensure(tag):
     """Make sure `tag` is pulled; return its GGUF path (or None on failure)."""
     p = gguf_path(tag)
@@ -104,10 +146,20 @@ def ensure(tag):
     if subprocess.run(["ollama", "pull", tag]).returncode != 0:
         return None
     p = gguf_path(tag)
-    if not p and not models_dir():
-        print("\n[!] Error: Could not read Ollama models directory.", file=sys.stderr)
-        print("    If Ollama runs as a system service (e.g. /var/lib/ollama),", file=sys.stderr)
-        print("    you may need to run this command with 'sudo'.", file=sys.stderr)
+    if p:
+        return p
+    # Pull succeeded, but we can't read the files → permission issue.
+    if not models_dir():
+        print("\n[!] Cannot read the Ollama models directory — fixing permissions…",
+              file=sys.stderr, flush=True)
+        if _fix_ollama_permissions():
+            p = gguf_path(tag)
+            if p:
+                return p
+        print("[!] Still cannot read models. Run manually:", file=sys.stderr)
+        print("    sudo chmod a+rx /var/lib/ollama /var/lib/ollama/models", file=sys.stderr)
+        print("    sudo chmod -R a+rX /var/lib/ollama/models/blobs /var/lib/ollama/models/manifests",
+              file=sys.stderr)
     return p
 
 
