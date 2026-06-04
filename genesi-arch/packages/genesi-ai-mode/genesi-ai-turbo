@@ -161,6 +161,8 @@ def server_cmd(main_gguf, draft_gguf):
            "--port", str(TURBO_PORT),
            "-c", str(ctx),
            "-fa",                          # flash attention (decode + prefill)
+           "--ctk", "q8_0",                # 8-bit KV cache (key) - cuts memory bandwidth in half
+           "--ctv", "q8_0",                # 8-bit KV cache (value)
            "-b", str(batch),               # logical prefill batch
            "-ub", str(ubatch),             # physical prefill batch (n_ubatch)
            # KV-cache reuse: keep matching prefix chunks across requests via KV
