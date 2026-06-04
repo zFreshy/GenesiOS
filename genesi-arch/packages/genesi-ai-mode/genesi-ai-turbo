@@ -50,20 +50,43 @@ DRAFT_FOR = [
 TINY = (":0.5b", ":0.6b", ":1b", ":1.5b")
 
 
+def _daemon_models_dir():
+    """The OLLAMA_MODELS the ollama systemd service actually runs with.
+
+    This is the source of truth: the daemon writes models *here*, and on
+    Genesi/Arch it is set to bare /var/lib/ollama — with blobs/ and manifests/
+    directly inside, NOT under a models/ subdir. Guessing conventional paths
+    misses this, so we ask systemd what the running daemon uses."""
+    try:
+        out = subprocess.run(
+            ["systemctl", "show", "ollama", "-p", "Environment"],
+            capture_output=True, text=True, timeout=5).stdout
+    except Exception:
+        return None
+    # Line looks like: Environment=HOME=/var/lib/ollama OLLAMA_MODELS=/var/lib/ollama ...
+    for tok in out.replace("Environment=", "", 1).split():
+        if tok.startswith("OLLAMA_MODELS="):
+            return tok.split("=", 1)[1].strip() or None
+    return None
+
+
 def _candidate_model_dirs():
     """Yield every plausible Ollama model root, in priority order.
 
     The daemon may store models in any of these depending on how Ollama was
-    installed: an explicit OLLAMA_MODELS, the upstream installer's
-    /usr/share/ollama/.ollama, or the Arch/CachyOS package's /var/lib/ollama.
-    Crucially, MORE THAN ONE of these can exist at once — e.g. an empty/stale
-    /usr/share/ollama/.ollama/models/manifests left by the upstream installer
-    alongside the real models under /var/lib/ollama. So callers must probe
-    *every* root for the specific model they want instead of locking onto the
-    first directory that merely has a manifests/ subdir."""
+    installed: an explicit OLLAMA_MODELS (Genesi/Arch use bare /var/lib/ollama,
+    blobs+manifests directly inside), the upstream installer's
+    /usr/share/ollama/.ollama, or a user's ~/.ollama. Crucially, MORE THAN ONE
+    can exist at once — e.g. empty/stale .../models/manifests dirs sitting next
+    to the real ones — so callers must probe *every* root for the specific
+    model they want instead of locking onto the first dir with a manifests/
+    subdir. We list the systemd daemon's real OLLAMA_MODELS first."""
     seen = set()
     for d in (os.environ.get("OLLAMA_MODELS"),
+              _daemon_models_dir(),
+              "/var/lib/ollama",
               "/usr/share/ollama/.ollama/models",
+              "/usr/share/ollama",
               "/var/lib/ollama/.ollama/models",
               "/var/lib/ollama/models",
               os.path.expanduser("~/.ollama/models")):
