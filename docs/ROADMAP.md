@@ -207,8 +207,14 @@ once and gates every optimizer on detected capabilities.
       `OLLAMA_KV_CACHE_TYPE=q8_0`, `OLLAMA_KEEP_ALIVE=15m`
 - [x] `OLLAMA_NUM_PARALLEL` / `OLLAMA_MAX_LOADED_MODELS` tuned to RAM/VRAM
       (daemon writes an EnvironmentFile the ollama unit reads at start)
-- [ ] Auto-pick `num_gpu` (offload layers) from detected VRAM vs model size
-- [ ] Equivalent flags for llama.cpp / llama-server
+- [~] Auto-pick `num_gpu` (offload layers) from detected VRAM vs model size —
+      _intentionally NOT forcing a global `num_gpu`: ollama's scheduler already
+      auto-offloads from VRAM, and overriding it regresses common cases. The
+      llama-server path instead uses `-ngl 999` (full offload) gated by the
+      advisor's VRAM-fit math._
+- [x] Equivalent flags for llama.cpp / llama-server — `genesi-ai-turbo` drives
+      `llama-server` with `-fa -ngl 999 -b 2048 -ub <n> --cache-reuse 256`
+      (see 2.8.10 #3)
 
 #### 2.8.7 ⚡ I/O, NUMA & scheduler
 - [x] I/O scheduler → `none`/`mq-deadline` on the disk backing the weights
@@ -223,7 +229,10 @@ once and gates every optimizer on detected capabilities.
 - [x] Ollama awareness via `/api/ps`: loaded model name, size, CPU/GPU split
 - [x] Live tokens/s (best-effort scrape of the ollama journal) in `state.json`,
       the widget, the Monitor app, and `genesi-ai-mode info`
-- [ ] Before/after summary of exactly what AI Mode changed
+- [x] Before/after summary of exactly what AI Mode changed — structured
+      `changes` list (`{lever, from, to}`) in `state.json`, derived from the
+      persisted originals snapshot (survives a daemon restart), surfaced in
+      `genesi-ai-mode info` as a before→after table
 - [x] **Thermal guard**: if the CPU/GPU runs too hot under AI Mode, ease the
       governor (hysteresis) so "max perf" never becomes net-slower; restore when
       it cools. No-op on machines without temp sensors (e.g. a VM)
@@ -237,9 +246,17 @@ once and gates every optimizer on detected capabilities.
       on/auto/off controls)
 
 #### 2.8.9 ✨ Advanced / opt-in (with tradeoffs)
-- [ ] Explicit huge pages allocated on enable, freed on disable
-- [ ] Disable CPU security mitigations (opt-in, clearly flagged) for max throughput
-- [ ] Disable PCIe ASPM / USB autosuspend for the inference GPU
+- [x] Explicit huge pages allocated on enable, freed on disable — opt-in via
+      `/etc/genesi-ai-mode/advanced.conf` (`hugepages = N`), reversible, refuses
+      if it would exceed 50% of free RAM, AC/forced-gated. Default OFF.
+- [~] Disable CPU security mitigations (opt-in, clearly flagged) for max
+      throughput — _documented in `advanced.conf` but NOT auto-applied: it's a
+      boot-time kernel cmdline (`mitigations=off`) that can't toggle live and
+      weakens security, so the user opts in via GRUB themselves._
+- [x] Disable PCIe ASPM / USB autosuspend for the inference GPU — PCIe ASPM →
+      `performance` is opt-in (`pcie_aspm = on`), reversible, AC/forced-gated,
+      default OFF. _USB-autosuspend left to udev rules (too broad to toggle
+      globally; see `advanced.conf`)._
 
 #### 2.8.10 🏎️ Beat-any-OS inference speed
 > System tweaks only *match* the hardware ceiling — every OS hits the same wall
@@ -256,11 +273,12 @@ once and gates every optimizer on detected capabilities.
 >       _**← chosen first.**_ **DONE:** `genesi-ai-turbo` (`bench`/`serve`) + a
 >       one-click ⚡ switch in the Monitor chat, backed by the shipped
 >       `genesi-llama-cpp` (Vulkan `llama-server`). On-HW bench still pending.
-> - [ ] **🥈 Faster backend per GPU** — auto-detect NVIDIA and use EXL2
->       (ExLlamaV2) or TensorRT-LLM instead of generic llama.cpp (**2–4×**).
->       Biggest raw win, biggest effort (different model format, heavier setup).
->       _Deferred: NVIDIA-only, needs EXL2-format models ollama doesn't provide +
->       a separate serving stack, and can't be validated without NVIDIA hardware._
+> - ~~**Faster backend per GPU** (EXL2 / TensorRT-LLM)~~ — **dropped, not a fit.**
+>       It's a subproject, not a feature: a different model format ollama doesn't
+>       provide (separate downloads + acervo), a separate CUDA-only serving stack,
+>       NVIDIA-only, and unvalidatable without NVIDIA hardware. If ever revisited,
+>       a CUDA build of llama.cpp (same GGUF + same `llama-server` API, ~1.5–2×
+>       over Vulkan on NVIDIA) is the low-risk path — not EXL2.
 > - [x] **🥈 Prefill speedups (read the prompt faster)** — larger prefill batch
 >       (`n_ubatch`) + KV-cache reuse so a repeated system prompt is near-instant.
 >       Needs engine-level control (llama-server). (Flash attention ✅ already.)

@@ -40,11 +40,18 @@ ORIGINALS_FILE = "/run/genesi-aid-originals.json"
 # (one per line, '#' comments). Merged with BACKGROUND_HOGS, read live.
 EXTRA_HOGS_FILE = "/etc/genesi-ai-mode/hogs.conf"
 
+# Advanced, opt-in tradeoff knobs (roadmap 2.8.9). Everything is OFF by default;
+# enabled keys are applied only when AI Mode runs aggressively (AC/forced) and
+# each is fully reversible. Read live, like hogs.conf.
+ADVANCED_CONF = "/etc/genesi-ai-mode/advanced.conf"
+
 GOVERNOR_GLOB = "/sys/devices/system/cpu/cpu{}/cpufreq/scaling_governor"
 EPP_GLOB      = "/sys/devices/system/cpu/cpu{}/cpufreq/energy_performance_preference"
 SWAPPINESS    = "/proc/sys/vm/swappiness"
 THP_ENABLED   = "/sys/kernel/mm/transparent_hugepage/enabled"
 PLATFORM_PROFILE = "/sys/firmware/acpi/platform_profile"
+NR_HUGEPAGES     = "/proc/sys/vm/nr_hugepages"                 # 2.8.9 opt-in
+PCIE_ASPM_POLICY = "/sys/module/pcie_aspm/parameters/policy"   # 2.8.9 opt-in
 POWER_SUPPLY  = "/sys/class/power_supply"
 DRM_PATH      = "/sys/class/drm"
 
@@ -476,6 +483,111 @@ class AIOptimizer:
         except (OSError, ValueError) as e:
             logger.warning(f"ignoring unreadable originals: {e}")
 
+    # ── advanced opt-in levers (2.8.9) ───────────────────────────────────────
+    @staticmethod
+    def _advanced_conf():
+        """Parse /etc/genesi-ai-mode/advanced.conf (key=value, '#' comments),
+        read live. Missing keys default OFF — these are opt-in tradeoffs."""
+        conf = {}
+        data = _read(ADVANCED_CONF)
+        if data:
+            for line in data.splitlines():
+                line = line.split("#", 1)[0].strip()
+                if "=" in line:
+                    k, v = line.split("=", 1)
+                    conf[k.strip().lower()] = v.strip().lower()
+        return conf
+
+    def _apply_advanced(self, o):
+        """Apply the enabled opt-in knobs, capturing each original into
+        o['advanced'] so disable restores it exactly. Default off; only reached
+        on the aggressive (AC/forced) path. USB-autosuspend and mitigations-off
+        are deliberately NOT here — see advanced.conf (boot-time / too broad)."""
+        conf = self._advanced_conf()
+        adv = {}
+        # Explicit huge pages: reserve N×2MB pages for the weights. The
+        # reservation is stolen from normal allocations, so it's risky on low
+        # RAM — refuse if it would eat >50% of currently-free RAM.
+        hp = conf.get("hugepages", "off")
+        if hp not in ("", "off", "0", "false", "no"):
+            try:
+                want = int(hp)
+            except ValueError:
+                want = 0
+            if want > 0:
+                free_mb = psutil.virtual_memory().available / (1024 * 1024)
+                if want * 2 <= free_mb * 0.5:
+                    cur = _to_int(_read(NR_HUGEPAGES))
+                    if _write(NR_HUGEPAGES, want):
+                        adv["nr_hugepages"] = cur if cur is not None else 0
+                        self.applied.append(f"huge pages: {want}×2MB")
+                else:
+                    logger.warning(
+                        "huge pages: refusing %d pages (>50%% of free RAM)", want)
+        # PCIe ASPM → performance: no link power-saving = lower latency to the
+        # GPU. Sysfs lists the options with the active one in [brackets].
+        if conf.get("pcie_aspm") in ("on", "performance", "1", "true", "yes"):
+            cur = _read(PCIE_ASPM_POLICY)
+            if cur and _write(PCIE_ASPM_POLICY, "performance"):
+                m = re.search(r"\[(\w+)\]", cur)
+                adv["pcie_aspm"] = m.group(1) if m else "default"
+                self.applied.append("PCIe ASPM: performance")
+        if adv:
+            o["advanced"] = adv
+
+    def _restore_advanced(self, adv):
+        if not adv:
+            return
+        if "nr_hugepages" in adv:
+            _write(NR_HUGEPAGES, adv["nr_hugepages"])
+        if adv.get("pcie_aspm"):
+            _write(PCIE_ASPM_POLICY, adv["pcie_aspm"])
+
+    def changes_summary(self):
+        """2.8.8: structured before/after of exactly what AI Mode changed,
+        derived from the persisted `originals` snapshot so it survives a daemon
+        restart (the `applied` list does not). [{lever, from, to}, …]."""
+        if not self.ai_mode_active:
+            return []
+        o = self.originals
+        out = []
+
+        def add(lever, frm, to):
+            out.append({"lever": lever,
+                        "from": "—" if frm in (None, "") else str(frm),
+                        "to": str(to)})
+
+        if "governor" in o:
+            add("CPU governor", o.get("governor"), "performance")
+        if "swappiness" in o:
+            add("swappiness", o.get("swappiness"), 10)
+        if "thp" in o:
+            add("THP", o.get("thp"), "madvise")
+        if o.get("epp"):
+            add("EPP", o.get("epp"), "performance")
+        if o.get("power_profile"):
+            add("power profile", "prev", "performance")
+        for key, label in (("nvidia", "NVIDIA"), ("amd", "AMD GPU"),
+                           ("intel", "Intel GPU")):
+            v = o.get(key)
+            if v:
+                try:
+                    n = len(v)
+                except TypeError:
+                    n = 0
+                add(label, "default",
+                    "max power/clocks" + (f" ({n})" if n else ""))
+        io = o.get("io_sched")
+        if isinstance(io, dict):
+            for dev, prev in io.items():
+                add(f"I/O sched ({dev})", prev, "none/mq-deadline")
+        adv = o.get("advanced") or {}
+        if "nr_hugepages" in adv:
+            add("huge pages", adv.get("nr_hugepages"), "reserved")
+        if adv.get("pcie_aspm"):
+            add("PCIe ASPM", adv.get("pcie_aspm"), "performance")
+        return out
+
     # ── transitions ──────────────────────────────────────────────────────────
     def enable_ai_mode(self, forced):
         if self.ai_mode_active:
@@ -519,6 +631,7 @@ class AIOptimizer:
             o["nvidia"] = self._nvidia_capture_and_apply()
             o["amd"] = self._amd_capture_and_apply()
             o["intel"] = self._intel_capture_and_apply()
+            self._apply_advanced(o)
 
         self.originals = o
         self._persist_originals()
@@ -543,6 +656,7 @@ class AIOptimizer:
         self._nvidia_restore(o.get("nvidia"))
         self._amd_restore(o.get("amd"))
         self._intel_restore(o.get("intel"))
+        self._restore_advanced(o.get("advanced"))
         self._restore_io(o.get("io_sched"))
         self._resume_background()
 
@@ -921,6 +1035,7 @@ class AIOptimizer:
             "aggressive": self.aggressive,
             "throttled": self.throttled,
             "applied": self.effective_applied(),
+            "changes": self.changes_summary(),
             "ai_processes": procs,
             "ollama": self.ollama_status(),
             "tokens_per_second": self.tokens_per_second() if self.ai_mode_active else None,

@@ -2,7 +2,7 @@
 
 pkgname=genesi-ai-mode
 pkgver=1.0.0
-pkgrel=29
+pkgrel=30
 pkgdesc='Genesi OS AI Mode - adaptive, reversible local-AI optimizer (CPU/GPU/power) + Plasma 6 widget + monitor app'
 arch=('any')
 url='https://github.com/zFreshy/GenesiOS'
@@ -29,6 +29,9 @@ optdepends=(
     'genesi-llama-cpp: Genesi Turbo speculative decoding (llama-server, Vulkan — shipped by default)'
 )
 install="$pkgname.install"
+# Opt-in advanced tweaks config (all OFF by default). backup() so pacman writes
+# .pacnew instead of clobbering a user's edits on upgrade.
+backup=('etc/genesi-ai-mode/advanced.conf')
 source=()
 sha256sums=()
 
@@ -49,6 +52,10 @@ package() {
     # Static sysctl tuning
     install -Dm644 "${startdir}/99-genesi-ai.conf" \
         "$pkgdir/etc/sysctl.d/99-genesi-ai.conf"
+
+    # Advanced opt-in tweaks (2.8.9) — shipped all-OFF + documented (see backup())
+    install -Dm644 "${startdir}/advanced.conf" \
+        "$pkgdir/etc/genesi-ai-mode/advanced.conf"
 
     # Ollama defaults (only applies once Ollama is installed)
     install -Dm644 "${startdir}/genesi-ollama.conf" \

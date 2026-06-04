@@ -63,6 +63,11 @@ procs = s.get("ai_processes", [])
 print("AI procs: " + (", ".join(f"{p['name']}({p['pid']})" for p in procs) or "none"))
 applied = s.get("applied", [])
 print("Applied : " + (", ".join(applied) if applied else "—"))
+changes = s.get("changes", [])
+if changes:
+    print("Changes : (before -> after)")
+    for c in changes:
+        print(f"          {str(c.get('lever','?')):<16} {c.get('from','—')} -> {c.get('to','?')}")
 if s.get("throttled"):
     print("Thermal : THROTTLED (governor eased to cool down)")
 mt = s.get("metrics", {})
