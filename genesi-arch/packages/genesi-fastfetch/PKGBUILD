@@ -10,7 +10,9 @@ pkgver=1.0.0
 #    Now wired into /etc/bash.bashrc (every interactive bash) via the scriptlet.
 #  * Reworked the ASCII logo (the old dot-blob looked bad).
 # 2026-06-01 (rel 3): new Braille-art Genesi leaf logo (user-provided).
-pkgrel=3
+# 2026-06-04 (rel 4): drop the "GENESI OS" text line under the logo (the leaf
+#   art alone reads cleaner); user-approved tweak to genesi-logo.txt.
+pkgrel=4
 pkgdesc="Branded fastfetch greeting (logo + system info) for Genesi OS terminals"
 arch=('any')
 url="https://github.com/zFreshy/GenesiOS"
