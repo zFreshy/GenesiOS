@@ -124,120 +124,173 @@ PlasmoidItem {
             RowLayout {
                 Layout.fillWidth: true
                 spacing: Kirigami.Units.largeSpacing
-                Kirigami.Icon {
-                    source: "cpu"
-                    Layout.preferredWidth: Kirigami.Units.iconSizes.large
-                    Layout.preferredHeight: Kirigami.Units.iconSizes.large
-                    color: root.aiModeActive ? root.genesiGreen : root.offColor
-                }
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    spacing: 0
-                    Kirigami.Heading { level: 3; text: "Genesi AI Mode" }
-                    PlasmaComponents.Label {
-                        text: "AI Mode: " + root.statusLabel()
+                
+                Rectangle {
+                    width: Kirigami.Units.iconSizes.huge
+                    height: Kirigami.Units.iconSizes.huge
+                    radius: width / 2
+                    color: "transparent"
+                    border.color: root.aiModeActive ? root.genesiGreen : Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.2)
+                    border.width: 1
+                    
+                    Kirigami.Icon {
+                        anchors.centerIn: parent
+                        source: "cpu"
+                        width: Kirigami.Units.iconSizes.large
+                        height: Kirigami.Units.iconSizes.large
                         color: root.aiModeActive ? root.genesiGreen : root.offColor
-                        font.bold: true
                     }
                 }
-                PlasmaComponents.Label {
-                    visible: !!root.state.tokens_per_second
-                    text: (root.state.tokens_per_second || 0) + " tok/s"
-                    color: root.genesiGreen
-                    font.bold: true
+                
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 2
+                    Kirigami.Heading { 
+                        level: 3; 
+                        text: "Genesi AI Mode"
+                        font.bold: true
+                    }
+                    RowLayout {
+                        spacing: Kirigami.Units.smallSpacing
+                        Rectangle {
+                            width: 8; height: 8; radius: 4
+                            color: root.aiModeActive ? root.genesiGreen : root.offColor
+                        }
+                        PlasmaComponents.Label {
+                            text: "AI Mode: " + root.statusLabel()
+                            color: root.aiModeActive ? root.genesiGreen : root.offColor
+                            font.bold: true
+                        }
+                    }
                 }
             }
 
             Kirigami.Separator { Layout.fillWidth: true }
 
-            // live metrics
-            GridLayout {
+            // CPU
+            ColumnLayout {
                 Layout.fillWidth: true
-                columns: 2
-                rowSpacing: Kirigami.Units.smallSpacing
-                columnSpacing: Kirigami.Units.largeSpacing
-
-                PlasmaComponents.Label { text: "CPU"; opacity: 0.7 }
-                PlasmaComponents.Label {
+                spacing: Kirigami.Units.smallSpacing
+                RowLayout {
                     Layout.fillWidth: true
-                    text: (fullRoot.metrics().cpu_percent !== undefined
-                           ? fullRoot.metrics().cpu_percent + "%" : "—")
-                          + (fullRoot.metrics().cpu_temp_c != null
-                             ? "   " + fullRoot.metrics().cpu_temp_c + "°C" : "")
+                    PlasmaComponents.Label { text: "CPU"; font.bold: true; opacity: 0.8 }
+                    Item { Layout.fillWidth: true }
+                    PlasmaComponents.Label {
+                        text: (fullRoot.metrics().cpu_percent !== undefined
+                               ? fullRoot.metrics().cpu_percent.toFixed(1) + "%" : "—")
+                        font.bold: true
+                    }
                 }
-                PlasmaComponents.Label { text: "RAM"; opacity: 0.7 }
-                PlasmaComponents.Label {
+                Rectangle {
                     Layout.fillWidth: true
-                    text: fullRoot.metrics().ram_used_mb !== undefined
-                          ? (fullRoot.metrics().ram_used_mb + " / "
-                             + fullRoot.metrics().ram_total_mb + " MB")
-                          : "—"
+                    Layout.preferredHeight: 6
+                    radius: 3
+                    color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.1)
+                    Rectangle {
+                        width: parent.width * (fullRoot.metrics().cpu_percent !== undefined ? Math.min(fullRoot.metrics().cpu_percent / 100.0, 1.0) : 0)
+                        height: parent.height
+                        radius: 3
+                        gradient: Gradient {
+                            orientation: Gradient.Horizontal
+                            GradientStop { position: 0.0; color: root.genesiGreen }
+                            GradientStop { position: 1.0; color: Kirigami.Theme.highlightColor }
+                        }
+                    }
+                }
+            }
+
+            // RAM
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: Kirigami.Units.smallSpacing
+                RowLayout {
+                    Layout.fillWidth: true
+                    PlasmaComponents.Label { text: "RAM"; font.bold: true; opacity: 0.8 }
+                    Item { Layout.fillWidth: true }
+                    PlasmaComponents.Label {
+                        text: fullRoot.metrics().ram_used_mb !== undefined
+                              ? (fullRoot.metrics().ram_used_mb + " / "
+                                 + fullRoot.metrics().ram_total_mb + " MB")
+                              : "—"
+                        font.bold: true
+                    }
+                }
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 6
+                    radius: 3
+                    color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.1)
+                    Rectangle {
+                        width: fullRoot.metrics().ram_total_mb ? parent.width * Math.min(fullRoot.metrics().ram_used_mb / fullRoot.metrics().ram_total_mb, 1.0) : 0
+                        height: parent.height
+                        radius: 3
+                        gradient: Gradient {
+                            orientation: Gradient.Horizontal
+                            GradientStop { position: 0.0; color: root.genesiGreen }
+                            GradientStop { position: 1.0; color: Kirigami.Theme.highlightColor }
+                        }
+                    }
                 }
             }
 
             // GPUs
             Repeater {
                 model: fullRoot.gpus()
-                RowLayout {
+                ColumnLayout {
                     Layout.fillWidth: true
-                    PlasmaComponents.Label { text: "GPU " + (modelData.vendor || "?"); opacity: 0.7 }
-                    PlasmaComponents.Label {
+                    spacing: Kirigami.Units.smallSpacing
+                    RowLayout {
                         Layout.fillWidth: true
-                        horizontalAlignment: Text.AlignRight
-                        text: (modelData.util != null ? modelData.util + "%  " : "")
-                              + (modelData.vram_used_mb != null
-                                 ? modelData.vram_used_mb + "/" + modelData.vram_total_mb + "MB  " : "")
-                              + (modelData.temp_c != null ? modelData.temp_c + "°C" : "")
+                        PlasmaComponents.Label { text: "GPU " + (modelData.vendor || "?"); font.bold: true; opacity: 0.8 }
+                        Item { Layout.fillWidth: true }
+                        PlasmaComponents.Label {
+                            text: (modelData.util != null ? modelData.util + "%" : "—")
+                            font.bold: true
+                        }
                     }
-                }
-            }
-
-            // loaded Ollama models
-            ColumnLayout {
-                Layout.fillWidth: true
-                visible: (root.state.ollama || []).length > 0
-                spacing: 2
-                Kirigami.Separator { Layout.fillWidth: true }
-                PlasmaComponents.Label { text: "Loaded models"; font.bold: true }
-                Repeater {
-                    model: root.state.ollama || []
-                    PlasmaComponents.Label {
+                    Rectangle {
                         Layout.fillWidth: true
-                        elide: Text.ElideRight
-                        text: "• " + modelData.name
-                              + (modelData.size_mb ? "  (" + modelData.size_mb + "MB, " + modelData.where + ")" : "")
-                        font.pixelSize: Kirigami.Theme.smallFont.pixelSize
-                    }
-                }
-            }
-
-            // applied tweaks
-            ColumnLayout {
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                spacing: 2
-                Kirigami.Separator { Layout.fillWidth: true }
-                PlasmaComponents.Label {
-                    text: root.aiModeActive ? "Applied optimizations" : "Idle — nothing applied"
-                    font.bold: true
-                }
-                PlasmaComponents.ScrollView {
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    ListView {
-                        model: root.state.applied || []
-                        delegate: PlasmaComponents.Label {
-                            width: ListView.view.width
-                            text: "• " + modelData
-                            wrapMode: Text.WordWrap
-                            color: root.genesiGreen
-                            font.pixelSize: Kirigami.Theme.smallFont.pixelSize
+                        Layout.preferredHeight: 6
+                        radius: 3
+                        color: Qt.rgba(Kirigami.Theme.textColor.r, Kirigami.Theme.textColor.g, Kirigami.Theme.textColor.b, 0.1)
+                        Rectangle {
+                            width: parent.width * (modelData.util != null ? Math.min(modelData.util / 100.0, 1.0) : 0)
+                            height: parent.height
+                            radius: 3
+                            gradient: Gradient {
+                                orientation: Gradient.Horizontal
+                                GradientStop { position: 0.0; color: root.genesiGreen }
+                                GradientStop { position: 1.0; color: Kirigami.Theme.highlightColor }
+                            }
                         }
                     }
                 }
             }
 
-            // open the full Monitor app (dashboard + chat + model advisor)
+            Item { Layout.fillHeight: true } // spacer to push everything to top and bottom
+
+            // Performance / Model text
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 2
+                PlasmaComponents.Label {
+                    text: root.aiModeActive ? "Performance — perfil aplicado" : "Idle — nenhum perfil aplicado"
+                    font.bold: true
+                }
+                PlasmaComponents.Label {
+                    text: {
+                        var modelText = (root.state.ollama && root.state.ollama.length > 0) 
+                                        ? "Modelo local" : "Nenhum modelo carregado";
+                        var tokText = root.state.tokens_per_second ? root.state.tokens_per_second + " tok/s" : "";
+                        if (tokText) return modelText + " · " + tokText;
+                        return modelText;
+                    }
+                    opacity: 0.7
+                    font.pixelSize: Kirigami.Theme.smallFont.pixelSize
+                }
+            }
+
+            // Open monitor button
             PlasmaComponents.Button {
                 Layout.fillWidth: true
                 text: "Abrir AI Mode Monitor"
@@ -245,15 +298,15 @@ PlasmoidItem {
                 onClicked: root.openMonitor()
             }
 
-            // controls
+            // Controls
             RowLayout {
                 Layout.fillWidth: true
                 spacing: Kirigami.Units.smallSpacing
                 PlasmaComponents.Button {
                     Layout.fillWidth: true
-                    text: root.forceMode === "on" ? "Forced ON" : "Force ON"
+                    text: "Force ON"
                     icon.name: "run-build"
-                    highlighted: root.forceMode === "on"
+                    opacity: root.forceMode === "on" ? 1.0 : 0.6
                     onClicked: root.setMode("on")
                 }
                 PlasmaComponents.Button {
@@ -265,9 +318,9 @@ PlasmoidItem {
                 }
                 PlasmaComponents.Button {
                     Layout.fillWidth: true
-                    text: root.forceMode === "off" ? "Forced OFF" : "Force OFF"
+                    text: "Force OFF"
                     icon.name: "dialog-cancel"
-                    highlighted: root.forceMode === "off"
+                    opacity: root.forceMode === "off" ? 1.0 : 0.6
                     onClicked: root.setMode("off")
                 }
             }

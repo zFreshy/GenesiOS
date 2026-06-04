@@ -12,7 +12,7 @@
         "Id": "org.genesi.aimode",
         "License": "GPL-3.0",
         "Name": "Genesi AI Mode",
-        "Version": "2.0",
+        "Version": "2.1",
         "Website": "https://github.com/zFreshy/GenesiOS"
     },
     "KPackageStructure": "Plasma/Applet",
