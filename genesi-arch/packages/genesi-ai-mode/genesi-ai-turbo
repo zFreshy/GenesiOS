@@ -65,11 +65,13 @@ def gguf_path(tag):
     """The GGUF blob ollama stored for `tag` (e.g. 'llama3.1:8b'), or None."""
     md = models_dir()
     if not md:
+        print(f"[!] md is None, models_dir() failed to find manifests dir", file=sys.stderr)
         return None
     name, _, ver = tag.partition(":")
     ver = ver or "latest"
     man = os.path.join(md, "manifests", "registry.ollama.ai", "library", name, ver)
     if not os.path.isfile(man):
+        print(f"[!] Manifest not found: {man}", file=sys.stderr)
         return None
     try:
         m = json.load(open(man))
@@ -78,7 +80,10 @@ def gguf_path(tag):
         return None
     for layer in m.get("layers", []):
         if layer.get("mediaType", "").endswith("image.model"):
-            blob = os.path.join(md, "blobs", layer.get("digest", "").replace(":", "-"))
+            digest = layer.get("digest", "")
+            # Ollama sometimes uses sha256-xxx, sometimes sha256:xxx in digest, but the file is always sha256-xxx
+            blob_name = digest.replace(":", "-")
+            blob = os.path.join(md, "blobs", blob_name)
             if not os.path.isfile(blob):
                 print(f"[!] Blob not found: {blob}", file=sys.stderr)
                 return None
@@ -86,6 +91,7 @@ def gguf_path(tag):
                 print(f"[!] Permission denied to read blob: {blob}", file=sys.stderr)
                 return None
             return blob
+    print(f"[!] No image.model layer found in manifest {man}", file=sys.stderr)
     return None
 
 
