@@ -1,0 +1,46 @@
+name: Hygiene check
+
+# Fast guard (no build) that fails if tooling/editor state ever leaks into a
+# `skel-override/` directory. skel-override is copied into every new user's HOME
+# on an installed system, so a stray `.omc/` (oh-my-claudecode), `.claude/`,
+# `.vscode/`, etc. there would ship to users. This already happened once
+# (.omc/ committed under genesi-settings' skel-override), hence the guard.
+#
+# It inspects TRACKED files across the repo AND submodules (git ls-files
+# --recurse-submodules) — i.e. exactly what would be packaged — not the local
+# working tree, so local tooling dirs don't trip it.
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  skel-override-clean:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository (with submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Fail if tooling/editor state is under any skel-override/
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Tracked files (superproject + submodules) that sit under a
+          # skel-override/ dir AND are a known tooling/editor state directory.
+          junk="$(git ls-files --recurse-submodules \
+            | grep -E '/skel-override/' \
+            | grep -E '/\.(omc|claude|verdent|vscode|idea)(/|$)' || true)"
+          if [ -n "$junk" ]; then
+            echo "::error::Tooling/editor state leaked into skel-override (would land in every new user's HOME):"
+            printf '  %s\n' $junk
+            echo ""
+            echo "Fix: remove it from the owning repo (git rm --cached), add the dir"
+            echo "to that repo's .gitignore, and bump the submodule pointer here."
+            exit 1
+          fi
+          echo "OK: no tooling/editor state under any skel-override/"
