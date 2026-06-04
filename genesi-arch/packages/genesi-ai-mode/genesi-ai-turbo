@@ -276,9 +276,12 @@ def server_cmd(main_gguf, draft_gguf):
            "-fa", "on",                    # flash attention (decode + prefill).
                                            # Newer llama.cpp made -fa take a value
                                            # (on|off|auto); bare "-fa" now eats the
-                                           # next arg ("--ctk") and errors out.
-           "--ctk", "q8_0",                # 8-bit KV cache (key) - cuts memory bandwidth in half
-           "--ctv", "q8_0",                # 8-bit KV cache (value)
+                                           # next arg and errors out.
+           # 8-bit KV cache (key/value) — halves KV memory bandwidth. Newer
+           # llama.cpp dropped the "--ctk"/"--ctv" (double-dash) spelling; the
+           # valid forms are "-ctk"/"-ctv" (single dash) or these long names.
+           "--cache-type-k", "q8_0",
+           "--cache-type-v", "q8_0",
            "-b", str(batch),               # logical prefill batch
            "-ub", str(ubatch),             # physical prefill batch (n_ubatch)
            # KV-cache reuse: keep matching prefix chunks across requests via KV
