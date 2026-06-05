@@ -325,7 +325,29 @@ jobs:
             exit 0
           fi
           git commit -m "ci(${CHANNEL}): publish packages from ${GITHUB_SHA:0:7}"
-          git push origin "HEAD:${BRANCH}"
+
+          # The package build takes ~25 min, during which `main` can move (a docs
+          # commit, another push, the next publish run). A plain push then dies
+          # with "Updates were rejected (fetch first)" and the whole publish is
+          # LOST — the rebuilt .pkg.tar.zst never reaches the repo (reproduced
+          # 2026-06-05). Our commit only touches genesi-arch/repo/, so it never
+          # conflicts with source/doc commits: rebase onto the latest remote and
+          # retry a few times so a concurrent push can't drop a publish.
+          for attempt in 1 2 3 4 5; do
+            if git push origin "HEAD:${BRANCH}"; then
+              echo "Published packages (push attempt ${attempt})"
+              break
+            fi
+            if [ "${attempt}" = "5" ]; then
+              echo "::error::could not push packages after 5 attempts"
+              exit 1
+            fi
+            echo "push rejected (attempt ${attempt}/5) — rebasing onto origin/${BRANCH}…"
+            git fetch origin "${BRANCH}"
+            git rebase "origin/${BRANCH}" || { git rebase --abort || true; \
+              echo "::error::rebase conflict while publishing packages"; exit 1; }
+            sleep $(( (RANDOM % 4) + 2 ))
+          done
 
       - name: Summary
         run: |
