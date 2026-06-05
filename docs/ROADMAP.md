@@ -290,6 +290,62 @@ once and gates every optimizer on detected capabilities.
 >       knob (`GENESI_TURBO_MLOCK=1`, default off); huge pages + mitigations-off
 >       deferred (risky, marginal, better validated on real hardware)._
 
+#### 2.8.11 🚀 Genesi Turbo 2.0 — warm daemon, memory coordination & predictive speed
+> The decode engine (llama.cpp) is the SAME on every OS, so "2× faster decode
+> than Ubuntu on the same model+quant+hardware" is not an honest claim. Genesi's
+> real, defensible edge is **perceived latency** (the model is already warm so it
+> answers instantly, instead of paying the load every time), a **microarch-optimal
+> binary** out of the box, **hardware auto-tuning** nobody sets by hand, and a
+> **system-wide shared cache**. These are the levers an OS — not an app — owns.
+
+**Tier 1 — kill the cold-start (the biggest *felt* win)**
+- [x] **Memory coordination (Turbo ⇄ Ollama).** Turbo serves via `llama-server`,
+      so Ollama doesn't need the model resident meanwhile. On low-RAM boxes (e.g.
+      a 6 GB VM) two ~3 GB copies don't fit → `llama-server` OOM'd/swapped and
+      "Turbo never came up". Now the Monitor **unloads Ollama's keep-alive model
+      (`keep_alive=0`) before** starting Turbo, and **Force OFF releases it too**
+      so RAM returns to baseline instead of lingering ~15 min. _(shipped)_
+- [ ] **Always-warm shared inference daemon.** One persistent `llama-server`
+      (the Turbo `:11435`, already OpenAI-compatible) that **every app uses** —
+      no per-app reload, and a **shared prefix/KV cache** across apps. An app
+      can't assume a system daemon; an OS can. Managed by `genesi-aid` as a
+      socket-activated/long-lived unit.
+- [ ] **Predictive preload at login/idle.** `genesi-aid` warms the user's
+      most-used model at low priority when the machine is idle, so the first
+      prompt is instant (vs ~2 min cold load today). RAM-gated; integrates with
+      the existing usage signals.
+- [ ] **Persistent prompt/KV cache to disk.** Use `llama-server` slot
+      save/restore (`--slot-save-path`) so a long system-prompt's KV survives
+      restarts — first reply of a new chat stays fast even after a reboot.
+      (The server already enables an 8 GiB prompt cache; persist + reuse it.)
+
+**Tier 2 — real throughput the OS uniquely controls**
+- [ ] **Microarch-optimal `llama.cpp` build + auto-dispatch.** CachyOS is already
+      x86-64-v3/v4; ship the best ISA (AVX-512/VNNI, Intel **AMX** where present)
+      and auto-select per detected CPU. A real, measurable prefill/decode gain an
+      app can't assume.
+- [ ] **Hardware auto-tune for Turbo.** Auto-set `--threads` = physical cores,
+      pin with `--cpu-mask`/cpuset, NUMA placement, auto `-ngl` from VRAM, plus
+      governor/power already done by AI Mode. (Builds on 2.8.4 + 2.8.7.)
+
+**Tier 3 — algorithmic decode wins**
+- [ ] **N-gram / prompt-lookup speculation** (no draft model needed) — great for
+      code, quotes and repetitive text; a free fallback when no same-family draft
+      exists.
+- [ ] **Dynamic draft length** — tune how many tokens the draft proposes from the
+      live acceptance rate (`--draft-max/--draft-min/--draft-p-min`): speculate
+      more on easy spans, back off on hard ones. Beats today's fixed N.
+- [ ] **(ambitious) Lookahead / Medusa / EAGLE** — Jacobi-style parallel decode
+      or speculative heads, larger gains but heavier integration.
+
+**Tier 4 — memory/IO**
+- [ ] RAM-aware `mlock` (see 2.8.3) + zram so weights aren't evicted painfully.
+- [ ] Smart partial offload when VRAM can't hold the whole model.
+
+> **Honest framing for marketing:** lead with *"local AI answers instantly and
+> tunes itself — no setup"* (warm daemon + preload + auto-tune + microarch build),
+> not "2× faster than Windows". The first is true and defensible; the second isn't.
+
 ### 2.9 Genesi AI Mode Monitor (dedicated app) 📊
 > A standalone GUI app (beyond the panel widget) to watch and control AI Mode —
 > the visual front-end for everything `genesi-aid` already exposes in

@@ -84,6 +84,11 @@ class Backend(QObject):
                                  stderr=subprocess.DEVNULL)
             except OSError:
                 pass
+            # Force OFF = "stop everything". Also release the RAM Ollama holds via
+            # keep-alive — otherwise the model stays resident ~15 min and RAM
+            # never returns to baseline after the user turns AI Mode off.
+            if mode == "off":
+                threading.Thread(target=self._ollama_unload_all, daemon=True).start()
 
     # ── chat (talk to the locally-running Ollama, stream + verbose stats) ─────
     @Slot()
@@ -216,6 +221,29 @@ class Backend(QObject):
         except Exception:
             return False
 
+    def _ollama_unload_all(self):
+        """Free the RAM Ollama holds via keep-alive by unloading every loaded
+        model (keep_alive=0). Best-effort; blocks until Ollama releases it, so
+        call it from a worker thread. Used to (a) make room for the Turbo
+        llama-server and (b) return RAM to baseline on Force OFF."""
+        try:
+            with urllib.request.urlopen(OLLAMA + "/api/ps", timeout=2) as r:
+                models = json.loads(r.read().decode()).get("models", [])
+        except Exception:
+            return
+        for m in models:
+            name = m.get("name") or m.get("model")
+            if not name:
+                continue
+            try:
+                body = json.dumps({"model": name, "keep_alive": 0}).encode()
+                req = urllib.request.Request(
+                    OLLAMA + "/api/generate", data=body,
+                    headers={"Content-Type": "application/json"})
+                urllib.request.urlopen(req, timeout=15).read()
+            except Exception:
+                pass
+
     def _start_turbo(self, model):
         # Already serving this exact model AND the server is still alive? Nothing
         # to do. The poll() check matters: a dead Popen object would otherwise
@@ -237,28 +265,43 @@ class Backend(QObject):
             return
         self._turbo_model = model
         gpu_hint = "" if self._has_gpu() else "   (sem GPU: ganho pequeno)"
-        self.turboStatus.emit("iniciando Turbo (carregando o modelo)…")
-        # Capture the serve subprocess's stderr so we can surface the REAL reason
-        # it failed (bad arg, OOM, missing blob…) instead of a generic message.
-        try:
-            self._turbo_log = tempfile.NamedTemporaryFile(
-                "w", delete=False, suffix=".log").name
-            self._turbo_proc = subprocess.Popen(
-                ["genesi-ai-turbo", "serve", model],
-                stdout=subprocess.DEVNULL, stderr=open(self._turbo_log, "w"))
-        except Exception as e:
-            self.turboStatus.emit("erro ao iniciar Turbo: " + str(e))
-            return
+        self.turboStatus.emit("preparando Turbo…")
 
-        proc, log = self._turbo_proc, self._turbo_log
-
-        def _tail():
+        def run():
+            # Free the RAM Ollama holds via keep-alive BEFORE llama-server loads.
+            # Turbo serves through llama-server, so Ollama doesn't need the model
+            # resident meanwhile — and on low-RAM machines (e.g. a 6 GB VM) two
+            # ~3 GB copies won't fit, which is exactly why Turbo "never came up":
+            # llama-server OOM'd/swapped to death. Ollama reloads on demand once
+            # Turbo is switched off. Done in this worker thread so the UI toggle
+            # never freezes while Ollama releases the memory.
+            if self._turbo_model != model:
+                return
+            self.turboStatus.emit("liberando memória do Ollama…")
+            self._ollama_unload_all()
+            if self._turbo_model != model:
+                return
+            self.turboStatus.emit("iniciando Turbo (carregando o modelo)…")
+            # Capture the serve subprocess's stderr so we can surface the REAL
+            # reason it failed (bad arg, OOM, missing blob…), not a generic msg.
             try:
-                return "".join(open(log).readlines()[-2:]).strip()
-            except Exception:
-                return ""
+                self._turbo_log = tempfile.NamedTemporaryFile(
+                    "w", delete=False, suffix=".log").name
+                proc = subprocess.Popen(
+                    ["genesi-ai-turbo", "serve", model],
+                    stdout=subprocess.DEVNULL, stderr=open(self._turbo_log, "w"))
+                self._turbo_proc = proc
+            except Exception as e:
+                self.turboStatus.emit("erro ao iniciar Turbo: " + str(e))
+                return
+            log = self._turbo_log
 
-        def wait():
+            def _tail():
+                try:
+                    return "".join(open(log).readlines()[-2:]).strip()
+                except Exception:
+                    return ""
+
             for i in range(180):
                 if self._turbo_model != model:      # cancelled or model changed
                     return
@@ -289,7 +332,7 @@ class Backend(QObject):
             self.turboStatus.emit(
                 "Turbo não subiu — rode no terminal p/ ver o erro: "
                 "genesi-ai-turbo serve " + model)
-        threading.Thread(target=wait, daemon=True).start()
+        threading.Thread(target=run, daemon=True).start()
 
     @Slot()
     def installTurboBackend(self):
