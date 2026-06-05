@@ -28,6 +28,18 @@ Kirigami.Page {
 
     Component.onCompleted: backend.loadModels()
 
+    // Short one-line summary for the top status label (full data lives in the
+    // bubble's stats panel). `s` is the JSON stats string from the backend.
+    function shortStats(s) {
+        if (!s || s.length === 0) return "pronto"
+        try {
+            var d = JSON.parse(s)
+            return (d.mode === "turbo" ? "⚡ " : "") + d.rate + " tok/s  ·  " + d.eval + " tokens"
+        } catch (e) {
+            return s
+        }
+    }
+
     function send() {
         var q = input.text.trim()
         if (page.busy || q.length === 0 || modelCombo.currentText.length === 0)
@@ -62,7 +74,7 @@ Kirigami.Page {
         function onChatDone(stats) {
             if (page.currentAi >= 0 && stats.length > 0)
                 chatModel.setProperty(page.currentAi, "stats", stats)
-            statsLabel.text = stats.length > 0 ? stats : "pronto"
+            statsLabel.text = page.shortStats(stats)
             page.busy = false
             page.currentAi = -1
             chatList.positionViewAtEnd()

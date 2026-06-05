@@ -153,10 +153,17 @@ class Backend(QObject):
                         self.chatToken.emit(tok)
                     if o.get("stop"):
                         t = o.get("timings", {})
-                        tps, n = t.get("predicted_per_second"), t.get("predicted_n")
-                        self.chatDone.emit(
-                            f"⚡ {tps:.1f} tok/s   •   {n} tokens   •   Turbo (speculative)"
-                            if tps else "⚡ Turbo")
+                        pms = t.get("prompt_ms") or 0
+                        gms = t.get("predicted_ms") or 0
+                        self.chatDone.emit(json.dumps({
+                            "mode": "turbo",
+                            "rate": round(t.get("predicted_per_second") or 0, 1),
+                            "eval": t.get("predicted_n") or 0,
+                            "prompt": t.get("prompt_n") or 0,
+                            "gen_s": round(gms / 1000.0, 2),
+                            "prompt_s": round(pms / 1000.0, 2),
+                            "total_s": round((pms + gms) / 1000.0, 2),
+                        }))
                         return
             self.chatDone.emit("")
         except Exception as e:
@@ -255,13 +262,9 @@ class Backend(QObject):
             for i in range(180):
                 if self._turbo_model != model:      # cancelled or model changed
                     return
-                # The server process exited before becoming ready → surface why.
-                if proc.poll() is not None:
-                    msg = _tail()
-                    self.turboStatus.emit(
-                        "Turbo falhou: " + (msg.splitlines()[-1] if msg else
-                        "rode no terminal: genesi-ai-turbo serve " + model))
-                    return
+                # Ready? Check health FIRST — `serve` may have reused an already
+                # running Turbo and exited 0 right away (its helper proc is gone,
+                # but the server is healthy). So health wins over a dead proc.
                 try:
                     with urllib.request.urlopen(TURBO + "/health", timeout=2) as r:
                         if json.loads(r.read()).get("status") == "ok":
@@ -272,6 +275,13 @@ class Backend(QObject):
                             return
                 except Exception:
                     pass
+                # Helper process gone AND not serving → real failure; surface why.
+                if proc.poll() is not None:
+                    msg = _tail()
+                    self.turboStatus.emit(
+                        "Turbo falhou: " + (msg.splitlines()[-1] if msg else
+                        "rode no terminal: genesi-ai-turbo serve " + model))
+                    return
                 # live elapsed-time feedback so it never looks frozen
                 self.turboStatus.emit(
                     f"iniciando Turbo (carregando o modelo)… {i + 1}s")
@@ -359,15 +369,26 @@ class Backend(QObject):
 
     @staticmethod
     def _stats(obj):
+        # All durations from Ollama are in nanoseconds.
         ec = obj.get("eval_count") or 0
-        ed = obj.get("eval_duration") or 0           # ns
+        ed = obj.get("eval_duration") or 0
         pc = obj.get("prompt_eval_count") or 0
+        pd = obj.get("prompt_eval_duration") or 0
+        ld = obj.get("load_duration") or 0
         total = obj.get("total_duration") or 0
-        tps = (ec / (ed / 1e9)) if ed else 0
         if not ec:
             return ""
-        return (f"{tps:.1f} tok/s   •   {ec} tokens   •   "
-                f"prompt {pc}   •   total {total / 1e9:.1f}s")
+        rate = ec / (ed / 1e9) if ed else 0
+        return json.dumps({
+            "mode": "ollama",
+            "rate": round(rate, 1),
+            "eval": ec,
+            "prompt": pc,
+            "gen_s": round(ed / 1e9, 2),
+            "prompt_s": round(pd / 1e9, 2),
+            "load_s": round(ld / 1e9, 2),
+            "total_s": round(total / 1e9, 2),
+        })
 
 
 def main():

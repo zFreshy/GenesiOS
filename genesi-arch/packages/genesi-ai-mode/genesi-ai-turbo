@@ -30,6 +30,7 @@ import json
 import time
 import signal
 import shutil
+import socket
 import tempfile
 import subprocess
 import urllib.request
@@ -314,6 +315,34 @@ def wait_ready(timeout=180):
     return False
 
 
+def turbo_healthy():
+    """Is a Turbo server already up and serving on our port?"""
+    try:
+        with urllib.request.urlopen(f"http://127.0.0.1:{TURBO_PORT}/health",
+                                    timeout=2) as r:
+            return json.loads(r.read()).get("status") == "ok"
+    except Exception:
+        return False
+
+
+def port_busy(port=TURBO_PORT):
+    """True if something already holds 127.0.0.1:<port>."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        try:
+            s.bind(("127.0.0.1", port))
+            return False
+        except OSError:
+            return True
+
+
+def free_turbo_port():
+    """Best-effort: kill a stale llama-server holding our port."""
+    if shutil.which("pkill"):
+        subprocess.run(["pkill", "-f", f"llama-server.*--port {TURBO_PORT}"],
+                       check=False)
+        time.sleep(1.5)
+
+
 def measure(n=256):
     body = json.dumps({"prompt": PROMPT, "n_predict": n,
                        "temperature": 0.7, "cache_prompt": False}).encode()
@@ -388,6 +417,19 @@ def cmd_bench(main, draft):
 
 
 def cmd_serve(main, draft):
+    # Port already taken? This is common — the Monitor or a previous terminal
+    # already started Turbo. If it's healthy, reuse it (don't fail to bind).
+    # If it's bound but unresponsive, it's a stale llama-server: free the port.
+    if port_busy():
+        if turbo_healthy():
+            print(f":: Turbo já está ativo em http://127.0.0.1:{TURBO_PORT} — reutilizando.")
+            return
+        print(f"[!] Porta {TURBO_PORT} ocupada por um processo que não responde — liberando…",
+              file=sys.stderr, flush=True)
+        free_turbo_port()
+        if port_busy():
+            sys.exit(f"porta {TURBO_PORT} continua ocupada. Pare o processo manualmente:\n"
+                     f"  pkill -f 'llama-server.*{TURBO_PORT}'")
     main_g = ensure(main)
     if not main_g:
         sys.exit(f"could not resolve/pull {main}")

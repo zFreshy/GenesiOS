@@ -1,7 +1,8 @@
 /*
  * Genesi AI Mode Monitor — chat message bubble.
  * role: "user" | "ai" | "error". Sizes to content up to ~74% width and aligns
- * to the correct side, with an avatar and an optional stats line for AI replies.
+ * to the correct side, with an avatar. AI replies show a rich stats panel
+ * (speed, tokens, timings) parsed from the backend's JSON stats string.
  */
 import QtQuick
 import QtQuick.Layouts
@@ -16,6 +17,25 @@ Item {
 
     readonly property bool isUser: role === "user"
     readonly property bool isError: role === "error"
+
+    // Parsed stats (AI only). null when streaming or non-JSON (plain fallback).
+    readonly property var statsData: {
+        if (role !== "ai" || stats.length === 0) return null
+        try { return JSON.parse(stats) } catch (e) { return null }
+    }
+    // Chips to show — only metrics that are present (> 0).
+    readonly property var chipModel: {
+        var d = statsData
+        if (!d) return []
+        var out = []
+        if (d.eval)     out.push({ "value": "" + d.eval,      "label": "tokens" })
+        if (d.prompt)   out.push({ "value": "" + d.prompt,    "label": "no prompt" })
+        if (d.gen_s)    out.push({ "value": d.gen_s + "s",    "label": "geração" })
+        if (d.prompt_s) out.push({ "value": d.prompt_s + "s", "label": "ler prompt" })
+        if (d.load_s)   out.push({ "value": d.load_s + "s",   "label": "carregar" })
+        if (d.total_s)  out.push({ "value": d.total_s + "s",  "label": "tempo total" })
+        return out
+    }
 
     width: ListView.view ? ListView.view.width : 600
     implicitHeight: row.implicitHeight + 12
@@ -51,7 +71,7 @@ Item {
             id: bubble
             Layout.alignment: Qt.AlignTop
             radius: 16
-            implicitWidth: Math.min(Math.max(txt.implicitWidth, statsLbl.visible ? statsLbl.implicitWidth : 0) + 28, b.width * 0.74)
+            implicitWidth: Math.min(Math.max(txt.implicitWidth, b.statsData ? 320 : 0) + 28, b.width * 0.74)
             implicitHeight: content.implicitHeight + 20
             color: b.isUser ? "#15694F"
                  : b.isError ? Qt.rgba(231/255, 76/255, 60/255, 0.10)
@@ -65,7 +85,7 @@ Item {
                 id: content
                 x: 14; y: 10
                 width: bubble.width - 28
-                spacing: 5
+                spacing: 8
 
                 QQC2.Label {
                     id: txt
@@ -77,14 +97,107 @@ Item {
                     lineHeight: 1.15
                 }
 
+                // plain fallback (non-JSON stats string)
                 QQC2.Label {
-                    id: statsLbl
                     width: parent.width
-                    visible: b.stats.length > 0
+                    visible: b.stats.length > 0 && b.statsData === null
                     text: b.stats
                     wrapMode: Text.Wrap
                     font.pixelSize: 11
                     color: "#7FB8A2"
+                }
+
+                // ── rich stats panel ──
+                Rectangle {
+                    width: parent.width
+                    visible: b.statsData !== null
+                    radius: 11
+                    color: Qt.rgba(0, 0, 0, 0.22)
+                    border.color: "#223A30"; border.width: 1
+                    implicitHeight: statsCol.implicitHeight + 18
+
+                    Column {
+                        id: statsCol
+                        x: 11; y: 9
+                        width: parent.width - 22
+                        spacing: 9
+
+                        // header: mode badge + headline speed
+                        Item {
+                            width: parent.width
+                            height: 22
+                            Rectangle {
+                                id: modeBadge
+                                anchors.left: parent.left
+                                anchors.verticalCenter: parent.verticalCenter
+                                readonly property bool turbo: b.statsData && b.statsData.mode === "turbo"
+                                radius: 7; height: 22
+                                width: badgeLbl.implicitWidth + 18
+                                color: turbo ? Qt.rgba(230/255, 126/255, 34/255, 0.18)
+                                             : Qt.rgba(29/255, 158/255, 117/255, 0.16)
+                                QQC2.Label {
+                                    id: badgeLbl
+                                    anchors.centerIn: parent
+                                    text: modeBadge.turbo ? "⚡ Turbo · speculative" : "🦙 Ollama"
+                                    font.pixelSize: 10; font.bold: true
+                                    color: modeBadge.turbo ? "#F8B24D" : "#34D399"
+                                }
+                            }
+                            Row {
+                                anchors.right: parent.right
+                                anchors.verticalCenter: parent.verticalCenter
+                                spacing: 4
+                                QQC2.Label {
+                                    text: b.statsData ? b.statsData.rate : ""
+                                    font.bold: true; font.pixelSize: 17
+                                    color: "#EAF3EF"
+                                }
+                                QQC2.Label {
+                                    text: "tok/s"
+                                    anchors.bottom: parent.bottom
+                                    anchors.bottomMargin: 2
+                                    font.pixelSize: 11
+                                    color: "#7FB8A2"
+                                }
+                            }
+                        }
+
+                        Rectangle { width: parent.width; height: 1; color: "#1E382E" }
+
+                        // metric chips
+                        Flow {
+                            width: parent.width
+                            spacing: 6
+                            Repeater {
+                                model: b.chipModel
+                                delegate: Rectangle {
+                                    required property var modelData
+                                    radius: 8
+                                    height: 36
+                                    width: chipCol.implicitWidth + 18
+                                    color: Qt.rgba(1, 1, 1, 0.04)
+                                    border.color: "#1E382E"; border.width: 1
+                                    Column {
+                                        id: chipCol
+                                        anchors.centerIn: parent
+                                        spacing: 0
+                                        QQC2.Label {
+                                            anchors.horizontalCenter: parent.horizontalCenter
+                                            text: modelData.value
+                                            font.bold: true; font.pixelSize: 13
+                                            color: "#EAF3EF"
+                                        }
+                                        QQC2.Label {
+                                            anchors.horizontalCenter: parent.horizontalCenter
+                                            text: modelData.label
+                                            font.pixelSize: 9
+                                            color: "#7FB8A2"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
