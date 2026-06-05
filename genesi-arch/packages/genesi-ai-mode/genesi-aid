@@ -57,6 +57,7 @@ DRM_PATH      = "/sys/class/drm"
 
 POLL_SECONDS = 5
 AI_NICE      = -5
+WARM_INTERVAL = 60   # seconds between idle page-cache re-warms (predictive preload)
 
 # Model-weight files we warm into the page cache / whose NVMe we tune. Ollama
 # stores weights as extension-less blobs under .../models/blobs/sha256-*, while
@@ -269,6 +270,9 @@ class AIOptimizer:
         self.throttled = False      # thermal guard eased the governor
         self._preloaded = set()     # model files already warmed into RAM
         self.preloaded_mb = 0
+        self._warm_files = {}       # {path: size} of the last-used model, kept
+                                    # warm in page cache while idle (predictive)
+        self._last_warm = 0.0       # throttle for maybe_warm_idle()
         self._restore_originals_on_start()
 
     # ── detection ────────────────────────────────────────────────────────────
@@ -723,7 +727,13 @@ class AIOptimizer:
         on a cold read. Pure cache warming — nothing to restore. Skipped for
         weights already on a RAM-backed fs (tmpfs/overlay, e.g. a live ISO) and
         when free RAM is too tight to hold them safely."""
-        for path, size in self._find_model_files().items():
+        found = self._find_model_files()
+        if found:
+            # Remember the active model's weight files so we can keep them warm
+            # in the page cache later, while the machine is idle (see
+            # maybe_warm_idle) — so the NEXT load reads from RAM, not disk.
+            self._warm_files = dict(found)
+        for path, size in found.items():
             if path in self._preloaded:
                 continue
             self._preloaded.add(path)   # mark once; never thrash on churn
@@ -751,6 +761,42 @@ class AIOptimizer:
             self.preloaded_mb += mb
             logger.info("Preloaded %s (%dMB) into page cache",
                         os.path.basename(path), mb)
+
+    def maybe_warm_idle(self):
+        """Predictive preload: while the machine is IDLE (no AI running), keep
+        the last-used model's weights warm in the page cache so the NEXT launch
+        loads from RAM instead of disk — the first piece of the always-warm
+        daemon. Pure cache warming: reclaimable RAM, nothing to restore.
+
+        Deliberately conservative so it can never hurt a low-RAM box: throttled
+        (every WARM_INTERVAL s), skipped on a RAM-backed fs, and gated to models
+        that fit comfortably (< 50% of *available* RAM) — so on a tight 6 GB VM
+        it simply does nothing, while an 8 GB+ machine gets instant first loads."""
+        if not self._warm_files:
+            return
+        now = time.time()
+        if now - self._last_warm < WARM_INTERVAL:
+            return
+        self._last_warm = now
+        avail = psutil.virtual_memory().available
+        for path, size in list(self._warm_files.items()):
+            try:
+                stt = os.stat(path)
+            except OSError:
+                self._warm_files.pop(path, None)    # model file gone
+                continue
+            if os.major(stt.st_dev) == 0:           # tmpfs/overlay → already RAM
+                continue
+            if size > avail * 0.5:                  # too tight — leave RAM alone
+                continue
+            try:
+                fd = os.open(path, os.O_RDONLY)
+                try:
+                    os.posix_fadvise(fd, 0, 0, os.POSIX_FADV_WILLNEED)
+                finally:
+                    os.close(fd)
+            except OSError:
+                self._warm_files.pop(path, None)
 
     def _queue_dir_for(self, path):
         """The /sys block-queue dir (the one with queue/scheduler) of the disk
@@ -1074,6 +1120,10 @@ class AIOptimizer:
                     self.prioritize_ai_processes()
                     self.maybe_preload()
                     self.maybe_tune_io()
+                else:
+                    # Idle: keep the last-used model warm in page cache so the
+                    # next launch loads from RAM (RAM-gated; no-op on tight boxes).
+                    self.maybe_warm_idle()
 
                 metrics = self.collect_metrics()
                 if self.ai_mode_active:
