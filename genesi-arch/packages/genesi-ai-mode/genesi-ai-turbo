@@ -237,14 +237,6 @@ def llama_bin(name):
     return None
 
 
-def have_gpu():
-    try:
-        s = json.load(open("/run/genesi-ai-mode/state.json"))
-        return bool((s.get("hardware") or {}).get("gpus"))
-    except Exception:
-        return shutil.which("nvidia-smi") is not None
-
-
 def _env_int(name, default):
     try:
         v = int(os.environ.get(name, "").strip())
@@ -261,7 +253,54 @@ def server_cmd(main_gguf, draft_gguf):
     binp = llama_bin("llama-server")
     if not binp:
         return None
-    gpu = have_gpu()
+        
+    try:
+        s = json.load(open("/run/genesi-ai-mode/state.json"))
+        hw = s.get("hardware") or {}
+        gpus = hw.get("gpus") or []
+        vram_mb = max([g.get("vram_mb") or 0 for g in gpus], default=0)
+        ram_mb = hw.get("ram_mb") or 0
+    except Exception:
+        vram_mb = 0
+        ram_mb = 0
+
+    gpu = vram_mb > 0 or shutil.which("nvidia-smi") is not None
+    vram_gb = vram_mb / 1024.0
+    budget_gb = max(vram_gb - 1.2, 0.5) if vram_gb >= 1.0 else 0.0
+
+    try:
+        main_gb = os.path.getsize(main_gguf) / (1024**3)
+    except OSError:
+        main_gb = 0.0
+
+    try:
+        draft_gb = os.path.getsize(draft_gguf) / (1024**3) if draft_gguf else 0.0
+    except OSError:
+        draft_gb = 0.0
+
+    fits_main = main_gb <= budget_gb if budget_gb > 0 else False
+    fits_both = (main_gb + draft_gb) <= budget_gb if budget_gb > 0 else False
+
+    use_ngl_999 = False
+    if gpu:
+        if fits_both:
+            use_ngl_999 = True
+        elif fits_main:
+            print(f"   [!] Draft model dropped: not enough VRAM for both (budget: {budget_gb:.1f}GB).", flush=True)
+            draft_gguf = None
+            use_ngl_999 = True
+        else:
+            if vram_gb > 0:
+                print(f"   [!] WARNING: Model ({main_gb:.1f}GB) exceeds safe VRAM budget ({budget_gb:.1f}GB).", flush=True)
+            free_ram_gb = (ram_mb / 1024.0) * 0.6
+            if ram_mb > 0 and main_gb > free_ram_gb:
+                print("   [!] DANGER: System RAM is too low to safely offload. Expect severe lag or OOM.", flush=True)
+            if draft_gguf:
+                print("   [!] Draft model dropped: optimizing memory on tight VRAM.", flush=True)
+                draft_gguf = None
+            if vram_gb > 2.0:
+                use_ngl_999 = True
+
     ctx = _env_int("GENESI_TURBO_CTX", 4096)
     # Prefill (reading the prompt) is compute-bound, so a bigger physical batch
     # (n_ubatch / -ub) reads the prompt in fewer, fatter passes — the 2.8.10
@@ -289,15 +328,19 @@ def server_cmd(main_gguf, draft_gguf):
            # shifting, so a repeated system prompt isn't re-prefilled every turn
            # (near-instant on the 2nd+ message). Pure win, negligible memory.
            "--cache-reuse", str(_env_int("GENESI_TURBO_CACHE_REUSE", 256))]
-    if gpu:
+           
+    if use_ngl_999:
         cmd += ["-ngl", "999"]
+        
     # mlock: pin the model in RAM (no swap/reclaim) for steady CPU inference.
     # Opt-in only — risky on low-RAM machines and the live ISO (RAM-backed fs),
     # so default OFF; enable with GENESI_TURBO_MLOCK=1.
     if _env_flag("GENESI_TURBO_MLOCK"):
         cmd += ["--mlock"]
+        
     if draft_gguf:
-        cmd += ["-md", draft_gguf]
+        cmd += ["-md", draft_gguf, "--draft", "8"]
+        
     return cmd
 
 
