@@ -23,7 +23,14 @@ pkgver=1.0.0
 # genesi-aid and genesi-ai-turbo size the GPU via `llama-server --list-devices`
 # (the same Vulkan backend used for inference) when nvidia-smi/sysfs can't, so
 # spec decoding actually engages on the GPU and the advisor reports the card.
-pkgrel=55
+# 2026-06-07 (56): version-proof Turbo flags + CPU speculative decoding. Recent
+# llama.cpp removed --draft (now --spec-draft-n-max), so the draft would crash
+# the server the moment spec decoding engaged on the GPU; we now read the
+# installed binary's --help and pick the flag it actually supports. Also enable
+# model-free n-gram speculative decoding (--spec-type ngram-simple) on CPU-only
+# machines (no draft model, no extra RAM) so GPU-less laptops get a speculative
+# speedup too. Disable with GENESI_TURBO_NO_NGRAM=1.
+pkgrel=56
 pkgdesc='Genesi OS AI Mode - adaptive, reversible local-AI optimizer (CPU/GPU/power) + Plasma 6 widget + monitor app'
 arch=('any')
 url='https://github.com/zFreshy/GenesiOS'

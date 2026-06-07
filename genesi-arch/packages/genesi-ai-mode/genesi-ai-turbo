@@ -303,6 +303,30 @@ def _detect_vram_mb():
     return _nvidia_vram_mb() or _vulkan_vram_mb()
 
 
+_HELP_CACHE = None
+
+
+def _llama_help():
+    """Cached `llama-server --help` text, so we can pick flag names that match
+    the INSTALLED build. llama.cpp renames/removes flags often — e.g. --draft
+    was removed in favor of --spec-draft-n-max, and model-free --spec-type ngram
+    speculation was added — and genesi-llama-cpp tracks upstream master. Empty
+    string if llama-server isn't available."""
+    global _HELP_CACHE
+    if _HELP_CACHE is None:
+        binp = llama_bin("llama-server")
+        if not binp:
+            _HELP_CACHE = ""
+        else:
+            try:
+                r = subprocess.run([binp, "--help"], capture_output=True,
+                                   text=True, timeout=15)
+                _HELP_CACHE = (r.stdout or "") + (r.stderr or "")
+            except Exception:
+                _HELP_CACHE = ""
+    return _HELP_CACHE
+
+
 def _performance_cores(fallback):
     """Best-effort count of the FAST physical cores for CPU inference.
 
@@ -459,22 +483,28 @@ def server_cmd(main_gguf, draft_gguf):
     if _env_flag("GENESI_TURBO_MLOCK"):
         cmd += ["--mlock"]
 
+    help_txt = _llama_help()
     if draft_gguf:
-        # Speculative decoding with a same-family draft model. `--draft` is a
-        # valid llama-server alias of `--draft-max` (common.cpp registers
-        # {"--draft-max","--draft","-n-draft"}).
-        cmd += ["-md", draft_gguf, "--draft", "8"]
-        # The draft MUST be GPU-resident too. Without -ngld the draft runs on
-        # the CPU while the target is on the GPU, so the slow CPU draft becomes
-        # the bottleneck and speculation yields no speedup — the reason Turbo's
-        # spec decoding "never worked". -ngld is only meaningful with GPU layers.
+        # Speculative decoding with a same-family draft model. The draft-count
+        # flag was renamed in recent llama.cpp: master uses --spec-draft-n-max,
+        # older builds use --draft. Pick whatever the installed binary lists so
+        # the server doesn't refuse to start on a "removed argument".
+        draft_n = "--spec-draft-n-max" if "--spec-draft-n-max" in help_txt else "--draft"
+        cmd += ["-md", draft_gguf, draft_n, "8"]
+        # The draft MUST be GPU-resident too (-ngld). Without it the draft runs
+        # on the CPU while the target is on the GPU, so the slow CPU draft
+        # becomes the bottleneck and speculation yields no speedup.
         if use_ngl_999:
             cmd += ["-ngld", "999"]
-    # NOTE: NO --lookup-ngram-min / --lookup-nc fallback. N-gram "lookup"
-    # decoding lives in the separate llama.cpp `lookup` example binary, NOT in
-    # llama-server, which rejects those flags ("invalid argument"). With no
-    # draft model there is simply no speculation (identical output, no speedup) —
-    # the serve/bench messages already say "no draft — no speedup".
+    elif (not use_ngl_999 and "--spec-type" in help_txt
+          and not _env_flag("GENESI_TURBO_NO_NGRAM")):
+        # CPU-only, no draft model: model-free n-gram speculative decoding. It
+        # speculates from the context's OWN n-grams — no second model, no extra
+        # RAM, negligible compute — so it's the ONE speculation method that can
+        # help on a GPU-less laptop (big win on code/repetitive text, harmless
+        # otherwise). Needs a recent llama-server (hence the --help gate).
+        # Disable with GENESI_TURBO_NO_NGRAM=1.
+        cmd += ["--spec-type", "ngram-simple"]
 
     return cmd
 
@@ -625,7 +655,7 @@ def cmd_serve(main, draft):
     draft_g = ensure(draft) if draft else None
     cmd = server_cmd(main_g, draft_g)
     print(f":: Genesi Turbo serving {main}" +
-          (f" + draft {draft}" if draft_g else " (no draft — no speedup)"))
+          (f" + draft {draft}" if draft_g else " (sem modelo draft)"))
     print(f"   API: http://127.0.0.1:{TURBO_PORT}/v1   (OpenAI-compatible)  Ctrl-C to stop")
     print("   " + " ".join(cmd), flush=True)
     os.execvp(cmd[0], cmd)
