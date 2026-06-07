@@ -253,6 +253,30 @@ def _env_flag(name):
     return os.environ.get(name, "").strip().lower() in ("1", "true", "yes", "on")
 
 
+def _nvidia_vram_mb():
+    """Total VRAM (MiB) of the largest NVIDIA GPU via nvidia-smi, or 0.
+
+    Fallback for when the daemon's state.json doesn't carry the GPU (it profiles
+    once at boot and can miss a not-yet-ready NVIDIA driver, caching 'no GPU' for
+    the session). Without this we'd compute a 0 VRAM budget and silently run on
+    the CPU despite having a perfectly good GPU."""
+    if not shutil.which("nvidia-smi"):
+        return 0
+    try:
+        out = subprocess.run(
+            ["nvidia-smi", "--query-gpu=memory.total",
+             "--format=csv,noheader,nounits"],
+            capture_output=True, text=True, timeout=5).stdout
+    except Exception:
+        return 0
+    best = 0
+    for line in out.splitlines():
+        v = line.strip()
+        if v.isdigit():
+            best = max(best, int(v))
+    return best
+
+
 def _performance_cores(fallback):
     """Best-effort count of the FAST physical cores for CPU inference.
 
@@ -301,6 +325,13 @@ def server_cmd(main_gguf, draft_gguf):
         vram_mb = 0
         ram_mb = 0
         phys_cores = 4
+
+    # state.json is the primary source, but the daemon can miss the GPU (it
+    # profiles at boot, possibly before the NVIDIA driver is ready, and caches
+    # that). If there's no VRAM figure, ask nvidia-smi directly so we still
+    # offload to the GPU instead of silently falling back to CPU.
+    if vram_mb <= 0:
+        vram_mb = _nvidia_vram_mb()
 
     gpu = vram_mb > 0 or shutil.which("nvidia-smi") is not None
     vram_gb = vram_mb / 1024.0

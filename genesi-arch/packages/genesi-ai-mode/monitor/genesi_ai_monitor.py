@@ -133,44 +133,58 @@ class Backend(QObject):
             self.chatError.emit(str(e))
 
     def _chat_turbo(self, model, prompt):
-        # llama-server native /completion (the Turbo server is already loaded
-        # with the model + draft, so `model` is ignored here).
-        body = json.dumps({"prompt": prompt, "stream": True,
-                           "n_predict": 512, "cache_prompt": True}).encode()
-        req = urllib.request.Request(TURBO + "/completion", data=body,
+        # Talk to llama-server's OpenAI-compatible /v1/chat/completions so the
+        # SERVER applies the model's chat template (system/user/assistant turns +
+        # the correct stop tokens). The native /completion endpoint does NOT
+        # apply any template — sending the raw prompt there makes the model
+        # ramble forever (it never sees an EOS in context), which is exactly the
+        # "AI goes crazy / infinite garbage" seen ONLY in Turbo. The loaded model
+        # + draft are already on the server, so `model` is informational here.
+        body = json.dumps({
+            "messages": [{"role": "user", "content": prompt}],
+            "stream": True,
+            "max_tokens": 512,
+            "cache_prompt": True,
+        }).encode()
+        req = urllib.request.Request(TURBO + "/v1/chat/completions", data=body,
                                      headers={"Content-Type": "application/json"})
+        timings = {}
         try:
             with urllib.request.urlopen(req, timeout=900) as r:
                 for raw in r:
                     if self._stop:
                         break
                     line = raw.decode().strip()
-                    if not line:
+                    if not line or not line.startswith("data:"):
                         continue
-                    if line.startswith("data:"):
-                        line = line[5:].strip()
+                    line = line[5:].strip()
+                    if line == "[DONE]":
+                        break
                     try:
                         o = json.loads(line)
                     except ValueError:
                         continue
-                    tok = o.get("content", "")
-                    if tok:
-                        self.chatToken.emit(tok)
-                    if o.get("stop"):
-                        t = o.get("timings", {})
-                        pms = t.get("prompt_ms") or 0
-                        gms = t.get("predicted_ms") or 0
-                        self.chatDone.emit(json.dumps({
-                            "mode": "turbo",
-                            "rate": round(t.get("predicted_per_second") or 0, 1),
-                            "eval": t.get("predicted_n") or 0,
-                            "prompt": t.get("prompt_n") or 0,
-                            "gen_s": round(gms / 1000.0, 2),
-                            "prompt_s": round(pms / 1000.0, 2),
-                            "total_s": round((pms + gms) / 1000.0, 2),
-                        }))
-                        return
-            self.chatDone.emit("")
+                    if o.get("timings"):
+                        timings = o["timings"]          # llama.cpp SSE extension
+                    choices = o.get("choices") or []
+                    if choices:
+                        tok = (choices[0].get("delta") or {}).get("content") or ""
+                        if tok:
+                            self.chatToken.emit(tok)
+            if timings:
+                pms = timings.get("prompt_ms") or 0
+                gms = timings.get("predicted_ms") or 0
+                self.chatDone.emit(json.dumps({
+                    "mode": "turbo",
+                    "rate": round(timings.get("predicted_per_second") or 0, 1),
+                    "eval": timings.get("predicted_n") or 0,
+                    "prompt": timings.get("prompt_n") or 0,
+                    "gen_s": round(gms / 1000.0, 2),
+                    "prompt_s": round(pms / 1000.0, 2),
+                    "total_s": round((pms + gms) / 1000.0, 2),
+                }))
+            else:
+                self.chatDone.emit("")
         except Exception as e:
             self.chatError.emit("Turbo: " + str(e))
 
@@ -217,9 +231,13 @@ class Backend(QObject):
     def _has_gpu(self):
         try:
             s = json.loads(open(STATE_FILE).read())
-            return bool((s.get("hardware") or {}).get("gpus"))
+            if (s.get("hardware") or {}).get("gpus"):
+                return True
         except Exception:
-            return False
+            pass
+        # Fallback: the daemon may have missed the GPU (profiled before the
+        # driver was ready). Trust a working nvidia-smi as ground truth.
+        return shutil.which("nvidia-smi") is not None
 
     def _ollama_unload_all(self):
         """Free the RAM Ollama holds via keep-alive by unloading every loaded

@@ -9,7 +9,14 @@ pkgver=1.0.0
 # runs on the GPU instead of the CPU (the reason spec decoding "never worked").
 # (3) CPU path uses f16 KV + auto flash-attn (q8_0 KV + forced FA only help on
 # GPU) and pins threads to the fast/perf cores (skips Intel hybrid E-cores).
-pkgrel=53
+# 2026-06-07 (54): (1) Monitor chat now hits llama-server /v1/chat/completions
+# (applies the model's chat template + stop tokens) instead of /completion with
+# a raw prompt — fixes the AI rambling infinite garbage in Turbo. (2) Turbo
+# queries nvidia-smi for VRAM when the daemon's state.json has none, so it
+# actually offloads to the GPU instead of silently running on CPU. (3) genesi-aid
+# re-detects the GPU every ~30s (it was profiled once at boot, before the NVIDIA
+# driver was ready) + DRM fallback — fixes the dashboard showing "no GPU".
+pkgrel=54
 pkgdesc='Genesi OS AI Mode - adaptive, reversible local-AI optimizer (CPU/GPU/power) + Plasma 6 widget + monitor app'
 arch=('any')
 url='https://github.com/zFreshy/GenesiOS'

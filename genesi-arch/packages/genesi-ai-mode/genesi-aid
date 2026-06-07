@@ -173,6 +173,7 @@ class HardwareProfile:
 
     def _detect_gpus(self):
         gpus = []
+        nvidia_via_smi = False
         # NVIDIA via nvidia-smi (authoritative for VRAM + control surface)
         if shutil.which("nvidia-smi"):
             rc, out = _run(["nvidia-smi",
@@ -184,7 +185,8 @@ class HardwareProfile:
                     if len(parts) >= 2 and parts[0].isdigit():
                         gpus.append({"vendor": "nvidia", "index": int(parts[0]),
                                      "vram_mb": _to_int(parts[1])})
-        # AMD/Intel via DRM sysfs
+                        nvidia_via_smi = True
+        # AMD / Intel / NVIDIA via DRM sysfs
         try:
             for card in sorted(os.listdir(DRM_PATH)):
                 if not re.fullmatch(r"card\d+", card):
@@ -206,6 +208,13 @@ class HardwareProfile:
                         g["gt_max"] = gt_max
                         g["gt_rp0"] = gt_rp0
                     gpus.append(g)
+                elif vendor == "0x10de" and not nvidia_via_smi:
+                    # NVIDIA present but nvidia-smi unusable (nouveau/NVK, or the
+                    # proprietary driver not ready yet). Record it so we don't
+                    # report "no GPU"; VRAM/control come later once nvidia-smi
+                    # works (the run loop re-detects). No "index" key here, so
+                    # the nvidia control path skips it until then.
+                    gpus.append({"vendor": "nvidia", "card": card})
         except OSError:
             pass
         return gpus
@@ -359,7 +368,8 @@ class AIOptimizer:
     # ── GPU: NVIDIA ──────────────────────────────────────────────────────────
     def _nvidia_capture_and_apply(self):
         saved = []
-        for gpu in [g for g in self.hw.gpus if g["vendor"] == "nvidia"]:
+        for gpu in [g for g in self.hw.gpus
+                    if g["vendor"] == "nvidia" and "index" in g]:
             idx = str(gpu["index"])
             rc, out = _run(["nvidia-smi", "-i", idx,
                             "--query-gpu=persistence_mode,power.limit,power.max_limit",
@@ -1111,12 +1121,31 @@ class AIOptimizer:
                 self._warm_proc = None
 
     # ── main loop ────────────────────────────────────────────────────────────
+    def _maybe_redetect_gpus(self):
+        """The hardware profile is built once at startup, but genesi-aid starts
+        early — before the NVIDIA driver is necessarily ready — so a GPU can be
+        missed and cached as 'absent' for the whole session (the dashboard then
+        shows "no GPU" on a machine that has one, and Turbo runs on the CPU).
+        Re-probe every ~30s until we actually have a GPU with VRAM."""
+        if any((g.get("vram_mb") or 0) > 0 for g in self.hw.gpus):
+            return                                   # already have a usable GPU
+        now = time.time()
+        if now - getattr(self, "_last_gpu_probe", 0.0) < 30:
+            return
+        self._last_gpu_probe = now
+        found = self.hw._detect_gpus()
+        if found and (not self.hw.gpus
+                      or any((g.get("vram_mb") or 0) > 0 for g in found)):
+            self.hw.gpus = found
+            logger.info("GPU (re)detected: %s", self.hw.summary().get("gpus"))
+
     def run(self):
         logger.info("Genesi AI Daemon started | %s",
                     json.dumps(self.hw.summary()))
         self.write_ollama_env()
         while True:
             try:
+                self._maybe_redetect_gpus()
                 force = self.read_force()
                 self.ai_processes = self.detect_ai_processes()
 
