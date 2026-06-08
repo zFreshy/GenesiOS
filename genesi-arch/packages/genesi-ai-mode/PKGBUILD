@@ -53,7 +53,11 @@ pkgver=1.0.0
 # default). `genesi-ai-turbo --spec/--speculative` flag, and a "offload total ⇄
 # ⚡ speculative" toggle on the Monitor's Turbo card (setTurbo carries the spec
 # flag → serve --spec). So users can run Turbo with or without speculation.
-pkgrel=61
+# 2026-06-07 (62): 2.8.4 — pin AI processes to the performance cores. On hybrid
+# Intel CPUs (P/E) genesi-aid sets the AI process CPU affinity to the P-cores
+# (+ HT siblings) so inference never lands on the slow E-cores; restored on
+# disable. No-op on uniform CPUs and VMs.
+pkgrel=62
 pkgdesc='Genesi OS AI Mode - adaptive, reversible local-AI optimizer (CPU/GPU/power) + Plasma 6 widget + monitor app'
 arch=('any')
 url='https://github.com/zFreshy/GenesiOS'

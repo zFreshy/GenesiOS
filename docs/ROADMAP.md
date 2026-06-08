@@ -206,7 +206,9 @@ once and gates every optimizer on detected capabilities.
       `_performance_cores()` dedups HT siblings and counts only top-clock cores
 - [x] Set inference thread count to physical P-cores; avoid SMT/E-core contention
       (Turbo `--threads`, env-overridable via `GENESI_TURBO_THREADS`)
-- [ ] `cpuset`/cgroup the AI process onto performance cores (system keeps the rest)
+- [x] `cpuset`/cgroup the AI process onto performance cores (system keeps the
+      rest) — genesi-aid pins AI processes' CPU affinity to the P-cores on hybrid
+      Intel CPUs (live, restored on disable); no-op on uniform CPUs / VMs
 
 #### 2.8.5 ⚡ Quiet the background during inference
 - [x] Pause file indexers (`baloo`, `tracker`) with SIGSTOP while AI runs, resume

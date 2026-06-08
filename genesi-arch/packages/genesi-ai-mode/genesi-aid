@@ -164,6 +164,32 @@ def _vulkan_vram_mb():
     return best
 
 
+def _performance_cpu_ids():
+    """Logical CPU ids on the FASTEST physical cores (P-cores + their HT
+    siblings). On a hybrid Intel CPU (P/E) this lets us pin inference to the
+    fast cores so it never lands on the slow E-cores (which add cross-core sync
+    stalls). On a uniform CPU it returns every CPU (so pinning is a no-op).
+    Empty list on boxes that don't expose cpufreq (VMs) → caller skips pinning."""
+    base = "/sys/devices/system/cpu"
+    freqs = {}                                   # logical cpu id -> max freq (kHz)
+    try:
+        for cpu in os.listdir(base):
+            m = re.fullmatch(r"cpu(\d+)", cpu)
+            if not m:
+                continue
+            try:
+                with open(f"{base}/{cpu}/cpufreq/cpuinfo_max_freq") as f:
+                    freqs[int(m.group(1))] = int(f.read().strip())
+            except (OSError, ValueError):
+                return []                        # incomplete data → don't guess
+    except OSError:
+        return []
+    if not freqs:
+        return []
+    top = max(freqs.values())
+    return sorted(i for i, mf in freqs.items() if mf >= top * 0.95)
+
+
 # ── Hardware detection ───────────────────────────────────────────────────────
 class HardwareProfile:
     """One-shot profile of the host. `on_battery` is re-checked live."""
@@ -304,6 +330,10 @@ class AIOptimizer:
         self.ai_mode_active = False
         self.aggressive = False     # full power (AC or forced) vs battery-safe
         self.profile = "auto"       # effective intensity: max|balanced|battery
+        # Performance-core pinning (hybrid Intel P/E). perf_cpus = the fast
+        # logical CPUs; is_hybrid = there really is a slow tier to avoid.
+        self.perf_cpus = _performance_cpu_ids()
+        self.is_hybrid = 0 < len(self.perf_cpus) < (self.hw.logical_cores or 0)
         self.originals = {}
         self.applied = []           # static enable-time tweaks (governor, …)
         self.io_applied = []        # dynamic: I/O schedulers we switched
@@ -685,6 +715,11 @@ class AIOptimizer:
         # Pause file indexers (CPU/IO hogs) — safe, reversible, also saves power
         self._pause_background()
 
+        # On hybrid CPUs, inference gets pinned to the performance cores (done
+        # live in prioritize_ai_processes, since the process may not exist yet).
+        if self.is_hybrid:
+            self.applied.append("AI cores: P-cores (%d)" % len(self.perf_cpus))
+
         # Power-hungry knobs only when on AC (or explicitly forced)
         if self.aggressive:
             if self.hw.has_epp:
@@ -730,6 +765,11 @@ class AIOptimizer:
         for proc in self.ai_processes:
             try:
                 proc.nice(0)
+                if self.is_hybrid:
+                    try:
+                        proc.cpu_affinity(list(range(self.hw.logical_cores)))
+                    except (psutil.NoSuchProcess, psutil.AccessDenied, OSError):
+                        pass
             except (psutil.NoSuchProcess, psutil.AccessDenied):
                 continue
 
@@ -749,6 +789,17 @@ class AIOptimizer:
                 if proc.nice() != AI_NICE:
                     proc.nice(AI_NICE)
                     logger.info(f"Prioritized {proc.name()} (PID {proc.pid})")
+                # On hybrid CPUs, pin inference to the performance cores so it
+                # never gets migrated onto the slow E-cores. No-op on uniform
+                # CPUs (perf_cpus == all CPUs) and VMs (is_hybrid False).
+                if self.is_hybrid:
+                    try:
+                        if set(proc.cpu_affinity()) != set(self.perf_cpus):
+                            proc.cpu_affinity(self.perf_cpus)
+                            logger.info("Pinned %s (PID %s) to P-cores %s",
+                                        proc.name(), proc.pid, self.perf_cpus)
+                    except (psutil.NoSuchProcess, psutil.AccessDenied, OSError):
+                        pass
             except (psutil.NoSuchProcess, psutil.AccessDenied):
                 continue
 
