@@ -274,7 +274,7 @@ PlasmoidItem {
                 Layout.fillWidth: true
                 spacing: 2
                 PlasmaComponents.Label {
-                    text: root.aiModeActive ? "Performance — perfil aplicado" : "Idle — nenhum perfil aplicado"
+                    text: root.aiModeActive ? "Performance — profile applied" : "Idle — no profile applied"
                     font.bold: true
                 }
                 PlasmaComponents.Label {
@@ -293,7 +293,7 @@ PlasmoidItem {
             // Open monitor button
             PlasmaComponents.Button {
                 Layout.fillWidth: true
-                text: "Abrir AI Mode Monitor"
+                text: "Open AI Mode Monitor"
                 icon.name: "cpu"
                 onClicked: root.openMonitor()
             }

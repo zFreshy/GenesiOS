@@ -106,7 +106,7 @@ Kirigami.ApplicationWindow {
         // ── Benchmark ──
         function onBenchRunning(on) {
             win.benchRunning = on
-            if (on) { win.benchError = ""; win.benchProgress = "iniciando…" }
+            if (on) { win.benchError = ""; win.benchProgress = "starting…" }
         }
         function onBenchProgress(s) { win.benchProgress = s }
         function onBenchError(s) { win.benchError = s; win.benchProgress = "" }
@@ -173,7 +173,7 @@ Kirigami.ApplicationWindow {
             Row {
                 spacing: 4
                 Repeater {
-                    model: ["Painel", "Chat com a IA", "Modelos"]
+                    model: ["Dashboard", "AI Chat", "Models"]
                     delegate: Rectangle {
                         required property int index
                         required property string modelData
@@ -263,9 +263,9 @@ Kirigami.ApplicationWindow {
                     spacing: 2
                     Repeater {
                         model: [
-                            { "p": "max",      "label": "Máximo",     "accent": theme.green },
-                            { "p": "balanced", "label": "Equilíbrio", "accent": theme.green },
-                            { "p": "battery",  "label": "Bateria",    "accent": theme.green },
+                            { "p": "max",      "label": "Maximum",    "accent": theme.green },
+                            { "p": "balanced", "label": "Balanced",   "accent": theme.green },
+                            { "p": "battery",  "label": "Battery",    "accent": theme.green },
                             { "p": "auto",     "label": "Auto",       "accent": theme.green }
                         ]
                         delegate: Rectangle {
@@ -369,10 +369,10 @@ Kirigami.ApplicationWindow {
                             spacing: 4
                             QQC2.Label {
                                 text: win.active
-                                      ? (st.profile === "max" ? "AI Mode ON · máximo"
-                                         : st.profile === "balanced" ? "AI Mode ON · equilíbrio"
-                                         : st.profile === "battery" ? "AI Mode ON · bateria"
-                                         : st.aggressive ? "AI Mode ON · máximo" : "AI Mode ON · econômico")
+                                      ? (st.profile === "max" ? "AI Mode ON · maximum"
+                                         : st.profile === "balanced" ? "AI Mode ON · balanced"
+                                         : st.profile === "battery" ? "AI Mode ON · battery"
+                                         : st.aggressive ? "AI Mode ON · maximum" : "AI Mode ON · economy")
                                       : "AI Mode OFF"
                                 font.bold: true; font.pixelSize: 21
                                 color: theme.textHi
@@ -403,7 +403,7 @@ Kirigami.ApplicationWindow {
                                 }
                                 QQC2.Label {
                                     color: theme.textMid
-                                    text: win.active ? "Otimizações aplicadas em tempo real" : "Nenhum ajuste aplicado"
+                                    text: win.active ? "Optimizations applied in real time" : "No tweaks applied"
                                 }
                             }
                         }
@@ -456,7 +456,7 @@ Kirigami.ApplicationWindow {
                             spacing: 2
                             RowLayout {
                                 spacing: Kirigami.Units.smallSpacing
-                                QQC2.Label { text: "Modo Turbo"; font.bold: true; font.pixelSize: 16; color: theme.textHi }
+                                QQC2.Label { text: "Turbo Mode"; font.bold: true; font.pixelSize: 16; color: theme.textHi }
                                 // Speculative on/off toggle. Turbo runs plain full
                                 // GPU offload by default (reliable); speculative is
                                 // opt-in — faster on a mature GPU driver, can
@@ -471,7 +471,7 @@ Kirigami.ApplicationWindow {
                                     QQC2.Label {
                                         id: specLbl
                                         anchors.centerIn: parent
-                                        text: win.turboSpec ? "⚡ speculative" : "offload total"
+                                        text: win.turboSpec ? "⚡ speculative" : "full offload"
                                         font.pixelSize: 10
                                         color: win.turboSpec ? theme.turboBright : theme.textMid
                                     }
@@ -481,13 +481,13 @@ Kirigami.ApplicationWindow {
                                         cursorShape: Qt.PointingHandCursor
                                         onClicked: win.turboSpec = !win.turboSpec
                                         QQC2.ToolTip.text: win.turboSpec
-                                            ? "Modo avançado ATIVO: speculative decoding (draft model) + draft dinâmico + KV cache persistente em disco. Mais rápido em GPU madura (CUDA); pode regredir em Vulkan/NVK. Clique para voltar ao offload total (estável)."
-                                            : "Offload total (estável). Clique para ligar o modo avançado: ⚡ speculative decoding + draft dinâmico + KV persistente — valide com o benchmark antes (pode regredir em Vulkan/NVK)."
+                                            ? "Advanced mode ON: speculative decoding (draft model) + dynamic draft length + persistent KV cache on disk. Faster on a mature GPU driver (CUDA); can regress on Vulkan/NVK. Click to go back to full offload (stable)."
+                                            : "Full offload (stable). Click to enable advanced mode: ⚡ speculative decoding + dynamic draft + persistent KV — validate with the benchmark first (can regress on Vulkan/NVK)."
                                         QQC2.ToolTip.visible: containsMouse
                                     }
                                 }
                                 QQC2.Button {
-                                    text: "Instalar Backend"
+                                    text: "Install Backend"
                                     icon.name: "download"
                                     visible: win.turboNeedsInstall
                                     onClicked: { backend.backendInfo(); backendDialog.open() }
@@ -497,8 +497,8 @@ Kirigami.ApplicationWindow {
                                 Layout.fillWidth: true
                                 wrapMode: Text.WordWrap
                                 text: win.turboSpec
-                                    ? "Modo avançado: ⚡ speculative decoding + draft dinâmico + KV cache persistente em disco."
-                                    : "Offload total na GPU (estável). Ligue o ⚡ para o pacote avançado do Lote C."
+                                    ? "Advanced mode: ⚡ speculative decoding + dynamic draft + persistent KV cache on disk."
+                                    : "Full GPU offload (stable). Flip ⚡ for the advanced stack."
                                 color: win.turboSpec ? theme.turboBright : theme.textMid
                                 opacity: 0.9
                                 font.pixelSize: 12
@@ -508,7 +508,7 @@ Kirigami.ApplicationWindow {
                                 visible: win.turboRecommend.length > 0
                                 spacing: Kirigami.Units.smallSpacing
                                 QQC2.Label {
-                                    text: "Recomendado p/ sua GPU:"
+                                    text: "Recommended for your GPU:"
                                     color: theme.textLo; font.pixelSize: 11
                                 }
                                 Rectangle {
@@ -533,7 +533,7 @@ Kirigami.ApplicationWindow {
                                         hoverEnabled: true
                                         cursorShape: Qt.PointingHandCursor
                                         onClicked: win.turboModel = win.turboRecommend
-                                        QQC2.ToolTip.text: "Usar o maior modelo que roda 100% na sua VRAM (offload total, sem spill pra CPU)"
+                                        QQC2.ToolTip.text: "Use the largest model that runs 100% in your VRAM (full offload, no CPU spill)"
                                         QQC2.ToolTip.visible: containsMouse
                                     }
                                 }
@@ -594,7 +594,7 @@ Kirigami.ApplicationWindow {
                                 spacing: 2
                                 QQC2.Label { text: "CPU"; font.bold: true; font.pixelSize: 11; font.letterSpacing: 1; color: theme.green }
                                 QQC2.Label { text: win.metrics().cpu_percent !== undefined ? win.metrics().cpu_percent.toFixed(1) + "%" : "—"; font.bold: true; font.pixelSize: 18; color: theme.textHi }
-                                QQC2.Label { text: (win.hw().physical_cores || "?") + " núcleos · " + (win.hw().logical_cores || "?") + " threads"; color: theme.textLo; font.pixelSize: 11; elide: Text.ElideRight; Layout.fillWidth: true }
+                                QQC2.Label { text: (win.hw().physical_cores || "?") + " cores · " + (win.hw().logical_cores || "?") + " threads"; color: theme.textLo; font.pixelSize: 11; elide: Text.ElideRight; Layout.fillWidth: true }
                             }
                         }
                     }
@@ -616,9 +616,9 @@ Kirigami.ApplicationWindow {
                             ColumnLayout {
                                 Layout.fillWidth: true
                                 spacing: 2
-                                QQC2.Label { text: "MEMÓRIA"; font.bold: true; font.pixelSize: 11; font.letterSpacing: 1; color: theme.blue }
+                                QQC2.Label { text: "MEMORY"; font.bold: true; font.pixelSize: 11; font.letterSpacing: 1; color: theme.blue }
                                 QQC2.Label { text: win.metrics().ram_total_mb ? (Math.round((win.metrics().ram_used_mb || 0) / 102.4) / 10).toFixed(1) + " / " + Math.round(win.metrics().ram_total_mb / 1024) + " GB" : "—"; font.bold: true; font.pixelSize: 18; color: theme.textHi }
-                                QQC2.Label { text: (win.metrics().ram_used_mb || 0) + " MB em uso"; color: theme.textLo; font.pixelSize: 11; elide: Text.ElideRight; Layout.fillWidth: true }
+                                QQC2.Label { text: (win.metrics().ram_used_mb || 0) + " MB in use"; color: theme.textLo; font.pixelSize: 11; elide: Text.ElideRight; Layout.fillWidth: true }
                             }
                         }
                     }
@@ -639,9 +639,9 @@ Kirigami.ApplicationWindow {
                             ColumnLayout {
                                 Layout.fillWidth: true
                                 spacing: 2
-                                QQC2.Label { text: "INFERÊNCIA"; font.bold: true; font.pixelSize: 11; font.letterSpacing: 1; color: theme.purpleBright }
-                                QQC2.Label { text: win.activeModel ? (st.tokens_per_second ? st.tokens_per_second + " t/s" : "Ativa") : "—"; font.bold: true; font.pixelSize: 18; color: theme.textHi }
-                                QQC2.Label { text: win.activeModel ? win.activeModel : "nenhum modelo"; color: theme.textLo; font.pixelSize: 11; elide: Text.ElideRight; Layout.fillWidth: true }
+                                QQC2.Label { text: "INFERENCE"; font.bold: true; font.pixelSize: 11; font.letterSpacing: 1; color: theme.purpleBright }
+                                QQC2.Label { text: win.activeModel ? (st.tokens_per_second ? st.tokens_per_second + " t/s" : "Active") : "—"; font.bold: true; font.pixelSize: 18; color: theme.textHi }
+                                QQC2.Label { text: win.activeModel ? win.activeModel : "no model"; color: theme.textLo; font.pixelSize: 11; elide: Text.ElideRight; Layout.fillWidth: true }
                             }
                         }
                     }
@@ -667,7 +667,7 @@ Kirigami.ApplicationWindow {
                             spacing: Kirigami.Units.smallSpacing
                             Kirigami.Icon { source: "configure"; color: theme.green; Layout.preferredWidth: 16; Layout.preferredHeight: 16 }
                             QQC2.Label {
-                                text: win.active ? "Otimizações aplicadas" : "Inativo — nenhum ajuste aplicado"
+                                text: win.active ? "Optimizations applied" : "Inactive — no tweaks applied"
                                 font.bold: true; font.pixelSize: 15; color: theme.textHi
                             }
                         }
@@ -675,7 +675,7 @@ Kirigami.ApplicationWindow {
                         QQC2.Label {
                             visible: !win.active
                             color: theme.textLo
-                            text: "Inicie um modelo local (ou use Force ON) para ver o tuning ao vivo aqui."
+                            text: "Start a local model (or use Force ON) to see live tuning here."
                         }
 
                         Repeater {
@@ -713,7 +713,7 @@ Kirigami.ApplicationWindow {
                             spacing: Kirigami.Units.smallSpacing
                             Kirigami.Icon { source: "speedometer"; color: theme.blue; Layout.preferredWidth: 16; Layout.preferredHeight: 16 }
                             QQC2.Label {
-                                text: "Benchmark de desempenho"
+                                text: "Performance benchmark"
                                 font.bold: true; font.pixelSize: 15; color: theme.textHi
                             }
                             Item { Layout.fillWidth: true }
@@ -723,7 +723,7 @@ Kirigami.ApplicationWindow {
                                 Layout.preferredWidth: 22; Layout.preferredHeight: 22
                             }
                             QQC2.Button {
-                                text: win.benchRunning ? "Medindo…" : "Rodar benchmark"
+                                text: win.benchRunning ? "Measuring…" : "Run benchmark"
                                 icon.name: "speedometer"
                                 enabled: !win.benchRunning
                                 onClicked: backend.runBench(win.turboModel || win.activeModel || win.firstInstalledModel || "llama3.2")
@@ -735,9 +735,9 @@ Kirigami.ApplicationWindow {
                             wrapMode: Text.WordWrap
                             color: theme.textLo
                             font.pixelSize: 12
-                            text: "Compara a velocidade de geração (tokens/s) com o AI Mode OFF e ON, "
-                                + "no modelo " + (win.turboModel || win.activeModel || win.firstInstalledModel || "llama3.2")
-                                + ". Leva ~1 min (faz duas execuções)."
+                            text: "Compares generation speed (tokens/s) with AI Mode OFF and ON, "
+                                + "on model " + (win.turboModel || win.activeModel || win.firstInstalledModel || "llama3.2")
+                                + ". Takes ~1 min (runs twice)."
                         }
 
                         // live progress
@@ -810,8 +810,8 @@ Kirigami.ApplicationWindow {
                                 Layout.fillWidth: true
                                 wrapMode: Text.WordWrap
                                 text: (win.benchDelta >= 0 ? "▲ +" : "▼ ") + win.benchDelta.toFixed(1)
-                                    + "% de ganho de geração com o AI Mode ON"
-                                    + (Math.abs(win.benchDelta) < 1 ? "  ·  em VM o governor é no-op; rode em bare metal para o ganho real" : "")
+                                    + "% generation gain with AI Mode ON"
+                                    + (Math.abs(win.benchDelta) < 1 ? "  ·  in a VM the governor is a no-op; run on bare metal for the real gain" : "")
                                 color: win.benchDelta >= 1 ? theme.greenBright
                                      : (win.benchDelta <= -1 ? theme.red : theme.textMid)
                                 font.bold: true
@@ -835,7 +835,7 @@ Kirigami.ApplicationWindow {
     // ════════════ BACKEND CHOICE DIALOG (Vulkan ⇄ CUDA) ════════════
     Kirigami.PromptDialog {
         id: backendDialog
-        title: "Instalar backend do Turbo"
+        title: "Install the Turbo backend"
         standardButtons: Kirigami.Dialog.Cancel
         preferredWidth: Kirigami.Units.gridUnit * 28
 
@@ -845,7 +845,7 @@ Kirigami.ApplicationWindow {
             QQC2.Label {
                 Layout.fillWidth: true
                 wrapMode: Text.WordWrap
-                text: win.backendReason || "Escolha o motor de inferência do Turbo (llama-server)."
+                text: win.backendReason || "Choose the Turbo inference engine (llama-server)."
                 color: theme.textMid
             }
 
@@ -869,13 +869,13 @@ Kirigami.ApplicationWindow {
                             visible: win.backendRecommend === "vulkan"
                             radius: 6; height: 18; width: recVk.implicitWidth + 14
                             color: theme.a(theme.green, 0.25)
-                            QQC2.Label { id: recVk; anchors.centerIn: parent; text: "Recomendado"; font.pixelSize: 10; color: theme.greenBright }
+                            QQC2.Label { id: recVk; anchors.centerIn: parent; text: "Recommended"; font.pixelSize: 10; color: theme.greenBright }
                         }
                         Item { Layout.fillWidth: true }
                     }
                     QQC2.Label {
                         Layout.fillWidth: true; wrapMode: Text.WordWrap; color: theme.textMid; font.pixelSize: 12
-                        text: "Universal: roda em qualquer GPU (AMD, Intel, NVIDIA aberto/NVK). É o backend já pronto da Genesi (genesi-llama-cpp, leve, ~dezenas de MB). Melhor escolha pra maioria e pro live ISO."
+                        text: "Universal: runs on any GPU (AMD, Intel, NVIDIA open/NVK). It's Genesi's ready-to-go backend (genesi-llama-cpp, lightweight, ~tens of MB). Best choice for most people and for the live ISO."
                     }
                 }
                 MouseArea {
@@ -904,23 +904,23 @@ Kirigami.ApplicationWindow {
                             visible: win.backendRecommend === "cuda"
                             radius: 6; height: 18; width: recCu.implicitWidth + 14
                             color: theme.a(theme.turbo, 0.25)
-                            QQC2.Label { id: recCu; anchors.centerIn: parent; text: "Recomendado"; font.pixelSize: 10; color: theme.turboBright }
+                            QQC2.Label { id: recCu; anchors.centerIn: parent; text: "Recommended"; font.pixelSize: 10; color: theme.turboBright }
                         }
                         Item { Layout.fillWidth: true }
                     }
                     QQC2.Label {
                         Layout.fillWidth: true; wrapMode: Text.WordWrap; color: theme.textMid; font.pixelSize: 12
-                        text: "Só NVIDIA com driver proprietário ativo. ~1,5–2× mais rápido que Vulkan, mas é uma compilação pesada do AUR (llama.cpp-cuda, baixa o CUDA). Ideal num sistema instalado, não no live ISO em RAM."
+                        text: "NVIDIA only, with the proprietary driver active. ~1.5–2× faster than Vulkan, but it's a heavy AUR build (llama.cpp-cuda, pulls CUDA). Best on an installed system, not the RAM-backed live ISO."
                     }
                     QQC2.Label {
                         visible: win.backendRecommend === "cuda" && !win.backendNvWorks
                         Layout.fillWidth: true; wrapMode: Text.WordWrap; font.pixelSize: 11; color: theme.red
-                        text: "⚠ nvidia-smi não responde aqui — instale o driver NVIDIA proprietário antes, senão o CUDA não roda."
+                        text: "⚠ nvidia-smi isn't responding here — install the proprietary NVIDIA driver first, otherwise CUDA won't run."
                     }
                     QQC2.Label {
                         visible: !win.backendAur
                         Layout.fillWidth: true; wrapMode: Text.WordWrap; font.pixelSize: 11; color: theme.textLo
-                        text: "Precisa de um helper do AUR (paru/yay) instalado."
+                        text: "Requires an AUR helper (paru/yay) installed."
                     }
                 }
                 MouseArea {

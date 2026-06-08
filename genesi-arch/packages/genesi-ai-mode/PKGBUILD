@@ -115,7 +115,12 @@ pkgver=1.0.0
 # refused" when ollama was installed but its service wasn't running. The Monitor
 # now auto-starts ollama (systemctl start, then a user `ollama serve` fallback)
 # before talking to the API, with a clear message if it still can't.
-pkgrel=68
+# 2026-06-08 (69): standardize ALL user-facing strings to English (the project
+# default). Translated the AI Mode Monitor UI (Main.qml, ChatPage.qml,
+# AdvisorPage.qml, ChatBubble.qml) + every backend status/error message in
+# genesi_ai_monitor.py, the plasmoid widget strings, and genesi-ai-turbo's
+# `serve` terminal output. No behavior change — text only.
+pkgrel=69
 pkgdesc='Genesi OS AI Mode - adaptive, reversible local-AI optimizer (CPU/GPU/power) + Plasma 6 widget + monitor app'
 arch=('any')
 url='https://github.com/zFreshy/GenesiOS'

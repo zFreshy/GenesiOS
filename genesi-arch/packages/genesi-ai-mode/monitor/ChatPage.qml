@@ -11,7 +11,7 @@ import org.kde.kirigami as Kirigami
 
 Kirigami.Page {
     id: page
-    title: "Chat com a IA"
+    title: "AI Chat"
     padding: 0
 
     Theme { id: theme }
@@ -31,7 +31,7 @@ Kirigami.Page {
     // Short one-line summary for the top status label (full data lives in the
     // bubble's stats panel). `s` is the JSON stats string from the backend.
     function shortStats(s) {
-        if (!s || s.length === 0) return "pronto"
+        if (!s || s.length === 0) return "ready"
         try {
             var d = JSON.parse(s)
             return (d.mode === "turbo" ? "⚡ " : "") + d.rate + " tok/s  ·  " + d.eval + " tokens"
@@ -48,7 +48,7 @@ Kirigami.Page {
         chatModel.append({ "role": "ai", "body": "", "stats": "" })
         page.currentAi = chatModel.count - 1
         page.busy = true
-        statsLabel.text = "gerando…"
+        statsLabel.text = "generating…"
         backend.sendPrompt(modelCombo.currentText, q)
         input.text = ""
         chatList.positionViewAtEnd()
@@ -82,8 +82,8 @@ Kirigami.Page {
         function onChatError(e) {
             if (page.currentAi >= 0 && chatModel.get(page.currentAi).body.length === 0)
                 chatModel.remove(page.currentAi)   // drop the empty AI placeholder
-            chatModel.append({ "role": "error", "body": e + "  — o Ollama está rodando?", "stats": "" })
-            statsLabel.text = "erro"
+            chatModel.append({ "role": "error", "body": e + "  — is Ollama running?", "stats": "" })
+            statsLabel.text = "error"
             page.busy = false
             page.currentAi = -1
             chatList.positionViewAtEnd()
@@ -109,7 +109,7 @@ Kirigami.Page {
                 anchors.rightMargin: Kirigami.Units.largeSpacing
                 spacing: Kirigami.Units.smallSpacing
 
-                QQC2.Label { text: "Modelo"; color: theme.textMid; font.pixelSize: 12 }
+                QQC2.Label { text: "Model"; color: theme.textMid; font.pixelSize: 12 }
                 QQC2.ComboBox {
                     id: modelCombo
                     Layout.preferredWidth: Kirigami.Units.gridUnit * 12
@@ -117,7 +117,7 @@ Kirigami.Page {
                 QQC2.ToolButton {
                     icon.name: "view-refresh"
                     onClicked: backend.loadModels()
-                    QQC2.ToolTip.text: "Recarregar modelos"
+                    QQC2.ToolTip.text: "Reload models"
                     QQC2.ToolTip.visible: hovered
                 }
                 Item { Layout.fillWidth: true }
@@ -139,8 +139,8 @@ Kirigami.Page {
             Layout.margins: Kirigami.Units.largeSpacing
             visible: false
             type: Kirigami.MessageType.Warning
-            text: "Nenhum modelo do Ollama encontrado. Rode `ollama pull llama3.2` " +
-                  "e confira se o serviço está ativo (`systemctl enable --now ollama`)."
+            text: "No Ollama models found. Run `ollama pull llama3.2` " +
+                  "and make sure the service is up (`systemctl enable --now ollama`)."
         }
 
         // ── Conversation ──
@@ -162,12 +162,12 @@ Kirigami.Page {
                 }
                 QQC2.Label {
                     Layout.alignment: Qt.AlignHCenter
-                    text: "Converse com a IA local"
+                    text: "Chat with the local AI"
                     font.bold: true; font.pixelSize: 16; color: theme.textHi
                 }
                 QQC2.Label {
                     Layout.alignment: Qt.AlignHCenter
-                    text: "Roda 100% no seu hardware. Pergunte algo abaixo 👇"
+                    text: "Runs 100% on your hardware. Ask something below 👇"
                     color: theme.textLo
                 }
             }
@@ -222,7 +222,7 @@ Kirigami.Page {
                         verticalAlignment: TextInput.AlignVCenter
                         background: null
                         color: theme.textHi
-                        placeholderText: "Pergunte algo à IA…"
+                        placeholderText: "Ask the AI something…"
                         placeholderTextColor: theme.textLo
                         enabled: !page.busy
                         onAccepted: page.send()

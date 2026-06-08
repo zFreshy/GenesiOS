@@ -10,7 +10,7 @@ import org.kde.kirigami as Kirigami
 
 Kirigami.Page {
     id: page
-    title: "Modelos"
+    title: "Models"
     padding: 0
 
     Theme { id: theme }
@@ -29,7 +29,7 @@ Kirigami.Page {
         if (page.pulling || m.length === 0)
             return
         page.pulling = true
-        status.text = "iniciando download de " + m + " …"
+        status.text = "starting download of " + m + " …"
         backend.pullModel(m)
     }
 
@@ -94,7 +94,7 @@ Kirigami.Page {
                             verticalAlignment: TextInput.AlignVCenter
                             background: null
                             color: theme.textHi
-                            placeholderText: "ex: llama3.2:3b   ou   llama3.1:8b"
+                            placeholderText: "e.g. llama3.2:3b   or   llama3.1:8b"
                             placeholderTextColor: theme.textLo
                             enabled: !page.pulling
                             onAccepted: page.pull()
@@ -113,7 +113,7 @@ Kirigami.Page {
                             anchors.centerIn: parent
                             spacing: 6
                             Kirigami.Icon { source: "download"; width: 16; height: 16; color: pullBtn.canPull ? "#08130E" : theme.textLo }
-                            QQC2.Label { id: pullLbl; text: page.pulling ? "Baixando…" : "Baixar"; font.bold: true; color: pullBtn.canPull ? "#08130E" : theme.textLo }
+                            QQC2.Label { id: pullLbl; text: page.pulling ? "Downloading…" : "Download"; font.bold: true; color: pullBtn.canPull ? "#08130E" : theme.textLo }
                         }
                         MouseArea { anchors.fill: parent; enabled: pullBtn.canPull; cursorShape: Qt.PointingHandCursor; onClicked: page.pull() }
                     }
@@ -144,12 +144,12 @@ Kirigami.Page {
                     Layout.fillWidth: true
                     spacing: Kirigami.Units.smallSpacing
                     Kirigami.Icon { source: "help-about"; color: theme.green; Layout.preferredWidth: 16; Layout.preferredHeight: 16 }
-                    QQC2.Label { text: "Qual modelo cabe no seu hardware"; font.bold: true; font.pixelSize: 14; color: theme.textHi }
+                    QQC2.Label { text: "Which model fits your hardware"; font.bold: true; font.pixelSize: 14; color: theme.textHi }
                     Item { Layout.fillWidth: true }
                     QQC2.ToolButton {
                         icon.name: "view-refresh"
                         onClicked: page.reload()
-                        QQC2.ToolTip.text: "Recarregar"
+                        QQC2.ToolTip.text: "Reload"
                         QQC2.ToolTip.visible: hovered
                     }
                 }

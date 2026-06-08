@@ -373,16 +373,17 @@ jobs:
           sha256sum "$ISO_PATH" | awk '{print $1"  genesi-os-latest.iso"}' > genesi-os-latest.iso.sha256
 
           # Collect commits to a file first (avoids SIGPIPE/pipefail surprises),
-          # drop the "ci(...): publish packages" bot commits, keep the newest 60.
+          # drop the "ci(...): publish packages" bot commits, keep the newest 80.
+          # Format: <date>\t<sha>\t<subject> so awk can group bullets by date.
           git log --no-merges --date=short \
-            --pretty=format:'%H%x09%ad%x09%s' "$RANGE" > /tmp/commits.txt || true
+            --pretty=format:'%ad%x09%H%x09%s' "$RANGE" > /tmp/commits.txt || true
           grep -vaE 'ci\(.+\): publish packages' /tmp/commits.txt > /tmp/commits.flt || true
-          head -n 60 /tmp/commits.flt > /tmp/commits.top || true
+          head -n 80 /tmp/commits.flt > /tmp/commits.top || true
 
           {
             echo "## ⬇️ Download"
             echo
-            echo "ISO única no Cloudflare R2 (CDN rápido, resumível):"
+            echo "The Genesi OS ISO is a single file on Cloudflare R2 (fast CDN, resumable):"
             echo
             echo "**https://pub-917a3befc9e640f0acf8eb3d52633fe2.r2.dev/genesi-os-latest.iso**"
             echo
@@ -390,24 +391,26 @@ jobs:
             echo 'aria2c -x16 -s16 https://pub-917a3befc9e640f0acf8eb3d52633fe2.r2.dev/genesi-os-latest.iso'
             echo 'sha256sum -c genesi-os-latest.iso.sha256'
             echo '```'
-            echo '`genesi-os-latest.iso` sempre acompanha o build mais recente da `main`.'
+            echo '`genesi-os-latest.iso` always tracks the latest `main` build.'
             echo
-            echo "## 📝 O que mudou"
-            echo
+            echo "## 📝 Changelog"
             if [ -s /tmp/commits.top ]; then
-              while IFS="$(printf '\t')" read -r sha d subj; do
-                [ -n "$sha" ] || continue
-                printf -- '- **%s** — %s (%s)\n' "$d" "$subj" "${sha:0:7}"
-              done < /tmp/commits.top
+              # Group commits under a single date header (newest first) instead of
+              # repeating the date on every line.
+              awk -F'\t' '
+                $1 != cur { cur=$1; printf("\n### %s\n\n", $1) }
+                { printf("- %s (%s)\n", $3, substr($2,1,7)) }
+              ' /tmp/commits.top
             else
-              echo "- (sem mudanças registradas)"
+              echo
+              echo "- (no changes recorded)"
             fi
             echo
             echo "_Build ${GITHUB_SHA:0:7} · $(date -u '+%Y-%m-%d %H:%M UTC')_"
           } > CHANGELOG_ROLLING.md
           echo "----- changelog rolling -----"; cat CHANGELOG_ROLLING.md
 
-      - name: 🧹 Limpar assets antigos da release rolling
+      - name: 🧹 Clean stale assets from the rolling release
         if: github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
@@ -418,16 +421,20 @@ jobs:
           pacman -Sy --noconfirm --needed github-cli || true
           for a in $(gh release view rolling -R "$GITHUB_REPOSITORY" \
                        --json assets --jq '.assets[].name' 2>/dev/null || true); do
-            echo "removendo asset antigo: $a"
+            echo "removing stale asset: $a"
             gh release delete-asset rolling "$a" -R "$GITHUB_REPOSITORY" -y 2>/dev/null || true
           done
 
-      - name: 🚀 Atualizar Release rolling (main)
+      - name: 🚀 Update rolling release (main)
         if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: rolling
           name: "Genesi OS — rolling (latest main build)"
-          prerelease: true
+          # Mark this as the repo's "Latest" so visitors land on the actual ISO
+          # build, not the infra "repo" release. prerelease=false is required for
+          # GitHub to consider it Latest. Real version tags (v*) will supersede it.
+          prerelease: false
+          make_latest: true
           body_path: CHANGELOG_ROLLING.md
           files: genesi-os-latest.iso.sha256

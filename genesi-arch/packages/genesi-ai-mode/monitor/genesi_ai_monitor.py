@@ -82,7 +82,7 @@ class Backend(QObject):
                                capture_output=True, text=True, timeout=10)
             return (r.stdout or r.stderr or "").strip()
         except Exception as e:
-            return f"erro ao consultar o advisor: {e}"
+            return f"error querying the advisor: {e}"
 
     # ── benchmark (wrap `genesi-ai-mode bench`, stream progress, parse result) ─
     @Slot(str)
@@ -99,7 +99,7 @@ class Backend(QObject):
     def _bench_work(self, model):
         import re
         if not shutil.which("genesi-ai-mode"):
-            self.benchError.emit("genesi-ai-mode não encontrado")
+            self.benchError.emit("genesi-ai-mode not found")
             return
         self._bench_running = True
         self.benchRunning.emit(True)
@@ -150,7 +150,7 @@ class Backend(QObject):
         self.benchRunning.emit(False)
         if off_rate is None or on_rate is None:
             self.benchError.emit(
-                "benchmark sem resultado — verifique se o modelo está instalado "
+                "benchmark returned no result — check the model is installed "
                 "(ollama pull " + model + ")")
             return
         self.benchDone.emit(json.dumps({
@@ -249,7 +249,7 @@ class Backend(QObject):
 
     def _chat_ollama(self, model, prompt):
         if not self._ensure_ollama():
-            self.chatError.emit("Ollama não está rodando (systemctl start ollama)")
+            self.chatError.emit("Ollama isn't running (systemctl start ollama)")
             return
         body = json.dumps({"model": model, "prompt": prompt, "stream": True}).encode()
         req = urllib.request.Request(OLLAMA + "/api/generate", data=body,
@@ -416,17 +416,17 @@ class Backend(QObject):
             has_nv = self._has_nvidia_gpu()
             if nv_works:
                 recommend, reason = "cuda", (
-                    "Detectei uma GPU NVIDIA com o driver proprietário ativo — "
-                    "CUDA roda ~1,5–2× mais rápido que Vulkan aqui.")
+                    "Detected an NVIDIA GPU with the proprietary driver active — "
+                    "CUDA runs ~1.5–2× faster than Vulkan here.")
             elif has_nv:
                 recommend, reason = "vulkan", (
-                    "Você tem uma GPU NVIDIA, mas o driver proprietário/CUDA não "
-                    "está ativo (provável nouveau/NVK). Use Vulkan agora; CUDA só "
-                    "compensa depois de instalar o driver proprietário.")
+                    "You have an NVIDIA GPU, but the proprietary driver/CUDA isn't "
+                    "active (likely nouveau/NVK). Use Vulkan now; CUDA only pays "
+                    "off after you install the proprietary driver.")
             else:
                 recommend, reason = "vulkan", (
-                    "Vulkan é o backend universal e roda na sua GPU. CUDA é "
-                    "exclusivo de placas NVIDIA com driver proprietário.")
+                    "Vulkan is the universal backend and runs on your GPU. CUDA is "
+                    "NVIDIA-only and needs the proprietary driver.")
             self.backendAdvice.emit(json.dumps({
                 "recommend": recommend,
                 "reason": reason,
@@ -483,7 +483,7 @@ class Backend(QObject):
         self._stop_turbo()
         self._turbo_spec = spec
         if not shutil.which("genesi-ai-turbo"):
-            self.turboStatus.emit("genesi-ai-turbo não encontrado")
+            self.turboStatus.emit("genesi-ai-turbo not found")
             return
         # Pre-check the backend so we never hang ~3 min polling a server that
         # can't even start. If llama-server is missing, ask the UI to offer the
@@ -491,13 +491,13 @@ class Backend(QObject):
         if not self._has_llama_server():
             self.turboNeedsInstall.emit(True)
             self.turboStatus.emit(
-                "Backend do Turbo não instalado — clique em “Instalar Turbo”")
+                "Turbo backend not installed — click “Install Backend”")
             return
         self._turbo_model = model
-        gpu_hint = "" if self._has_gpu() else "   (sem GPU: ganho pequeno)"
-        ready_msg = ("Turbo ativo ⚡ speculative decoding" if spec
-                     else "Turbo ativo ⚡ offload total na GPU")
-        self.turboStatus.emit("preparando Turbo…")
+        gpu_hint = "" if self._has_gpu() else "   (no GPU: small gain)"
+        ready_msg = ("Turbo active ⚡ speculative decoding" if spec
+                     else "Turbo active ⚡ full GPU offload")
+        self.turboStatus.emit("preparing Turbo…")
 
         def run():
             # Free the RAM Ollama holds via keep-alive BEFORE llama-server loads.
@@ -509,11 +509,11 @@ class Backend(QObject):
             # never freezes while Ollama releases the memory.
             if self._turbo_model != model:
                 return
-            self.turboStatus.emit("liberando memória do Ollama…")
+            self.turboStatus.emit("freeing Ollama's memory…")
             self._ollama_unload_all()
             if self._turbo_model != model:
                 return
-            self.turboStatus.emit("iniciando Turbo (carregando o modelo)…")
+            self.turboStatus.emit("starting Turbo (loading the model)…")
             # Capture the serve subprocess's stderr so we can surface the REAL
             # reason it failed (bad arg, OOM, missing blob…), not a generic msg.
             try:
@@ -524,7 +524,7 @@ class Backend(QObject):
                     stdout=subprocess.DEVNULL, stderr=open(self._turbo_log, "w"))
                 self._turbo_proc = proc
             except Exception as e:
-                self.turboStatus.emit("erro ao iniciar Turbo: " + str(e))
+                self.turboStatus.emit("error starting Turbo: " + str(e))
                 return
             log = self._turbo_log
 
@@ -557,17 +557,17 @@ class Backend(QObject):
                 if proc.poll() is not None:
                     msg = _tail()
                     self.turboStatus.emit(
-                        "Turbo falhou: " + (msg.splitlines()[-1] if msg else
-                        "rode no terminal: genesi-ai-turbo serve " + model))
+                        "Turbo failed: " + (msg.splitlines()[-1] if msg else
+                        "run in a terminal: genesi-ai-turbo serve " + model))
                     return
                 # live elapsed-time feedback so it never looks frozen
                 secs = i + 1
                 elapsed = f"{secs // 60}m{secs % 60:02d}s" if secs >= 60 else f"{secs}s"
-                hint = "  ·  modelos grandes em CPU/VM levam alguns minutos" if secs > 25 else ""
-                self.turboStatus.emit(f"carregando o modelo… {elapsed}{hint}")
+                hint = "  ·  large models on CPU/VM take a few minutes" if secs > 25 else ""
+                self.turboStatus.emit(f"loading the model… {elapsed}{hint}")
                 time.sleep(1)
             self.turboStatus.emit(
-                "Turbo demorou demais — rode no terminal p/ ver o erro: "
+                "Turbo took too long — run in a terminal to see the error: "
                 "genesi-ai-turbo serve " + model)
         threading.Thread(target=run, daemon=True).start()
 
@@ -603,19 +603,19 @@ class Backend(QObject):
         kind = "cuda" if str(kind).lower() == "cuda" else "vulkan"
         if self._has_llama_server():
             self.turboNeedsInstall.emit(False)
-            self.turboStatus.emit("Backend já instalado ✓ — ligue o Turbo")
+            self.turboStatus.emit("Backend already installed ✓ — turn on Turbo")
             return
         if kind == "cuda":
             self._install_cuda_backend()
             return
         if not shutil.which("pkexec"):
             self.turboStatus.emit(
-                "pkexec ausente — rode: sudo pacman -S genesi-llama-cpp")
+                "pkexec missing — run: sudo pacman -S genesi-llama-cpp")
             return
 
         def work():
             self.turboStatus.emit(
-                "instalando genesi-llama-cpp (Vulkan)… (autorize no diálogo)")
+                "installing genesi-llama-cpp (Vulkan)… (authorize in the dialog)")
             try:
                 p = subprocess.run(
                     ["pkexec", "pacman", "-Sy", "--needed", "--noconfirm",
@@ -623,17 +623,17 @@ class Backend(QObject):
                     stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                     text=True, timeout=900)
             except Exception as e:
-                self.turboStatus.emit("falha ao instalar: " + str(e))
+                self.turboStatus.emit("install failed: " + str(e))
                 return
             if p.returncode == 0 and self._has_llama_server():
                 self.turboNeedsInstall.emit(False)
-                self.turboStatus.emit("Backend Vulkan instalado ✓ — ligue o Turbo de novo")
+                self.turboStatus.emit("Vulkan backend installed ✓ — turn Turbo on again")
             else:
                 last = ""
                 if p.stdout:
                     lines = [l for l in p.stdout.splitlines() if l.strip()]
                     last = lines[-1] if lines else ""
-                self.turboStatus.emit("instalação não concluída — " + last)
+                self.turboStatus.emit("install not completed — " + last)
         threading.Thread(target=work, daemon=True).start()
 
     def _install_cuda_backend(self):
@@ -643,35 +643,35 @@ class Backend(QObject):
         helper = self._aur_helper()
         if not helper:
             self.turboStatus.emit(
-                "CUDA precisa de um helper do AUR (paru/yay). Instale o paru e "
-                "rode: paru -S llama.cpp-cuda")
+                "CUDA needs an AUR helper (paru/yay). Install paru and "
+                "run: paru -S llama.cpp-cuda")
             return
         if not self._nvidia_smi_works():
             self.turboStatus.emit(
-                "Aviso: nvidia-smi não responde — o CUDA só roda com o driver "
-                "NVIDIA proprietário ativo. Instalando mesmo assim…")
+                "Warning: nvidia-smi isn't responding — CUDA only runs with the "
+                "proprietary NVIDIA driver active. Installing anyway…")
 
         def work():
             self.turboStatus.emit(
-                f"compilando llama.cpp-cuda via {helper}… (pesado, pode demorar)")
+                f"building llama.cpp-cuda via {helper}… (heavy, may take a while)")
             try:
                 p = subprocess.run(
                     [helper, "-S", "--needed", "--noconfirm", "llama.cpp-cuda"],
                     stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                     text=True, timeout=3600)
             except Exception as e:
-                self.turboStatus.emit("falha ao instalar CUDA: " + str(e))
+                self.turboStatus.emit("CUDA install failed: " + str(e))
                 return
             if p.returncode == 0 and self._has_llama_server():
                 self.turboNeedsInstall.emit(False)
-                self.turboStatus.emit("Backend CUDA instalado ✓ — ligue o Turbo de novo")
+                self.turboStatus.emit("CUDA backend installed ✓ — turn Turbo on again")
             else:
                 last = ""
                 if p.stdout:
                     lines = [l for l in p.stdout.splitlines() if l.strip()]
                     last = lines[-1] if lines else ""
-                self.turboStatus.emit("CUDA não concluído — " + last
-                                      + "  (tente no terminal: " + helper
+                self.turboStatus.emit("CUDA not completed — " + last
+                                      + "  (try in a terminal: " + helper
                                       + " -S llama.cpp-cuda)")
         threading.Thread(target=work, daemon=True).start()
 
@@ -686,8 +686,8 @@ class Backend(QObject):
         def work():
             if not self._ensure_ollama():
                 self.pullStatus.emit(
-                    "erro: o Ollama não está rodando e não consegui iniciá-lo "
-                    "(tente no terminal: systemctl start ollama)")
+                    "error: Ollama isn't running and I couldn't start it "
+                    "(try in a terminal: systemctl start ollama)")
                 self.pullDone.emit(False)
                 return
             body = json.dumps({"name": name, "stream": True}).encode()
@@ -702,7 +702,7 @@ class Backend(QObject):
                             continue
                         o = json.loads(raw.decode())
                         if o.get("error"):
-                            self.pullStatus.emit("erro: " + o["error"])
+                            self.pullStatus.emit("error: " + o["error"])
                             self.pullDone.emit(False)
                             return
                         st = o.get("status", "")
@@ -713,10 +713,10 @@ class Backend(QObject):
                                 f"({comp / 1e9:.1f}/{tot / 1e9:.1f} GB)")
                         elif st:
                             self.pullStatus.emit(st)
-                self.pullStatus.emit(f"{name} baixado")
+                self.pullStatus.emit(f"{name} downloaded")
                 self.pullDone.emit(True)
             except Exception as e:
-                self.pullStatus.emit("erro: " + str(e))
+                self.pullStatus.emit("error: " + str(e))
                 self.pullDone.emit(False)
         threading.Thread(target=work, daemon=True).start()
 

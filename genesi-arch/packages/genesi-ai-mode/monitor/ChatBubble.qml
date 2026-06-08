@@ -29,11 +29,11 @@ Item {
         if (!d) return []
         var out = []
         if (d.eval)     out.push({ "value": "" + d.eval,      "label": "tokens" })
-        if (d.prompt)   out.push({ "value": "" + d.prompt,    "label": "no prompt" })
-        if (d.gen_s)    out.push({ "value": d.gen_s + "s",    "label": "geração" })
-        if (d.prompt_s) out.push({ "value": d.prompt_s + "s", "label": "ler prompt" })
-        if (d.load_s)   out.push({ "value": d.load_s + "s",   "label": "carregar" })
-        if (d.total_s)  out.push({ "value": d.total_s + "s",  "label": "tempo total" })
+        if (d.prompt)   out.push({ "value": "" + d.prompt,    "label": "prompt" })
+        if (d.gen_s)    out.push({ "value": d.gen_s + "s",    "label": "generation" })
+        if (d.prompt_s) out.push({ "value": d.prompt_s + "s", "label": "read prompt" })
+        if (d.load_s)   out.push({ "value": d.load_s + "s",   "label": "load" })
+        if (d.total_s)  out.push({ "value": d.total_s + "s",  "label": "total time" })
         return out
     }
 

@@ -747,13 +747,13 @@ def cmd_serve(main, draft, spec=False):
     # If it's bound but unresponsive, it's a stale llama-server: free the port.
     if port_busy():
         if turbo_healthy():
-            print(f":: Turbo já está ativo em http://127.0.0.1:{TURBO_PORT} — reutilizando.")
+            print(f":: Turbo is already running at http://127.0.0.1:{TURBO_PORT} — reusing it.")
             return
-        print(f"[!] Porta {TURBO_PORT} ocupada por um processo que não responde — liberando…",
+        print(f"[!] Port {TURBO_PORT} is held by an unresponsive process — freeing it…",
               file=sys.stderr, flush=True)
         free_turbo_port()
         if port_busy():
-            sys.exit(f"porta {TURBO_PORT} continua ocupada. Pare o processo manualmente:\n"
+            sys.exit(f"port {TURBO_PORT} is still busy. Stop the process manually:\n"
                      f"  pkill -f 'llama-server.*{TURBO_PORT}'")
     main_g = ensure(main)
     if not main_g:

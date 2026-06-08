@@ -1,8 +1,8 @@
 [Desktop Entry]
 Type=Application
-Name=Genesi DEV: NVIDIA + CUDA (teste)
-Comment=DEV/TESTE — instala driver NVIDIA aberto + CUDA na sessão live para testar o Turbo speculative. Some no reboot.
-Comment[en]=DEV/TEST only — install the NVIDIA open driver + CUDA in the live session to test Turbo speculative. Vanishes on reboot.
+Name=Genesi DEV: NVIDIA + CUDA (test)
+Comment=DEV/TEST only — install the NVIDIA open driver + CUDA in the live session to test Turbo speculative. Vanishes on reboot.
+Comment[pt_BR]=DEV/TESTE — instala driver NVIDIA aberto + CUDA na sessão live para testar o Turbo speculative. Some no reboot.
 Icon=cs-hardware
 Exec=konsole --hold -e /usr/local/bin/genesi-dev-cuda-setup
 Terminal=false
