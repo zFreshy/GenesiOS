@@ -11,6 +11,12 @@ ExecStart=/usr/local/bin/genesi-aid
 Restart=on-failure
 RestartSec=10
 
+# Persistent state across reboots → /var/lib/genesi-ai-mode (root-owned).
+# Holds the predictive-preload MRU (warm.json): the model weight files the user
+# loaded most recently, so the daemon can warm them into the page cache at idle
+# after the next boot. Survives reboots (unlike /run); reclaimable cache only.
+StateDirectory=genesi-ai-mode
+
 # Hardening. We talk to userspace only through /run/genesi-ai-mode (created by
 # tmpfiles.d, NOT affected by PrivateTmp), so the private /tmp is safe to keep.
 # ProtectKernelTunables is deliberately OFF: the daemon must write

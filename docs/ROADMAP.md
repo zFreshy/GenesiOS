@@ -379,6 +379,13 @@ once and gates every optimizer on detected capabilities.
       most-used model at low priority when the machine is idle, so the first
       prompt is instant (vs ~2 min cold load today). RAM-gated; integrates with
       the existing usage signals.
+      _**DONE (pkgrel 64):** `maybe_warm_idle` formalized into true predictive
+      preload. genesi-aid persists an MRU of the weight files the user actually
+      loaded to `/var/lib/genesi-ai-mode/warm.json` (StateDirectory, survives
+      reboot); on a fresh boot it seeds `_warm_files` from that MRU and warms the
+      last-used model into the page cache while idle — so the FIRST prompt after
+      login reads from RAM, not disk. Conservative: throttled, skipped on a
+      RAM-backed fs, gated to <50% of available RAM (no-op on tight boxes)._
 - [ ] **🌟 Ideia 2: Persistent prompt/KV cache to disk (Zero Cold-Start).** Use `llama-server` slot
       save/restore (`--slot-save-path`) so a long system-prompt's KV survives
       restarts — first reply of a new chat stays fast even after a reboot.
@@ -428,7 +435,9 @@ once and gates every optimizer on detected capabilities.
 - [x] Profile switch (Máximo / Equilíbrio / Bateria / Auto) — `genesi-ai-mode
       profile <p>`, a `/run/genesi-ai-mode/profile` file the daemon reads live
       (re-applies on change), and a segmented control in the Monitor top bar
-- [ ] One-click benchmark (wraps `genesi-ai-mode bench`) with a results chart
+- [x] One-click benchmark (wraps `genesi-ai-mode bench`) with a results chart
+      _(pkgrel 63: "Benchmark de desempenho" card in the Painel — streams each
+      step live and draws an OFF-vs-ON tokens/s bar graph with the % gain)_
 - [ ] **MemPalace integration**: surface AI memory/usage stats
 - [x] Reads `state.json` for display; control via the `genesi-ai-mode` CLI
       (PySide6 + Kirigami app, `genesi-ai-monitor`)

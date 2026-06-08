@@ -60,6 +60,16 @@ POLL_SECONDS = 5
 AI_NICE      = -5
 WARM_INTERVAL = 60   # seconds between idle page-cache re-warms (predictive preload)
 
+# Persistent state (survives reboot, unlike /run). Created by the service's
+# StateDirectory=genesi-ai-mode → /var/lib/genesi-ai-mode (root-owned). We keep
+# a tiny MRU of the model weight files the user actually loaded, so on the NEXT
+# boot the daemon can warm the most-recently-used model into the page cache
+# while the machine is idle — making the first prompt after login instant,
+# instead of paying a cold disk load. Pure cache warming; nothing to restore.
+PERSIST_DIR = "/var/lib/genesi-ai-mode"
+WARM_DB     = PERSIST_DIR + "/warm.json"
+WARM_DB_MAX = 4      # how many distinct models to remember (MRU)
+
 # Model-weight files we warm into the page cache / whose NVMe we tune. Ollama
 # stores weights as extension-less blobs under .../models/blobs/sha256-*, while
 # llama.cpp & friends use real GGUF/safetensors files. The size gate keeps us
@@ -344,6 +354,9 @@ class AIOptimizer:
         self._warm_files = {}       # {path: size} of the last-used model, kept
                                     # warm in page cache while idle (predictive)
         self._last_warm = 0.0       # throttle for maybe_warm_idle()
+        self._warm_key = None       # id of the model currently in _warm_files
+                                    # (so we persist the MRU only when it changes)
+        self._seeded_warm = False   # did we seed _warm_files from the MRU at boot?
         self._restore_originals_on_start()
 
     # ── detection ────────────────────────────────────────────────────────────
@@ -848,6 +861,13 @@ class AIOptimizer:
             # in the page cache later, while the machine is idle (see
             # maybe_warm_idle) — so the NEXT load reads from RAM, not disk.
             self._warm_files = dict(found)
+            # Persist this model to the MRU so a FUTURE boot can warm it before
+            # the user ever launches it (predictive preload at login). Only
+            # written when the active model actually changes, never every poll.
+            key = self._warm_key_for(found)
+            if key != self._warm_key:
+                self._warm_key = key
+                self._remember_model(found)
         for path, size in found.items():
             if path in self._preloaded:
                 continue
@@ -887,6 +907,13 @@ class AIOptimizer:
         (every WARM_INTERVAL s), skipped on a RAM-backed fs, and gated to models
         that fit comfortably (< 50% of *available* RAM) — so on a tight 6 GB VM
         it simply does nothing, while an 8 GB+ machine gets instant first loads."""
+        # Predictive preload at LOGIN: on a fresh boot nothing has run yet, so
+        # _warm_files is empty. Seed it (once) from the persisted MRU — the model
+        # the user loaded most recently last session — so the very first launch
+        # after login is instant, not just the second one in a session.
+        if not self._warm_files and not self._seeded_warm:
+            self._seeded_warm = True
+            self._seed_warm_from_mru()
         if not self._warm_files:
             return
         now = time.time()
@@ -912,6 +939,70 @@ class AIOptimizer:
                     os.close(fd)
             except OSError:
                 self._warm_files.pop(path, None)
+
+    # ── predictive-preload MRU (persisted across reboots) ────────────────────
+    @staticmethod
+    def _warm_key_for(files):
+        """Stable id for a model = its sorted weight-file paths. Lets us detect
+        when the active model actually changed (so we persist only on change)."""
+        return "|".join(sorted(files))
+
+    def _load_mru(self):
+        """Read the persisted MRU list ([{files:{path:size}, last_used:ts}, …],
+        newest first). Best-effort: a missing/corrupt file just means no history
+        yet. Never raises."""
+        try:
+            with open(WARM_DB) as f:
+                data = json.load(f)
+        except (OSError, ValueError):
+            return []
+        out = []
+        if isinstance(data, dict):
+            data = data.get("models", [])
+        if isinstance(data, list):
+            for e in data:
+                if isinstance(e, dict) and isinstance(e.get("files"), dict):
+                    out.append(e)
+        return out
+
+    def _remember_model(self, files):
+        """Record `files` as the most-recently-used model in the persisted MRU,
+        de-duplicated and capped at WARM_DB_MAX. Best-effort; never raises into
+        the main loop (a read-only /var or missing dir is fine — predictive
+        preload just won't survive the reboot then)."""
+        key = self._warm_key_for(files)
+        mru = [e for e in self._load_mru() if self._warm_key_for(e["files"]) != key]
+        mru.insert(0, {"files": dict(files), "last_used": time.time()})
+        mru = mru[:WARM_DB_MAX]
+        try:
+            os.makedirs(PERSIST_DIR, exist_ok=True)
+            tmp = WARM_DB + ".tmp"
+            with open(tmp, "w") as f:
+                json.dump({"models": mru}, f)
+            os.replace(tmp, WARM_DB)
+        except OSError as e:
+            logger.debug(f"warm-db write failed: {e}")
+
+    def _seed_warm_from_mru(self):
+        """Populate _warm_files from the most-recently-used model in the MRU so
+        maybe_warm_idle can warm it before the user launches anything. Picks the
+        newest entry whose files still exist; refreshes sizes from disk."""
+        for entry in self._load_mru():
+            files = {}
+            for path in entry.get("files", {}):
+                try:
+                    sz = os.path.getsize(path)
+                except OSError:
+                    continue
+                if sz >= MODEL_MIN_BYTES:
+                    files[path] = sz
+            if files:
+                self._warm_files = files
+                self._warm_key = self._warm_key_for(files)
+                logger.info("Predictive preload: warming last-used model "
+                            "(%d file(s), %dMB) at idle",
+                            len(files), int(sum(files.values()) / (1024 * 1024)))
+                return
 
     def _queue_dir_for(self, path):
         """The /sys block-queue dir (the one with queue/scheduler) of the disk

@@ -64,7 +64,17 @@ pkgver=1.0.0
 # CLI in a worker thread and parses its output (single source of truth stays the
 # CLI; no re-implemented measurement). Uses the active/Turbo/first-installed
 # model. Note: on a VM the governor is a no-op so expect ~0% — the card says so.
-pkgrel=63
+# 2026-06-08 (64): Tier 1 — predictive preload at login/idle (formalize
+# maybe_warm_idle). genesi-aid now persists an MRU of the model weight files the
+# user actually loaded to /var/lib/genesi-ai-mode/warm.json (new service
+# StateDirectory=genesi-ai-mode, survives reboot). On a fresh boot, while idle,
+# the daemon seeds _warm_files from that MRU and warms the LAST-USED model into
+# the page cache — so the FIRST prompt after login loads from RAM, not disk
+# (previously it only warmed the model after you'd already run it once that
+# session). Same conservative gates: throttled, skipped on RAM-backed fs, <50%
+# of available RAM (no-op on tight 6 GB VMs). Pure reclaimable cache; nothing to
+# restore. Best-effort writes never raise into the main loop.
+pkgrel=64
 pkgdesc='Genesi OS AI Mode - adaptive, reversible local-AI optimizer (CPU/GPU/power) + Plasma 6 widget + monitor app'
 arch=('any')
 url='https://github.com/zFreshy/GenesiOS'
