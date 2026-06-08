@@ -496,6 +496,14 @@ def server_cmd(main_gguf, draft_gguf):
         # becomes the bottleneck and speculation yields no speedup.
         if use_ngl_999:
             cmd += ["-ngld", "999"]
+        # Recent llama.cpp LOADS the draft but does NOT speculate unless an
+        # implementation is selected: --spec-type defaults to 'none', which logs
+        # "no implementations specified for speculative decoding" — the draft
+        # just wastes VRAM with zero speedup (exactly what we saw). draft-simple
+        # is the classic draft-model speculation. Older builds without
+        # --spec-type speculate from -md alone, so we only add it when supported.
+        if "--spec-type" in help_txt:
+            cmd += ["--spec-type", "draft-simple"]
     elif (not use_ngl_999 and "--spec-type" in help_txt
           and not _env_flag("GENESI_TURBO_NO_NGRAM")):
         # CPU-only, no draft model: model-free n-gram speculative decoding. It

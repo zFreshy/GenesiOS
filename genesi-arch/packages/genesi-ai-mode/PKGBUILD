@@ -30,7 +30,12 @@ pkgver=1.0.0
 # model-free n-gram speculative decoding (--spec-type ngram-simple) on CPU-only
 # machines (no draft model, no extra RAM) so GPU-less laptops get a speculative
 # speedup too. Disable with GENESI_TURBO_NO_NGRAM=1.
-pkgrel=56
+# 2026-06-07 (57): actually ENGAGE speculative decoding. Recent llama.cpp loads
+# the draft model from -md but does nothing unless --spec-type selects an
+# implementation (defaults to 'none' -> "no implementations specified for
+# speculative decoding"), so the draft burned VRAM with zero speedup. Now we add
+# --spec-type draft-simple whenever a draft is used (when the binary supports it).
+pkgrel=57
 pkgdesc='Genesi OS AI Mode - adaptive, reversible local-AI optimizer (CPU/GPU/power) + Plasma 6 widget + monitor app'
 arch=('any')
 url='https://github.com/zFreshy/GenesiOS'
