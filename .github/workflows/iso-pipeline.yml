@@ -335,3 +335,86 @@ jobs:
             sha256sum -c genesi-os-latest.iso.sha256
             ```
             `genesi-os-latest.iso` always tracks the newest `main` build.
+
+      # ── Rolling GitHub Release (main builds) ───────────────────────────────
+      # The ISO lives on R2 (no 2GB cap); this Release is the always-fresh
+      # "changelog page" the website mirrors. GitHub Releases are FREE, so this
+      # costs nothing. We regenerate the body from git history each main build
+      # (filtering the package-publish bot commits) + attach only the checksum.
+      - name: 📝 Gerar changelog + checksum (rolling, main)
+        if: github.ref == 'refs/heads/main'
+        run: |
+          set -e
+          # The CI checkout is shallow; deepen it so `git log` has real history.
+          git fetch --tags --prune --deepen=200 origin 2>/dev/null \
+            || git fetch --tags --unshallow origin 2>/dev/null || true
+          LAST_TAG="$(git describe --tags --abbrev=0 2>/dev/null || true)"
+          if [ -n "$LAST_TAG" ] && git rev-parse "$LAST_TAG" >/dev/null 2>&1; then
+            RANGE="${LAST_TAG}..HEAD"
+          elif git rev-parse HEAD~80 >/dev/null 2>&1; then
+            RANGE="HEAD~80..HEAD"
+          else
+            RANGE="HEAD"
+          fi
+
+          sha256sum "$ISO_PATH" | awk '{print $1"  genesi-os-latest.iso"}' > genesi-os-latest.iso.sha256
+
+          # Collect commits to a file first (avoids SIGPIPE/pipefail surprises),
+          # drop the "ci(...): publish packages" bot commits, keep the newest 60.
+          git log --no-merges --date=short \
+            --pretty=format:'%H%x09%ad%x09%s' "$RANGE" > /tmp/commits.txt || true
+          grep -vaE 'ci\(.+\): publish packages' /tmp/commits.txt > /tmp/commits.flt || true
+          head -n 60 /tmp/commits.flt > /tmp/commits.top || true
+
+          {
+            echo "## ⬇️ Download"
+            echo
+            echo "ISO única no Cloudflare R2 (CDN rápido, resumível):"
+            echo
+            echo "**https://pub-917a3befc9e640f0acf8eb3d52633fe2.r2.dev/genesi-os-latest.iso**"
+            echo
+            echo '```bash'
+            echo 'aria2c -x16 -s16 https://pub-917a3befc9e640f0acf8eb3d52633fe2.r2.dev/genesi-os-latest.iso'
+            echo 'sha256sum -c genesi-os-latest.iso.sha256'
+            echo '```'
+            echo '`genesi-os-latest.iso` sempre acompanha o build mais recente da `main`.'
+            echo
+            echo "## 📝 O que mudou"
+            echo
+            if [ -s /tmp/commits.top ]; then
+              while IFS="$(printf '\t')" read -r sha d subj; do
+                [ -n "$sha" ] || continue
+                printf -- '- **%s** — %s (%s)\n' "$d" "$subj" "${sha:0:7}"
+              done < /tmp/commits.top
+            else
+              echo "- (sem mudanças registradas)"
+            fi
+            echo
+            echo "_Build ${GITHUB_SHA:0:7} · $(date -u '+%Y-%m-%d %H:%M UTC')_"
+          } > CHANGELOG_ROLLING.md
+          echo "----- changelog rolling -----"; cat CHANGELOG_ROLLING.md
+
+      - name: 🧹 Limpar assets antigos da release rolling
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Best-effort: remove leftover assets from the old part-split scheme
+          # (genesi-os.iso.part*.bin, REASSEMBLE.txt, old sha256) so the page is
+          # clean. Never fails the build.
+          pacman -Sy --noconfirm --needed github-cli || true
+          for a in $(gh release view rolling -R "$GITHUB_REPOSITORY" \
+                       --json assets --jq '.assets[].name' 2>/dev/null || true); do
+            echo "removendo asset antigo: $a"
+            gh release delete-asset rolling "$a" -R "$GITHUB_REPOSITORY" -y 2>/dev/null || true
+          done
+
+      - name: 🚀 Atualizar Release rolling (main)
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: rolling
+          name: "Genesi OS — rolling (latest main build)"
+          prerelease: true
+          body_path: CHANGELOG_ROLLING.md
+          files: genesi-os-latest.iso.sha256
