@@ -129,25 +129,32 @@ jobs:
 
       - name: 🔑 Preparar pacman/keyring
         run: |
-          # CachyOS rotates its repo signing key periodically; the cachyos-v3
-          # base image's keyring can lag behind, so `pacman -Sy` aborts with
-          #   error: cachyos-extra-v3: signature ... is invalid
-          # Refresh the archlinux + cachyos keyrings before any real sync. If the
-          # db signature is ALREADY untrusted (catch-22: the sync that fetches the
-          # new keyring is the very sync that fails), bootstrap once with
-          # SigLevel=Never, then re-init/populate so every later sync verifies.
-          if ! pacman -Sy --noconfirm --needed archlinux-keyring cachyos-keyring; then
-            echo "::warning::keyring sync failed (stale CachyOS signing key) — bootstrapping with SigLevel=Never"
-            cp /etc/pacman.conf /etc/pacman.conf.bak
-            sed -i 's/^[[:space:]]*SigLevel.*/SigLevel = Never/' /etc/pacman.conf
-            pacman -Sy --noconfirm archlinux-keyring cachyos-keyring || true
-            mv /etc/pacman.conf.bak /etc/pacman.conf
-          fi
+          # CachyOS rotates its repo signing key periodically and the cachyos-v3
+          # base image's keyring lags behind, so a normal `pacman -Sy` aborts with
+          #   error: cachyos-v3: signature from "CachyOS" is invalid
+          # Catch-22: the sync that fetches the new keyring is the very sync that
+          # fails to verify. So fetch the LATEST keyrings with signature checking
+          # OFF (SigLevel=Never), then re-init/populate so every later sync
+          # verifies against the fresh keys. Done UNCONDITIONALLY: the old
+          # "only bootstrap if the first sync fails" guard missed the common case
+          # where the first sync SUCCEEDS with the stale cached keyring and a
+          # LATER verified sync is the one that fails (ISO run, 2026-06-08).
+          cp /etc/pacman.conf /etc/pacman.conf.bak
+          sed -i 's/^[[:space:]]*SigLevel.*/SigLevel = Never/' /etc/pacman.conf
+          pacman -Sy --noconfirm --needed archlinux-keyring cachyos-keyring || true
+          mv /etc/pacman.conf.bak /etc/pacman.conf
           pacman-key --init || true
           pacman-key --populate archlinux cachyos || true
-          # Validation tools (now verify against the fresh keyring)
-          pacman -Sy --noconfirm --needed \
-            python python-yaml arch-install-scripts
+          # Validation tools (now verify against the fresh keyring). If a verified
+          # sync STILL trips (db caught mid-rotation), retry once with
+          # SigLevel=Never — acceptable for CI build/validation tooling.
+          if ! pacman -Sy --noconfirm --needed python python-yaml arch-install-scripts; then
+            echo "::warning::verified sync still failing — retrying with SigLevel=Never"
+            cp /etc/pacman.conf /etc/pacman.conf.bak
+            sed -i 's/^[[:space:]]*SigLevel.*/SigLevel = Never/' /etc/pacman.conf
+            pacman -Sy --noconfirm --needed python python-yaml arch-install-scripts
+            mv /etc/pacman.conf.bak /etc/pacman.conf
+          fi
 
       - name: 🧪 Validar instalação (Nível 1 + Nível 2)
         run: bash genesi-arch/ci/validate-install.sh
@@ -185,17 +192,16 @@ jobs:
         run: |
           # CachyOS rotates its repo signing key periodically; the cachyos-v3
           # base image's keyring can lag behind, so `pacman -Sy` aborts with
-          #   error: cachyos-extra-v3: signature ... is invalid
+          #   error: cachyos-v3: signature ... is invalid
           # Each job runs in a FRESH container, so refresh the keyrings here too
-          # (Job 1's refresh doesn't carry over). Bootstrap with SigLevel=Never
-          # if the db signature is already untrusted, then re-init/populate.
-          if ! pacman -Sy --noconfirm --needed archlinux-keyring cachyos-keyring; then
-            echo "::warning::keyring sync failed (stale CachyOS signing key) — bootstrapping with SigLevel=Never"
-            cp /etc/pacman.conf /etc/pacman.conf.bak
-            sed -i 's/^[[:space:]]*SigLevel.*/SigLevel = Never/' /etc/pacman.conf
-            pacman -Sy --noconfirm archlinux-keyring cachyos-keyring || true
-            mv /etc/pacman.conf.bak /etc/pacman.conf
-          fi
+          # (Job 1's refresh doesn't carry over). Fetch the LATEST keyrings with
+          # SigLevel=Never UNCONDITIONALLY (the stale cached db can "verify" with
+          # old keys on the first sync yet a later verified sync fails), then
+          # re-init/populate so every later sync verifies against fresh keys.
+          cp /etc/pacman.conf /etc/pacman.conf.bak
+          sed -i 's/^[[:space:]]*SigLevel.*/SigLevel = Never/' /etc/pacman.conf
+          pacman -Sy --noconfirm --needed archlinux-keyring cachyos-keyring || true
+          mv /etc/pacman.conf.bak /etc/pacman.conf
           pacman-key --init || true
           pacman-key --populate archlinux cachyos || true
 
@@ -205,8 +211,15 @@ jobs:
           #   uefi.grub  -> grub (grub-install)      bios.syslinux -> syslinux
           #   EFI image  -> mtools + dosfstools       ISO           -> libisoburn (xorriso)
           #   squashfs airootfs -> squashfs-tools
-          pacman -Sy --noconfirm --needed archiso sudo base-devel git \
-            grub syslinux mtools dosfstools libisoburn squashfs-tools
+          if ! pacman -Sy --noconfirm --needed archiso sudo base-devel git \
+               grub syslinux mtools dosfstools libisoburn squashfs-tools; then
+            echo "::warning::verified sync still failing — retrying with SigLevel=Never"
+            cp /etc/pacman.conf /etc/pacman.conf.bak
+            sed -i 's/^[[:space:]]*SigLevel.*/SigLevel = Never/' /etc/pacman.conf
+            pacman -Sy --noconfirm --needed archiso sudo base-devel git \
+              grub syslinux mtools dosfstools libisoburn squashfs-tools
+            mv /etc/pacman.conf.bak /etc/pacman.conf
+          fi
           # The build-driver scripts are committed without the exec bit
           # (Windows checkouts), so `sudo ./buildiso.sh` -> "command not found".
           # mkarchiso handles airootfs script perms itself via profiledef.sh.
