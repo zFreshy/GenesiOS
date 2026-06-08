@@ -35,7 +35,10 @@ pkgver=1.0.0
 # implementation (defaults to 'none' -> "no implementations specified for
 # speculative decoding"), so the draft burned VRAM with zero speedup. Now we add
 # --spec-type draft-simple whenever a draft is used (when the binary supports it).
-pkgrel=57
+# 2026-06-07 (58): VRAM-aware offload (Tier 0). Instead of a blind -ngl 999 that
+# OOMs a small/partially-full card, use -ngl auto (fit as many layers as the VRAM
+# holds) when the model doesn't fully fit; keep 999 when it fits entirely.
+pkgrel=58
 pkgdesc='Genesi OS AI Mode - adaptive, reversible local-AI optimizer (CPU/GPU/power) + Plasma 6 widget + monitor app'
 arch=('any')
 url='https://github.com/zFreshy/GenesiOS'

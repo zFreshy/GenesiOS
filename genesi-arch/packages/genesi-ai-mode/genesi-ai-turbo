@@ -401,19 +401,21 @@ def server_cmd(main_gguf, draft_gguf):
     fits_main = main_gb <= budget_gb if budget_gb > 0 else False
     fits_both = (main_gb + draft_gb) <= budget_gb if budget_gb > 0 else False
 
-    # Decide WHERE we run (GPU offload vs CPU) and WHETHER speculative decoding
-    # actually pays off. Spec decoding is only a win when BOTH the target and
-    # the draft sit on a fast device together; otherwise the draft becomes the
-    # bottleneck (or, on CPU, just steals cycles from the target).
-    use_ngl_999 = False
+    # Decide WHERE we run and HOW MANY layers go on the GPU. ngl_value:
+    #   None  -> CPU only
+    #   "999" -> full offload (the whole model fits in VRAM, fastest)
+    #   "auto" -> let llama.cpp fit as many layers as the VRAM holds (a blind
+    #             -ngl 999 OOMs a small/partially-full card; "auto" is VRAM-safe)
+    # Spec decoding only pays off when BOTH target and draft fit on the GPU.
+    ngl_value = None
     if gpu:
         if fits_both:
-            use_ngl_999 = True               # target + draft both fit -> spec on GPU
+            ngl_value = "999"                # target + draft both fit -> spec on GPU
         elif fits_main:
             if draft_gguf:
                 print(f"   [!] Draft model dropped: not enough VRAM for both (budget: {budget_gb:.1f}GB).", flush=True)
             draft_gguf = None
-            use_ngl_999 = True
+            ngl_value = "999"
         else:
             if vram_gb > 0:
                 print(f"   [!] WARNING: Model ({main_gb:.1f}GB) exceeds safe VRAM budget ({budget_gb:.1f}GB).", flush=True)
@@ -424,7 +426,10 @@ def server_cmd(main_gguf, draft_gguf):
                 print("   [!] Draft model dropped: the target model is already spilling VRAM.", flush=True)
                 draft_gguf = None            # never speculate when the target spills
             if vram_gb > 2.0:
-                use_ngl_999 = True
+                # Partial offload: fit as many layers as the VRAM holds instead
+                # of forcing all of them. 'auto' needs a recent llama.cpp; older
+                # builds fall back to the previous behaviour (force all layers).
+                ngl_value = "auto" if "--gpu-layers" in _llama_help() and "auto" in _llama_help() else "999"
     else:
         # CPU-only. Running a second (draft) model on the same cores almost
         # always costs more than the speculation saves, and the extra weights
@@ -435,6 +440,9 @@ def server_cmd(main_gguf, draft_gguf):
             print("   [!] CPU-only: speculative decoding disabled (a CPU draft slows decode). "
                   "Set GENESI_TURBO_FORCE_DRAFT=1 to override.", flush=True)
             draft_gguf = None
+
+    # GPU offload active (full or partial) gates the GPU-only tunings below.
+    use_ngl_999 = ngl_value is not None
 
     ctx = _env_int("GENESI_TURBO_CTX", 4096)
     # Prefill (reading the prompt) is compute-bound, so a bigger physical batch
@@ -474,8 +482,8 @@ def server_cmd(main_gguf, draft_gguf):
     else:
         cmd += ["-fa", "auto"]               # CPU: f16 KV (default) + auto FA
 
-    if use_ngl_999:
-        cmd += ["-ngl", "999"]
+    if ngl_value:
+        cmd += ["-ngl", ngl_value]
 
     # mlock: pin the model in RAM (no swap/reclaim) for steady CPU inference.
     # Opt-in only — risky on low-RAM machines and the live ISO (RAM-backed fs),

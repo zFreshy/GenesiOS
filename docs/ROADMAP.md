@@ -103,7 +103,9 @@ A systemd service that monitors AI processes and tunes the system automatically.
 
 ### 2.2 VRAM/RAM management
 - [x] Set `vm.swappiness=10` when AI Mode is active (restored on exit)
-- [ ] Detect available VRAM per GPU (NVIDIA `nvidia-smi`, AMD sysfs) → see 2.8
+- [x] Detect available VRAM per GPU — NVIDIA `nvidia-smi`, AMD/Intel/NVIDIA DRM
+      sysfs, plus a vendor-agnostic Vulkan probe (`llama-server --list-devices`)
+      that works under nouveau/NVK where `nvidia-smi` can't talk to the driver
 - [ ] Configure optimal GPU/CPU split for the model (partial offloading)
 - [ ] Use `mlock`/`vmtouch` to keep model weights in RAM without swap
 - [ ] Free VRAM by trimming compositor effects **from the user session** (the
@@ -200,8 +202,10 @@ once and gates every optimizer on detected capabilities.
 - [ ] Optionally pre-cache the most-recently-used models
 
 #### 2.8.4 🔥 Smart CPU threads & core placement
-- [ ] Detect **physical** cores and P-core/E-core topology (`/sys` capacity)
-- [ ] Set inference thread count to physical P-cores; avoid SMT/E-core contention
+- [x] Detect **physical** cores and P-core/E-core topology (`/sys` cpufreq) —
+      `_performance_cores()` dedups HT siblings and counts only top-clock cores
+- [x] Set inference thread count to physical P-cores; avoid SMT/E-core contention
+      (Turbo `--threads`, env-overridable via `GENESI_TURBO_THREADS`)
 - [ ] `cpuset`/cgroup the AI process onto performance cores (system keeps the rest)
 
 #### 2.8.5 ⚡ Quiet the background during inference
@@ -315,17 +319,18 @@ once and gates every optimizer on detected capabilities.
 > works in llama.cpp/ollama — the OS's job is to detect VRAM, fit the model, and
 > never OOM. Bounded by VRAM size: ~2 GB → 1–3B, 4 GB → 3B (7B Q4 tight), 6 GB+
 > → 7B. Already feasible today; these tasks make it automatic and safe.
-- [~] **VRAM-fit full offload.** Run the model 100% in VRAM (`-ngl` all layers)
-      when the advisor's math says it fits — so a 4 GB-RAM + dGPU laptop runs
-      models its RAM never could. _Turbo already uses `-ngl 999`; the gap is
-      making it **VRAM-aware** (a blind 999 OOMs a 2 GB card) — pick `-ngl` from
-      the fit math instead._
+- [x] **VRAM-fit full offload.** Run the model 100% in VRAM (`-ngl 999`) when the
+      advisor's fit math says it fits; when it doesn't, fall back to `-ngl auto`
+      so llama.cpp fits as many layers as the VRAM holds instead of a blind 999
+      that OOMs a small card — so a 4 GB-RAM + dGPU laptop runs models its RAM
+      never could, without crashing tight cards.
 - [ ] **Advisor → biggest model that fits 100% in VRAM**, defaulting to small
       quants (1B/3B Q4) on 2–4 GB cards, with the exact `ollama pull`. (The
       advisor already does the VRAM-fit math — wire it to Turbo's model pick.)
-- [ ] **Turbo draft fallback on tight VRAM.** Speculative needs target+draft
-      resident; if both don't fit, run the draft on CPU or skip it (plain GPU
-      offload — still far faster than CPU). Never let Turbo OOM the GPU.
+- [x] **Turbo draft fallback on tight VRAM.** Speculative needs target+draft
+      resident; if both don't fit, Turbo drops the draft and runs plain GPU
+      offload (still far faster than CPU); on CPU-only it drops the draft too
+      (a CPU draft is a net loss). Never OOMs the GPU.
 - [ ] **Guard CPU+GPU split on low system RAM.** On 4 GB RAM, don't spill big
       layers to CPU (it OOMs) — prefer a smaller model that fits VRAM fully.
 - [x] q8/q4 KV cache + modest context keep more in VRAM (Turbo ships q8 KV +
@@ -363,9 +368,10 @@ once and gates every optimizer on detected capabilities.
       governor/power already done by AI Mode. (Builds on 2.8.4 + 2.8.7.)
 
 **Tier 3 — Algorithmic decode wins (Revolutionary)**
-- [ ] **N-gram / prompt-lookup speculation** (no draft model needed) — great for
-      code, quotes and repetitive text; a free fallback when no same-family draft
-      exists.
+- [x] **N-gram / prompt-lookup speculation** (no draft model needed) — great for
+      code, quotes and repetitive text; Turbo enables `--spec-type ngram-simple`
+      on CPU-only machines (when the binary supports it), so GPU-less laptops get
+      a speculative speedup with no second model and no extra RAM.
 - [ ] **Dynamic draft length** — tune how many tokens the draft proposes from the
       live acceptance rate (`--draft-max/--draft-min/--draft-p-min`): speculate
       more on easy spans, back off on hard ones. Beats today's fixed N.
