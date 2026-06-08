@@ -52,6 +52,7 @@ class Backend(QObject):
         self._turbo_proc = None      # the genesi-ai-turbo serve subprocess
         self._turbo_model = None
         self._turbo_log = None       # captured stderr of the serve subprocess
+        self._turbo_spec = False     # is the running Turbo using speculative decoding?
 
     @Slot(result=str)
     def state(self):
@@ -204,10 +205,10 @@ class Backend(QObject):
         self._stop = True
 
     # ── Turbo (speculative decoding via genesi-ai-turbo) ─────────────────────
-    @Slot(bool, str)
-    def setTurbo(self, on, model):
+    @Slot(bool, str, bool)
+    def setTurbo(self, on, model, spec=False):
         if on:
-            self._start_turbo(model)
+            self._start_turbo(model, spec)
         else:
             self._stop_turbo()
 
@@ -273,14 +274,17 @@ class Backend(QObject):
             except Exception:
                 pass
 
-    def _start_turbo(self, model):
-        # Already serving this exact model AND the server is still alive? Nothing
-        # to do. The poll() check matters: a dead Popen object would otherwise
-        # make us think Turbo is up and never restart a server that crashed.
+    def _start_turbo(self, model, spec=False):
+        # Already serving this exact model + same spec mode AND the server is
+        # still alive? Nothing to do. The poll() check matters: a dead Popen
+        # object would otherwise make us think Turbo is up and never restart a
+        # server that crashed.
         if (self._turbo_proc and self._turbo_proc.poll() is None
-                and self._turbo_model == model):
+                and self._turbo_model == model
+                and getattr(self, "_turbo_spec", False) == spec):
             return
         self._stop_turbo()
+        self._turbo_spec = spec
         if not shutil.which("genesi-ai-turbo"):
             self.turboStatus.emit("genesi-ai-turbo não encontrado")
             return
@@ -294,6 +298,8 @@ class Backend(QObject):
             return
         self._turbo_model = model
         gpu_hint = "" if self._has_gpu() else "   (sem GPU: ganho pequeno)"
+        ready_msg = ("Turbo ativo ⚡ speculative decoding" if spec
+                     else "Turbo ativo ⚡ offload total na GPU")
         self.turboStatus.emit("preparando Turbo…")
 
         def run():
@@ -317,7 +323,7 @@ class Backend(QObject):
                 self._turbo_log = tempfile.NamedTemporaryFile(
                     "w", delete=False, suffix=".log").name
                 proc = subprocess.Popen(
-                    ["genesi-ai-turbo", "serve", model],
+                    ["genesi-ai-turbo", "serve", model] + (["--spec"] if spec else []),
                     stdout=subprocess.DEVNULL, stderr=open(self._turbo_log, "w"))
                 self._turbo_proc = proc
             except Exception as e:
@@ -346,8 +352,7 @@ class Backend(QObject):
                         if json.loads(r.read()).get("status") == "ok":
                             self._turbo = True
                             self.turboReady.emit(True)
-                            self.turboStatus.emit(
-                                "Turbo ativo ⚡ speculative decoding" + gpu_hint)
+                            self.turboStatus.emit(ready_msg + gpu_hint)
                             return
                 except Exception:
                     pass

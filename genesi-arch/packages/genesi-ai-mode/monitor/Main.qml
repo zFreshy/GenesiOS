@@ -27,6 +27,7 @@ Kirigami.ApplicationWindow {
     // NOT directly control the Turbo server's lifecycle.
     property string activeModel: (st.ollama && st.ollama.length > 0) ? st.ollama[0].name : ""
     property bool turboRequested: false
+    property bool turboSpec: false        // use speculative decoding for Turbo?
     property bool turboNeedsInstall: false
     property string turboStatusText: ""
 
@@ -44,11 +45,15 @@ Kirigami.ApplicationWindow {
     // Changing the model only (re)starts Turbo — it never stops it. Only the user
     // flipping the switch off (turboRequested=false) stops the Turbo server.
     onTurboModelChanged: {
-        if (turboRequested && turboModel) backend.setTurbo(true, turboModel)
+        if (turboRequested && turboModel) backend.setTurbo(true, turboModel, turboSpec)
     }
     onTurboRequestedChanged: {
-        if (turboRequested && turboModel) backend.setTurbo(true, turboModel)
-        else if (!turboRequested) backend.setTurbo(false, "")
+        if (turboRequested && turboModel) backend.setTurbo(true, turboModel, turboSpec)
+        else if (!turboRequested) backend.setTurbo(false, "", false)
+    }
+    // Flipping speculative on/off while Turbo runs restarts it in the new mode.
+    onTurboSpecChanged: {
+        if (turboRequested && turboModel) backend.setTurbo(true, turboModel, turboSpec)
     }
 
     Component.onCompleted: backend.loadModels()
@@ -404,12 +409,32 @@ Kirigami.ApplicationWindow {
                             RowLayout {
                                 spacing: Kirigami.Units.smallSpacing
                                 QQC2.Label { text: "Modo Turbo"; font.bold: true; font.pixelSize: 16; color: theme.textHi }
+                                // Speculative on/off toggle. Turbo runs plain full
+                                // GPU offload by default (reliable); speculative is
+                                // opt-in — faster on a mature GPU driver, can
+                                // regress on Vulkan/NVK. Click to switch.
                                 Rectangle {
-                                    visible: win.turboRequested
-                                    radius: 6; height: 18
-                                    width: tbadge.implicitWidth + 14
-                                    color: theme.a(theme.turbo, 0.18)
-                                    QQC2.Label { id: tbadge; anchors.centerIn: parent; text: "speculative"; font.pixelSize: 10; color: theme.turboBright }
+                                    radius: 6; height: 20
+                                    width: specLbl.implicitWidth + 16
+                                    color: win.turboSpec ? theme.a(theme.turbo, 0.30)
+                                                         : theme.a(theme.textHi, 0.10)
+                                    border.width: 1
+                                    border.color: win.turboSpec ? theme.a(theme.turbo, 0.6) : theme.line
+                                    QQC2.Label {
+                                        id: specLbl
+                                        anchors.centerIn: parent
+                                        text: win.turboSpec ? "⚡ speculative" : "offload total"
+                                        font.pixelSize: 10
+                                        color: win.turboSpec ? theme.turboBright : theme.textMid
+                                    }
+                                    MouseArea {
+                                        anchors.fill: parent
+                                        hoverEnabled: true
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: win.turboSpec = !win.turboSpec
+                                        QQC2.ToolTip.text: "Alterna entre offload total (estável) e speculative decoding (mais rápido em GPU madura, pode regredir em Vulkan/NVK)"
+                                        QQC2.ToolTip.visible: containsMouse
+                                    }
                                 }
                                 QQC2.Button {
                                     text: "Instalar Backend"

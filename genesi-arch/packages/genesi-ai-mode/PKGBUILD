@@ -49,7 +49,11 @@ pkgver=1.0.0
 # daemon reads live (re-applies on change) + segmented control in the Monitor.
 # max=full(governor+EPP+power+GPU), balanced=governor+mem+hogs only,
 # battery=hogs+mem (governor untouched), auto=AC->max/battery->battery.
-pkgrel=60
+# 2026-06-07 (61): Turbo speculative decoding is now a USER CHOICE (still off by
+# default). `genesi-ai-turbo --spec/--speculative` flag, and a "offload total ⇄
+# ⚡ speculative" toggle on the Monitor's Turbo card (setTurbo carries the spec
+# flag → serve --spec). So users can run Turbo with or without speculation.
+pkgrel=61
 pkgdesc='Genesi OS AI Mode - adaptive, reversible local-AI optimizer (CPU/GPU/power) + Plasma 6 widget + monitor app'
 arch=('any')
 url='https://github.com/zFreshy/GenesiOS'

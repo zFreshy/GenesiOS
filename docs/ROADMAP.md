@@ -291,9 +291,11 @@ once and gates every optimizer on detected capabilities.
 >
 > - [ ] **🔴 BLOCKED — RE-ENABLE speculative decoding by default.** As of pkgrel
 >       59, `serve` (and the Monitor's Turbo switch) default to **plain full GPU
->       offload, with speculative decoding OFF** (opt-in via `GENESI_TURBO_SPEC=1`
->       or an explicit draft arg). Reason: on the **live ISO / NVK** (the open
->       nouveau Vulkan driver, the only thing testable so far) the speculative
+>       offload, with speculative decoding OFF**. As of pkgrel 61 it's a **user
+>       choice**: a `--spec`/`--speculative` flag on `genesi-ai-turbo`, and an
+>       "offload total ⇄ ⚡ speculative" toggle on the Monitor's Turbo card (still
+>       OFF by default). What's still BLOCKED is flipping the **default** back to
+>       ON. Reason: on the **live ISO / NVK** (the open nouveau Vulkan driver, the only thing testable so far) the speculative
 >       path REGRESSED real speed — plain offload gave ~21 t/s, spec dropped it to
 >       ~baseline, because the draft + verification cost more than it saves
 >       without a mature driver. The 2.3× we measured was **GPU-vs-CPU** (Turbo

@@ -9,8 +9,13 @@ model, but decode is typically 1.5-3x faster. Reuses the GGUF weights ollama
 already downloaded — no re-download.
 
   genesi-ai-turbo bench <model> [draft]   prove the speedup (spec vs no-spec)
-  genesi-ai-turbo serve <model> [draft]   run a Turbo server on :11435
-  genesi-ai-turbo <model>                 same as `serve`
+  genesi-ai-turbo serve <model> [--spec]  run a Turbo server on :11435
+  genesi-ai-turbo <model> [--spec]        same as `serve`
+
+  --spec / --speculative   enable speculative decoding (a draft model proposes
+                           tokens; faster decode on a mature GPU driver, but can
+                           REGRESS on Vulkan/NVK). Default OFF = plain full GPU
+                           offload, the reliable win. (== GENESI_TURBO_SPEC=1)
 
 Needs llama-server, shipped by Genesi (Vulkan, any GPU):
   sudo pacman -S genesi-llama-cpp
@@ -648,7 +653,7 @@ def cmd_bench(main, draft):
         print("  (incomplete — run `genesi-ai-turbo serve %s` to see server logs)" % main)
 
 
-def cmd_serve(main, draft):
+def cmd_serve(main, draft, spec=False):
     # Port already taken? This is common — the Monitor or a previous terminal
     # already started Turbo. If it's healthy, reuse it (don't fail to bind).
     # If it's bound but unresponsive, it's a stale llama-server: free the port.
@@ -676,7 +681,7 @@ def cmd_serve(main, draft):
     # offload 21 t/s vs spec ~baseline on an NVK 3050). So spec is opt-in — pass
     # a draft explicitly, or set GENESI_TURBO_SPEC=1. `bench` always compares
     # both so you can check whether spec actually helps on your hardware first.
-    if draft is None and _env_flag("GENESI_TURBO_SPEC"):
+    if draft is None and (spec or _env_flag("GENESI_TURBO_SPEC")):
         draft = pick_draft(main)
     draft_g = ensure(draft) if draft else None
     cmd = server_cmd(main_g, draft_g)
@@ -689,18 +694,36 @@ def cmd_serve(main, draft):
 
 
 def main():
-    args = sys.argv[1:]
-    if not args or args[0] in ("-h", "--help"):
+    argv = sys.argv[1:]
+    if argv and argv[0] in ("-h", "--help"):
         print(__doc__)
         return
-    action, rest = args[0], args[1:]
+    # Pull the speculative-decoding flag out of the args (it may appear anywhere).
+    # Default: spec OFF (plain full GPU offload, the reliable win). Opt in with
+    # --spec/--speculative, or globally with GENESI_TURBO_SPEC=1.
+    spec = _env_flag("GENESI_TURBO_SPEC")
+    pos = []
+    for a in argv:
+        al = a.lower()
+        if al in ("--spec", "--speculative"):
+            spec = True
+        elif al in ("--no-spec", "--no-speculative"):
+            spec = False
+        else:
+            pos.append(a)
+    if not pos:
+        print(__doc__)
+        return
+    action, rest = pos[0], pos[1:]
     if action in ("bench", "serve"):
         if not rest:
-            sys.exit(f"usage: genesi-ai-turbo {action} <model> [draft-model]")
-        cmd = cmd_bench if action == "bench" else cmd_serve
-        cmd(rest[0], rest[1] if len(rest) > 1 else None)
+            sys.exit(f"usage: genesi-ai-turbo {action} <model> [draft-model] [--spec]")
+        if action == "bench":
+            cmd_bench(rest[0], rest[1] if len(rest) > 1 else None)
+        else:
+            cmd_serve(rest[0], rest[1] if len(rest) > 1 else None, spec=spec)
     else:
-        cmd_serve(action, rest[0] if rest else None)
+        cmd_serve(action, rest[0] if rest else None, spec=spec)
 
 
 if __name__ == "__main__":

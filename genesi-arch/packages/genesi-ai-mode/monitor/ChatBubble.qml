@@ -138,7 +138,7 @@ Item {
                                 QQC2.Label {
                                     id: badgeLbl
                                     anchors.centerIn: parent
-                                    text: modeBadge.turbo ? "⚡ Turbo · speculative" : "🦙 Ollama"
+                                    text: modeBadge.turbo ? "⚡ Turbo" : "🦙 Ollama"
                                     font.pixelSize: 10; font.bold: true
                                     color: modeBadge.turbo ? "#F8B24D" : "#34D399"
                                 }
