@@ -327,6 +327,12 @@ once and gates every optimizer on detected capabilities.
 >       `genesi-ai-turbo bench`. _Optional future polish: auto-default spec ON
 >       only where it's proven to help (e.g. a mature CUDA driver), keeping plain
 >       offload on Vulkan/NVK._
+>       _**Validar sem instalar no disco:** a ISO tem uma entrada de boot
+>       "Genesi OS [DEV/TESTE] NVIDIA + CUDA" (overlay 20G, nouveau bloqueado) +
+>       o helper `genesi-dev-cuda-setup` (atalho "Genesi DEV: NVIDIA + CUDA") que
+>       instala driver NVIDIA aberto + CUDA + ollama-cuda + o backend CUDA do
+>       Turbo na sessão live (em RAM, some no reboot). Tudo DEV/TEST, fora do
+>       sistema instalado._
 > - ~~**Faster backend per GPU** (EXL2 / TensorRT-LLM)~~ — **dropped, not a fit.**
 >       It's a subproject, not a feature: a different model format ollama doesn't
 >       provide (separate downloads + acervo), a separate CUDA-only serving stack,
