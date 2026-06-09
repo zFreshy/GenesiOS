@@ -438,3 +438,97 @@ jobs:
           make_latest: true
           body_path: CHANGELOG_ROLLING.md
           files: genesi-os-latest.iso.sha256
+
+      # ── Per-build archive release (main) ───────────────────────────────────
+      # Every main ISO build ALSO gets its own permanent GitHub Release, so the
+      # Releases page becomes a browsable build history. GitHub Release storage
+      # is FREE (unlike the R2 free tier) but caps assets at 2GB/file, so we
+      # split the ~3.2GB ISO into <2GB parts + a REJOIN guide. R2 is untouched
+      # (still only genesi-os-latest.iso). `rolling` stays the repo's "Latest";
+      # these build-<sha> releases are the archive. Disk-safe: the R2 upload and
+      # the Actions artifact already ran above, so we split and then delete the
+      # original ISO immediately to keep peak disk usage bounded (the old split
+      # scheme blew the runner disk by keeping a second full copy around).
+      - name: ✂️ Split ISO into <2GB parts (main)
+        if: github.ref == 'refs/heads/main'
+        run: |
+          set -e
+          mkdir -p parts
+          # Numeric suffixes keep order: genesi-os.iso.part00, .part01, ...
+          split -d -b 1900M "$ISO_PATH" parts/genesi-os.iso.part
+          # Checksum of the FULL (rejoined) ISO, under the name users recreate.
+          sha256sum "$ISO_PATH" | awk '{print $1"  genesi-os.iso"}' > parts/genesi-os.iso.sha256
+          # Free the disk now that R2 + artifact already hold the full ISO.
+          rm -f "$ISO_PATH"
+          # Build the Windows concat line from the parts that actually exist
+          # (handles 2 or 3 parts without hardcoding names).
+          WIN_PARTS="$(ls parts/genesi-os.iso.part* | xargs -n1 basename | paste -sd'+' -)"
+          {
+            echo "Genesi OS ISO - split into <2GB parts (GitHub per-file limit)."
+            echo
+            echo "Rejoin the full genesi-os.iso, then verify the checksum:"
+            echo
+            echo "Linux / macOS:"
+            echo "  cat genesi-os.iso.part* > genesi-os.iso"
+            echo "  sha256sum -c genesi-os.iso.sha256"
+            echo
+            echo "Windows (cmd):"
+            echo "  copy /b ${WIN_PARTS} genesi-os.iso"
+            echo
+            echo "Prefer one file? Grab the always-latest build from Cloudflare R2:"
+            echo "  https://pub-917a3befc9e640f0acf8eb3d52633fe2.r2.dev/genesi-os-latest.iso"
+          } > parts/REJOIN.txt
+          echo "BUILD_TAG=build-${GITHUB_SHA:0:7}" >> "$GITHUB_ENV"
+          echo "BUILD_NAME=Genesi OS build ${GITHUB_SHA:0:7} ($(date -u '+%Y-%m-%d'))" >> "$GITHUB_ENV"
+          echo "----- parts -----"; ls -la parts
+
+      - name: 📝 Generate per-build changelog (main)
+        if: github.ref == 'refs/heads/main'
+        run: |
+          set -e
+          # Reuse the filtered commit list built for the rolling changelog
+          # (same job, same runner -> /tmp persists across steps); show the most
+          # recent 20, grouped by date, newest first.
+          {
+            echo "## ⬇️ Download (ISO split into parts)"
+            echo
+            echo "The full ISO is stored as <2GB parts (GitHub's per-file cap). See **REJOIN.txt** to rebuild \`genesi-os.iso\`:"
+            echo
+            echo '```bash'
+            echo '# Linux / macOS'
+            echo 'cat genesi-os.iso.part* > genesi-os.iso'
+            echo 'sha256sum -c genesi-os.iso.sha256'
+            echo '```'
+            echo
+            echo 'Prefer one file? Grab the always-latest build from Cloudflare R2:'
+            echo '**https://pub-917a3befc9e640f0acf8eb3d52633fe2.r2.dev/genesi-os-latest.iso**'
+            echo
+            echo "## 📝 Changelog"
+            if [ -s /tmp/commits.flt ]; then
+              head -n 20 /tmp/commits.flt | awk -F'\t' '
+                $1 != cur { cur=$1; printf("\n### %s\n\n", $1) }
+                { printf("- %s (%s)\n", $3, substr($2,1,7)) }
+              '
+            else
+              echo
+              echo "- (no changes recorded)"
+            fi
+            echo
+            echo "_Build ${GITHUB_SHA:0:7} · $(date -u '+%Y-%m-%d %H:%M UTC')_"
+          } > CHANGELOG_BUILD.md
+          echo "----- changelog build -----"; cat CHANGELOG_BUILD.md
+
+      - name: 🗃️ Create per-build archive release (main)
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.BUILD_TAG }}
+          name: ${{ env.BUILD_NAME }}
+          # Keep `rolling` as the repo's "Latest"; these are the browsable history.
+          prerelease: false
+          make_latest: false
+          body_path: CHANGELOG_BUILD.md
+          files: |
+            parts/genesi-os.iso.part*
+            parts/genesi-os.iso.sha256
+            parts/REJOIN.txt
