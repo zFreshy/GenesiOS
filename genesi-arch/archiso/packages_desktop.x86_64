@@ -29,6 +29,11 @@ genesi-settings
 genesi-calamares-branding
 genesi-welcome
 genesi-ai-mode
+# MemPalace integration (scripts + per-user indexer/bridge services only — the
+# mempalace CLI is provisioned per-user at runtime, so this adds negligible
+# squashfs weight, unlike genesi-llama-cpp below). Lets the live ISO demo the
+# AI long-term memory + prompt-cache bridge.
+genesi-mempalace
 genesi-packageinstaller
 genesi-kde-settings
 # NOTE: genesi-llama-cpp (Vulkan llama.cpp + Vulkan libs, tens of MB) and the
