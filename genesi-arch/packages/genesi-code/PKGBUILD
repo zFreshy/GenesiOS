@@ -28,10 +28,13 @@ depends=(
     'libx11'
     'libxcb'
     'openssl'
-    'zlib'
     'vulkan-icd-loader'
     'vulkan-swrast'
 )
+# NB: do NOT list `zlib` here. On CachyOS libz is provided by `zlib-ng-compat`
+# (installed by default); an explicit `zlib` dep makes the publish pipeline's
+# pre-install step (`pacman -S` of all aggregated PKGBUILD depends) hit an
+# unresolvable conflict: "zlib and zlib-ng-compat are in conflict".
 options=('!strip')  # release binary is already stripped by the build
 source=(
     "genesi-code-${pkgver}-x86_64.tar.zst::https://github.com/zFreshy/genesi-code/releases/download/v${pkgver}/genesi-code-linux-x86_64.tar.zst"
