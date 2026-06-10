@@ -620,6 +620,14 @@ packages** built and published by CI.
       Monitor (the advisor's "biggest model that fits your VRAM", the `ollama pull`
       one-click, the Turbo backend installer) are the **same models** Code and
       Hermes then use — one catalog, one place to manage local AI for the whole OS.
+- [ ] **One shared memory — every conversation is remembered, forever.** Both apps
+      back their memory onto the **same MemPalace** wing (see 2.7), so the AI never
+      starts from a blank slate: a chat in Genesi Code and an agent run in Genesi
+      Hermes write to and recall from **one on-device memory layer**. Close
+      everything, reboot — next time the model still remembers every past
+      conversation and the project context. Nothing leaves the machine. Combined
+      with the prompt-cache bridge (2.7.1), recalled memory also rides the shared
+      KV cache, so remembering the past is **instant**, not just possible.
 
 ### 4.1 Genesi Code — AI-native dev tool (fork of Warp)
 > Direction: fork **Warp** (Rust, AI-native terminal/dev tool) instead of
@@ -633,8 +641,11 @@ packages** built and published by CI.
       AI Mode automatically and (ideally) routes through the shared Turbo daemon,
       inheriting speculative decoding and the warm KV cache (see
       [4.0](#40-shared-ai-mode-integration-the-glue))
-- [ ] **MemPalace integration**: the editor/terminal feeds project context into
-      MemPalace and recalls it (the shared memory layer across all Genesi apps)
+- [ ] **MemPalace integration — remembers every conversation.** The editor/terminal
+      feeds project context **and every chat** into MemPalace and recalls them, so
+      the AI in Code carries long-term memory across sessions and reboots — the same
+      shared memory layer Hermes and the rest of Genesi use (see
+      [4.0](#40-shared-ai-mode-integration-the-glue))
 - [ ] **Genesi Hermes bridge** — the agent models the user runs in Hermes are
       reachable from Code (same local backend / `:11435` daemon), so an agent can
       act on the current project from inside the editor; conversely Code can hand a
@@ -668,9 +679,11 @@ packages** built and published by CI.
 - [ ] **Model install unified with the Monitor** — the models Hermes can run are
       provisioned/recommended from the AI Mode Monitor (advisor + one-click pull),
       not a separate downloader; one place to manage local AI for the OS
-- [ ] **MemPalace integration** — Hermes' memory system backs onto MemPalace, so
-      the agent shares the same persistent, on-device memory layer as Code and the
-      rest of Genesi
+- [ ] **MemPalace integration — the agent never forgets.** Hermes' memory system
+      backs onto MemPalace, so every conversation and agent run is persisted and
+      recalled across sessions and reboots, sharing the same on-device memory layer
+      as Code and the rest of Genesi (see
+      [4.0](#40-shared-ai-mode-integration-the-glue))
 - [ ] **Genesi Code bridge** — the agents/models running in Hermes are usable from
       Genesi Code and vice-versa (shared local backend). The **Office (Claw3d) 3D
       view** can be embedded/launched from Code so the developer watches the agent
