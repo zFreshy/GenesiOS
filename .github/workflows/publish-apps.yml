@@ -19,6 +19,11 @@ on:
 permissions:
   contents: write
 
+# Serialize so two runs don't clobber the same release assets at once.
+concurrency:
+  group: publish-apps
+  cancel-in-progress: false
+
 env:
   # Fixed release that backs the [genesi-apps] pacman repo. Assets are clobbered
   # in place on every run, so the download URLs are stable.

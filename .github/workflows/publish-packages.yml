@@ -29,6 +29,15 @@ on:
 permissions:
   contents: write
 
+# Serialize publish runs per branch. The packages are committed INTO the git
+# tree (genesi-arch/repo/x86_64), so two concurrent runs both regenerate the
+# binary genesi.db + *.pkg.tar.zst and the loser's rebase hits an unmergeable
+# binary conflict ("rebase conflict while publishing packages"). Queue them so
+# each run rebuilds cleanly on top of the previous one's published state.
+concurrency:
+  group: publish-packages-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   build:
     runs-on: ubuntu-latest

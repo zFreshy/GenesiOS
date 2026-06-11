@@ -8,8 +8,8 @@
 # all bundled assets via rust_embed, so the binary is self-contained). Bump
 # `pkgver` to the release tag you want to ship.
 pkgname=genesi-code
-pkgver=0.0.8
-pkgrel=3
+pkgver=0.0.9
+pkgrel=1
 pkgdesc='Genesi Code - local-first code editor / agentic terminal for Genesi OS (Warp fork)'
 arch=('x86_64')
 url='https://github.com/zFreshy/genesi-code'
