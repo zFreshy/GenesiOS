@@ -9,7 +9,7 @@
 # `pkgver` to the release tag you want to ship.
 pkgname=genesi-code
 pkgver=0.0.8
-pkgrel=1
+pkgrel=2
 pkgdesc='Genesi Code - local-first code editor / agentic terminal for Genesi OS (Warp fork)'
 arch=('x86_64')
 url='https://github.com/zFreshy/genesi-code'
