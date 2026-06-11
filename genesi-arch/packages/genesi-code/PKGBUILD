@@ -8,7 +8,7 @@
 # all bundled assets via rust_embed, so the binary is self-contained). Bump
 # `pkgver` to the release tag you want to ship.
 pkgname=genesi-code
-pkgver=0.0.7
+pkgver=0.0.8
 pkgrel=1
 pkgdesc='Genesi Code - local-first code editor / agentic terminal for Genesi OS (Warp fork)'
 arch=('x86_64')
@@ -16,9 +16,9 @@ url='https://github.com/zFreshy/genesi-code'
 license=('AGPL-3.0-or-later')
 # Runtime libs the release binary links against (GUI: wgpu/Vulkan + wayland/X11,
 # text: fontconfig/freetype, TLS: openssl). vulkan-icd-loader loads the system
-# Vulkan driver; vulkan-swrast (lavapipe) is the software fallback that lets the
-# editor render inside a VM / on a box with no GPU driver — the app now defaults
-# to the Vulkan backend, so a usable ICD must always be present.
+# Vulkan driver; vulkan-swrast (lavapipe) is a software Vulkan fallback. The
+# launcher (genesi-code.sh) forces software GL (llvmpipe) inside a VM where the
+# GPU presentation path is broken; mesa provides llvmpipe.
 depends=(
     'fontconfig'
     'freetype2'
@@ -40,18 +40,25 @@ source=(
     "genesi-code-${pkgver}-x86_64.tar.zst::https://github.com/zFreshy/genesi-code/releases/download/v${pkgver}/genesi-code-linux-x86_64.tar.zst"
     'genesi-code.desktop'
     'genesi-code.svg'
+    'genesi-code.sh'
 )
 # The release asset is first-party (our own CI) and the version tag pins it, so
 # we don't carry a churning checksum here.
 sha256sums=('SKIP'
             'SKIP'
+            'SKIP'
             'SKIP')
 
 package() {
-    # Self-contained release binary (assets embedded via rust_embed).
-    install -Dm755 "${srcdir}/genesi-code" "${pkgdir}/usr/bin/genesi-code"
+    # Self-contained release binary (assets embedded via rust_embed). Installed
+    # under /usr/lib so the /usr/bin entry can be the launcher wrapper below.
+    install -Dm755 "${srcdir}/genesi-code" "${pkgdir}/usr/lib/genesi-code/genesi-code"
 
-    # Launcher + icon. StartupWMClass matches the app_id the binary reports
+    # Launcher wrapper on PATH: forces software GL inside a VM (where the GPU
+    # path renders an invisible window), passes through on bare metal.
+    install -Dm755 "${srcdir}/genesi-code.sh" "${pkgdir}/usr/bin/genesi-code"
+
+    # Desktop entry + icon. StartupWMClass matches the app_id the binary reports
     # (dev.genesi.GenesiCode) so the taskbar groups the window correctly.
     install -Dm644 "${srcdir}/genesi-code.desktop" \
         "${pkgdir}/usr/share/applications/genesi-code.desktop"
