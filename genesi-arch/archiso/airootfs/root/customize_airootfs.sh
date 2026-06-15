@@ -490,42 +490,29 @@ rm -f /etc/xdg/autostart/cachyos-hello.desktop 2>/dev/null || true
 # 4. Rebrand Calamares (installed by cachyos-calamares-next)
 # ============================================================
 
-# Step A: Copy CachyOS branding as a TEXT FALLBACK (for any .desc/.qml
-# fields we didn't override yet), then sed-patch text references.
-if [ -f /usr/share/calamares/branding/cachyos/branding.desc ]; then
-    mkdir -p /usr/share/calamares/branding/genesi
-    # Copy CachyOS as baseline (we'll overwrite images/QML next)
-    cp -rf /usr/share/calamares/branding/cachyos/* /usr/share/calamares/branding/genesi/ 2>/dev/null || true
-    # Patch text references in the copy
-    sed -i \
-        -e 's/productName:.*CachyOS/productName:       Genesi OS/' \
-        -e 's/shortProductName:.*CachyOS/shortProductName:  Genesi OS/' \
-        -e 's/versionedName:.*CachyOS/versionedName:     Genesi OS/' \
-        -e 's/shortVersionedName:.*CachyOS/shortVersionedName: Genesi OS/' \
-        -e 's/bootLoaderEntryName:.*CachyOS/bootLoaderEntryName: Genesi OS/' \
-        -e 's/componentName:.*cachyos/componentName:     genesi/' \
-        -e 's|https://cachyos.org|https://github.com/zFreshy/GenesiOS|g' \
-        -e 's|https://discuss.cachyos.org|https://github.com/zFreshy/GenesiOS/issues|g' \
-        -e 's|https://paste.cachyos.org|https://github.com/zFreshy/GenesiOS|g' \
-        /usr/share/calamares/branding/genesi/branding.desc
+# Single source of truth: the genesi-calamares-config submodule is authoritative
+# for ALL Calamares branding (logo, icon, welcome, slides, show.qml, stylesheet,
+# branding.desc). It is also exactly what the genesi-calamares-branding package
+# ships, so the live ISO and an installed system can never drift apart.
+#
+# We copy it cleanly into BOTH dirs Calamares may read (/etc takes precedence
+# over /usr/share), wiping each first so no stale CachyOS art (e.g. extra
+# slideN.png the slideshow would still cycle) can leak through.
+GENESI_BRANDING_SRC=/root/genesi-calamares-config-full/etc/calamares/branding/genesi
+if [ -d "$GENESI_BRANDING_SRC" ]; then
+    for dest in /etc/calamares/branding/genesi /usr/share/calamares/branding/genesi; do
+        rm -rf "$dest"
+        mkdir -p "$dest"
+        cp -rf "$GENESI_BRANDING_SRC/"* "$dest/"
+    done
+    echo ">>> Genesi branding installed authoritatively (no CachyOS fallback)"
+else
+    echo ">>> WARNING: Genesi branding source not found at $GENESI_BRANDING_SRC"
 fi
 
-# Step B: Also copy to /etc/calamares/branding/genesi (some builds read from here)
-mkdir -p /etc/calamares/branding/genesi
-if [ -f /usr/share/calamares/branding/genesi/branding.desc ]; then
-    cp -rf /usr/share/calamares/branding/genesi/* /etc/calamares/branding/genesi/
-fi
-
-# Step C: NOW overlay OUR branding from the genesi-calamares-config submodule.
-# This MUST happen AFTER the CachyOS copy above so our logo, icon, slides,
-# show.qml, stylesheet, and branding.desc take priority over CachyOS's.
-if [ -d /root/genesi-calamares-config-full/etc/calamares/branding/genesi ]; then
-    cp -rf /root/genesi-calamares-config-full/etc/calamares/branding/genesi/* \
-        /etc/calamares/branding/genesi/
-    cp -rf /root/genesi-calamares-config-full/etc/calamares/branding/genesi/* \
-        /usr/share/calamares/branding/genesi/ 2>/dev/null || true
-    echo ">>> Genesi branding re-overlaid AFTER CachyOS fallback (our images/QML win)"
-fi
+# Drop the upstream CachyOS branding component entirely so nothing can ever fall
+# back to it (settings.conf already selects 'genesi').
+rm -rf /usr/share/calamares/branding/cachyos /etc/calamares/branding/cachyos 2>/dev/null || true
 
 # Force copy our packages.conf (overwrite any existing one)
 if [ -f /etc/calamares/modules/packages.conf.genesi ]; then

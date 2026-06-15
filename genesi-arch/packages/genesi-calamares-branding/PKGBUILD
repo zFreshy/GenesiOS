@@ -1,29 +1,35 @@
 # Maintainer: Genesi OS Team
-_gitname=genesi-calamares
+#
+# Single source of truth for Calamares branding: this package pulls the EXACT
+# same branding directory that the live ISO ships (genesi-calamares-config repo,
+# etc/calamares/branding/genesi), so the installed system and the live ISO can
+# no longer drift apart. The old genesi-calamares repo still carries CachyOS art
+# under src/branding/genesi -- do NOT source branding from there.
+_gitname=genesi-calamares-config
 pkgname=genesi-calamares-branding
 pkgver=1.0.0
-pkgrel=5
+pkgrel=6
 pkgdesc="Genesi OS branding for Calamares installer"
 arch=('any')
-url="https://github.com/zFreshy/genesi-calamares"
+url="https://github.com/zFreshy/genesi-calamares-config"
 license=('GPL3')
 conflicts=('cachyos-calamares-branding')
 provides=('calamares-branding')
 backup=('etc/calamares/settings.conf')
 makedepends=('git')
-source=("git+https://github.com/zFreshy/genesi-calamares.git")
+source=("git+https://github.com/zFreshy/genesi-calamares-config.git")
 sha256sums=('SKIP')
 
 package() {
     # Copy Genesi branding from our cloned repo
     install -dm755 "${pkgdir}/usr/share/calamares/branding/genesi"
-    
-    # Copy all branding files from the git repo
-    if [ -d "${srcdir}/${_gitname}/src/branding/genesi" ]; then
-        cp -r "${srcdir}/${_gitname}/src/branding/genesi/"* \
+
+    # Copy all branding files from the git repo (same dir the live ISO ships)
+    if [ -d "${srcdir}/${_gitname}/etc/calamares/branding/genesi" ]; then
+        cp -r "${srcdir}/${_gitname}/etc/calamares/branding/genesi/"* \
               "${pkgdir}/usr/share/calamares/branding/genesi/"
     else
-        echo "ERROR: Branding directory not found in genesi-calamares repo!"
+        echo "ERROR: Branding directory not found in genesi-calamares-config repo!"
         exit 1
     fi
     
