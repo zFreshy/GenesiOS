@@ -18,8 +18,18 @@ fi
 
 # Launch DETACHED (new session, reparented to init) with `setsid -f`. When
 # started from the KDE menu / KRunner / a plasmoid, the app is otherwise a child
-# of the launcher and gets killed the instant the launcher closes — the window
-# would load and immediately disappear (it works fine from a terminal because
-# the terminal stays alive). This is the same fix genesi-ai-mode uses for its
-# plasmoid. Running from a terminal is unaffected.
-exec setsid -f /usr/lib/genesi-code/genesi-code "$@"
+# of the launcher and gets killed the instant the launcher closes.
+#
+# CRUCIAL second half: also redirect stdio. From the menu the app's stdout/
+# stderr are a pipe owned by the launcher's (short-lived) transient scope; once
+# that scope exits the pipe's read end is gone, and the detached GUI app is
+# killed by SIGPIPE / EIO on its very next write to stdout/stderr. That is the
+# exact "opens from a terminal but NOT from the menu" symptom — a terminal keeps
+# those fds alive, a menu launcher does not. Point stdin at /dev/null and stdout/
+# stderr at a per-user log file so nothing can ever hang up on the app, and we
+# also get a crash log if it still fails to show. Running from a terminal is
+# unaffected (the redirect just sends its logs to the file too).
+LOGDIR="${XDG_CACHE_HOME:-$HOME/.cache}/genesi-code"
+mkdir -p "$LOGDIR" 2>/dev/null || true
+exec setsid -f /usr/lib/genesi-code/genesi-code "$@" \
+    </dev/null >>"$LOGDIR/genesi-code.log" 2>&1

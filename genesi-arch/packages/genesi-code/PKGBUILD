@@ -13,7 +13,12 @@ pkgname=genesi-code
 # and surfaces in genesi-update automatically). Bump it here only as a manual
 # fallback for a local `makepkg`.
 pkgver=0.0.30
-pkgrel=1
+# pkgrel 2: launcher (genesi-code.sh) redirects stdio to a log file + /dev/null
+# so a menu/KRunner launcher closing its stdout pipe can't SIGPIPE-kill the
+# detached app — fixes "opens from a terminal but not from the menu". (pkgver is
+# overridden to the latest release by publish-apps.yml; this pkgrel forces the
+# rebuilt package to supersede the same-version one already in [genesi-apps].)
+pkgrel=2
 pkgdesc='Genesi Code - local-first code editor / agentic terminal for Genesi OS (Warp fork)'
 arch=('x86_64')
 url='https://github.com/zFreshy/genesi-code'
