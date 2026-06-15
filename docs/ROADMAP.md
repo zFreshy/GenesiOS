@@ -689,6 +689,15 @@ in the Genesi pacman repo. What works now vs. what's left for a 1.0:
 - [ ] **Default to the shared Turbo daemon** (`:11435`) so Code inherits GPU offload
       + the shared warm KV cache (see [4.0](#40-shared-ai-mode-integration-the-glue));
       the Turbo endpoint is already selectable, auto-default is pending
+- [ ] **Bring-your-own AI key (optional cloud models).** A settings screen to paste an
+      API key — OpenAI / Anthropic / OpenRouter / Google, or any OpenAI-compatible
+      custom endpoint — so the panel can use a **cloud** model as an *option* beside
+      the local-first default. The Warp fork already ships the BYOK plumbing
+      (`ApiKeys` + custom endpoints, already unlocked for logged-out use); this is
+      mostly wiring a simple key-entry UI to it. **Local stays the default** — the key
+      is purely opt-in, for when the user wants a bigger/faster model than the machine
+      can run, or a frontier model for hard tasks. Keys are stored in the OS keyring
+      (Secret Service) with the existing encrypted-file fallback — still on-device.
 - [ ] **MemPalace integration — remembers every conversation.** Persist & recall every
       chat onto the shared MemPalace wing (see [4.0](#40-shared-ai-mode-integration-the-glue)
       and 2.7); deferred until the agent UX is solid
