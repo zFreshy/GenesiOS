@@ -140,7 +140,13 @@ pkgver=1.0.0
 # Turbo off then on no longer hits "already running" with a stuck server. The
 # Monitor also kills a stray Turbo it didn't start (e.g. one launched from a
 # terminal), which our tracked-PID-only stop used to leave running.
-pkgrel=71
+# pkgrel 72: the Monitor now ASKS which model to run Turbo on. Flipping the
+# Turbo switch on opens a model picker (installed models, the GPU-fit pick
+# pre-selected) instead of silently starting on whatever Ollama happened to
+# have loaded. The chosen model is locked, so the live activeModel poll can no
+# longer overwrite it mid-session (the "Turbo started with a model I didn't
+# pick" bug). Turning Turbo off releases the lock.
+pkgrel=72
 pkgdesc='Genesi OS AI Mode - adaptive, reversible local-AI optimizer (CPU/GPU/power) + Plasma 6 widget + monitor app'
 arch=('any')
 url='https://github.com/zFreshy/GenesiOS'

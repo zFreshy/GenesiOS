@@ -59,9 +59,16 @@ Kirigami.ApplicationWindow {
     // llama-server — the load counter kept resetting to 0 and Turbo never came up.
     property string firstInstalledModel: ""
     property string turboModel: ""
+    // All installed (Ollama) models — feeds the "which model?" picker shown
+    // when Turbo is switched on.
+    property var installedModels: []
+    // Set true once the user explicitly picks a Turbo model. While locked, the
+    // live activeModel / firstInstalledModel auto-seed below must NOT overwrite
+    // their choice — that was the "Turbo starts with a model I didn't pick" bug.
+    property bool turboModelLocked: false
 
-    onActiveModelChanged: if (activeModel) turboModel = activeModel
-    onFirstInstalledModelChanged: if (!turboModel && firstInstalledModel) turboModel = firstInstalledModel
+    onActiveModelChanged: if (activeModel && !turboModelLocked) turboModel = activeModel
+    onFirstInstalledModelChanged: if (!turboModel && firstInstalledModel && !turboModelLocked) turboModel = firstInstalledModel
 
     // Changing the model only (re)starts Turbo — it never stops it. Only the user
     // flipping the switch off (turboRequested=false) stops the Turbo server.
@@ -102,6 +109,7 @@ Kirigami.ApplicationWindow {
         function onModelsLoaded(jsonStr) {
             var arr = []
             try { arr = JSON.parse(jsonStr) } catch (e) {}
+            win.installedModels = arr
             if (arr.length > 0) win.firstInstalledModel = arr[0]
         }
         // ── Benchmark ──
@@ -543,7 +551,7 @@ Kirigami.ApplicationWindow {
                                         anchors.fill: parent
                                         hoverEnabled: true
                                         cursorShape: Qt.PointingHandCursor
-                                        onClicked: win.turboModel = win.turboRecommend
+                                        onClicked: { win.turboModel = win.turboRecommend; win.turboModelLocked = true }
                                         QQC2.ToolTip.text: "Use the largest model that runs 100% in your VRAM (full offload, no CPU spill)"
                                         QQC2.ToolTip.visible: containsMouse
                                     }
@@ -573,7 +581,18 @@ Kirigami.ApplicationWindow {
                             MouseArea {
                                 anchors.fill: parent
                                 cursorShape: Qt.PointingHandCursor
-                                onClicked: win.turboRequested = !win.turboRequested
+                                onClicked: {
+                                    if (win.turboRequested) {
+                                        // turning Turbo OFF — release the lock so the
+                                        // next start asks again / re-seeds from live.
+                                        win.turboRequested = false
+                                        win.turboModelLocked = false
+                                    } else {
+                                        // turning Turbo ON — ask which model first.
+                                        backend.loadModels()
+                                        turboModelDialog.openPicker()
+                                    }
+                                }
                             }
                         }
                     }
@@ -937,6 +956,95 @@ Kirigami.ApplicationWindow {
                 MouseArea {
                     id: cuMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                     onClicked: { backend.installTurboBackend("cuda"); backendDialog.close() }
+                }
+            }
+        }
+    }
+
+    // ════════════ TURBO MODEL PICKER ════════════
+    // Asked every time Turbo is switched on, so Turbo always runs the model the
+    // user chose — never one auto-grabbed from whatever Ollama happened to load.
+    Kirigami.PromptDialog {
+        id: turboModelDialog
+        title: "Which model for Turbo?"
+        standardButtons: Kirigami.Dialog.Cancel
+        preferredWidth: Kirigami.Units.gridUnit * 26
+
+        property string selected: ""
+
+        function openPicker() {
+            // Default to the GPU-fit recommendation, then the current pick, the
+            // live/active model, and finally the first installed one.
+            selected = win.turboRecommend || win.turboModel || win.activeModel
+                       || win.firstInstalledModel
+                       || (win.installedModels.length > 0 ? win.installedModels[0] : "")
+            open()
+        }
+
+        ColumnLayout {
+            spacing: Kirigami.Units.smallSpacing
+
+            QQC2.Label {
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                color: theme.textMid
+                font.pixelSize: 12
+                text: win.installedModels.length > 0
+                    ? "Pick the model Turbo should serve. It stays on this one until you turn Turbo off or pick another."
+                    : "No local models found. Pull one first (Chat page) or run: ollama pull llama3.2"
+            }
+
+            Repeater {
+                model: win.installedModels
+                Rectangle {
+                    Layout.fillWidth: true
+                    radius: 8
+                    implicitHeight: rowM.implicitHeight + Kirigami.Units.largeSpacing
+                    color: maM.containsMouse || turboModelDialog.selected === modelData
+                           ? theme.a(theme.turbo, 0.12) : theme.a(theme.textHi, 0.04)
+                    border.width: 1
+                    border.color: turboModelDialog.selected === modelData
+                                  ? theme.a(theme.turbo, 0.6) : theme.line
+                    RowLayout {
+                        id: rowM
+                        anchors.left: parent.left; anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        anchors.margins: Kirigami.Units.largeSpacing
+                        spacing: Kirigami.Units.smallSpacing
+                        QQC2.Label {
+                            text: (turboModelDialog.selected === modelData ? "✓ " : "") + modelData
+                            color: turboModelDialog.selected === modelData ? theme.turboBright : theme.textHi
+                            font.bold: turboModelDialog.selected === modelData
+                            Layout.fillWidth: true
+                            elide: Text.ElideRight
+                        }
+                        Rectangle {
+                            visible: modelData === win.turboRecommend
+                            radius: 6; height: 18; width: recPk.implicitWidth + 14
+                            color: theme.a(theme.turbo, 0.25)
+                            QQC2.Label {
+                                id: recPk; anchors.centerIn: parent
+                                text: "fits your GPU"; font.pixelSize: 10; color: theme.turboBright
+                            }
+                        }
+                    }
+                    MouseArea {
+                        id: maM; anchors.fill: parent; hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: turboModelDialog.selected = modelData
+                    }
+                }
+            }
+
+            QQC2.Button {
+                Layout.fillWidth: true
+                text: "Start Turbo on this model"
+                enabled: turboModelDialog.selected.length > 0
+                onClicked: {
+                    win.turboModel = turboModelDialog.selected
+                    win.turboModelLocked = true
+                    win.turboRequested = true
+                    turboModelDialog.close()
                 }
             }
         }
