@@ -866,14 +866,14 @@ in the Genesi pacman repo. What works now vs. what's left for a 1.0:
       `genesi-libcava`, `genesi-materialyoucolor`, `genesi-ttf-rubik-vf`, plus
       `genesi-caelestia-settings` (Genesi Hyprland config/branding). `quickshell`
       is now in Arch [extra], so it is used directly (no `quickshell-git` build)
-- [ ] **Port the remaining DE options to Genesi** — the chooser still lists 10
-      entries inherited from CachyOS (CuteFish, Xfce4, Sway, Wayfire, i3 Window
-      Manager, GNOME, Openbox, bspwm, Kofuku edition, LXQT). They are **dead
-      placeholders today**: none has a matching group in `netinstall.yaml`, so with
-      `netinstall-select` picking one deselects KDE-Desktop and selects a
-      non-existent group → the install ends up with **no desktop**. Decision
-      (2026-06-17): keep them visible and port each one properly, same standard as
-      Plasma/Hyprland. Per DE that means:
+- [ ] **Port the remaining DE options to Genesi** — CachyOS left 10 chooser
+      entries (CuteFish, Xfce4, Sway, Wayfire, i3 Window Manager, GNOME, Openbox,
+      bspwm, Kofuku edition, LXQT) with **no matching `netinstall.yaml` group**, so
+      `netinstall-select` would deselect KDE-Desktop and select a non-existent
+      group → a **no-desktop install**. Decision (2026-06-17): **removed all 10
+      from `packagechooser.conf`** so they can't trap users; the chooser now shows
+      only No Desktop / Plasma / Hyprland. Re-add each entry **only when** its real
+      group + full Genesi treatment lands. Per DE that means:
       - [ ] a real `netinstall.yaml` group (compositor/DE + its session +
             display-manager bits) so the option actually installs a working desktop
       - [ ] Genesi branding (wallpaper + Material-You/colour scheme, GRUB, SDDM,
