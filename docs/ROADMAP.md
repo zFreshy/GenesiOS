@@ -849,22 +849,42 @@ in the Genesi pacman repo. What works now vs. what's left for a 1.0:
 ### 5.1 Desktop Environment selector in the installer (Calamares)
 > Like CachyOS's installer — let the user pick their DE at install time.
 
-- [ ] Add a "Choose your desktop" step to Calamares (similar to the CachyOS
-      `packagechooser` module with screenshots + descriptions)
-- [ ] **Option 1: KDE Plasma 6 (default)** — current Genesi setup: Klassy 14px
+- [x] Add a "Choose your desktop" step to Calamares (the `packagechooser` module,
+      `method: netinstall-select`, with screenshots + descriptions) — already
+      present; extended with the Hyprland option
+- [x] **Option 1: KDE Plasma 6 (default)** — current Genesi setup: Klassy 14px
       rounded windows, Darkly glassmorphism, Ant-Dark popups, Kickoff menu
-- [ ] **Option 2: Hyprland + caelestia-shell** — Wayland tiling compositor with
+- [x] **Option 2: Hyprland + caelestia-shell** — Wayland tiling compositor with
       the [caelestia-dots/shell](https://github.com/caelestia-dots/shell) design
-      (Quickshell QML widgets, no waybar). Pulls `hyprland`, `caelestia-shell`
-      (AUR), `caelestia-cli`, `quickshell-git`, `ddcutil`, `brightnessctl` into a
-      netinstall group that installs only when this option is picked
+      (Quickshell QML widgets, no waybar). A `Hyprland-Desktop` netinstall group
+      (off by default) installs only when this option is picked. The AUR-only
+      pieces are repackaged into the [genesi] repo by `publish-packages.yml`:
+      `genesi-caelestia-shell`, `genesi-caelestia-cli`, `genesi-app2unit`,
+      `genesi-libcava`, `genesi-materialyoucolor`, `genesi-ttf-rubik-vf`, plus
+      `genesi-caelestia-settings` (Genesi Hyprland config/branding). `quickshell`
+      is now in Arch [extra], so it is used directly (no `quickshell-git` build)
 - [ ] (Future) Additional options: GNOME, COSMIC, Sway, etc.
-- [ ] SDDM session entries auto-registered for whatever the user picked
-- [ ] Wallpapers + branding consistent across all DE choices
-- [ ] `genesi-x11-detect.sh` extended to handle the chosen DE (Hyprland needs
-      different SDDM session forcing than Plasma)
+- [x] SDDM session entries auto-registered for whatever the user picked
+      (`hyprland.desktop` ships with the `hyprland` package; `plasmax11` with
+      Plasma — both land in the SDDM menu automatically)
+- [x] Wallpapers + branding consistent across all DE choices — the Hyprland
+      config sets the Genesi wallpaper (`/usr/share/wallpapers/genesi/`) and
+      derives its Material You scheme from it; all shared Genesi apps come from
+      the always-on "Genesi OS" netinstall group
+- [x] DE-aware default session — `shellprocess_genesi_session.conf` now calls
+      `genesi-set-session.sh`, which detects a Hyprland-only install and defaults
+      that user to `hyprland.desktop` (else Plasma X11). `genesi-x11-detect.sh`
+      (SDDM greeter display server) is unchanged — it only affects the greeter,
+      not the Wayland session
 - [ ] `genesi-welcome` detects the running DE and adjusts its buttons per-DE
+      (follow-up — welcome already installs and runs on both DEs)
 - [ ] Doc page explaining the DE choice and when each one shines
+
+> Known limitations / follow-ups: Hyprland (Wayland-only) can fail on a broken
+> Wayland stack in some VMs — pick Plasma there (same caveat as Plasma Wayland).
+> The AI Mode **Plasma widget** is Plasma-only; on Hyprland AI Mode is reached via
+> the Monitor app (a Quickshell equivalent is future work). The packagechooser
+> screenshot `images/hyprland.png` is a placeholder pending a real capture.
 
 ---
 

@@ -1,0 +1,33 @@
+# Maintainer: Genesi OS Team
+#
+# python-materialyoucolor (T-Dynamos/materialyoucolor-python) repackaged for the
+# [genesi] repo. It implements Google's Material You color-extraction algorithms
+# and is a hard dependency of caelestia-cli (which derives the shell's accent
+# palette from the wallpaper). AUR-only upstream; mirrored here so the Calamares
+# netinstall (pacman, no AUR) can install it. provides=python-materialyoucolor so
+# caelestia's dependency resolves to this build.
+pkgname=genesi-materialyoucolor
+_name=materialyoucolor-python
+pkgver=3.0.2
+pkgrel=1
+pkgdesc="Material You color algorithms for Python (Genesi repackage of python-materialyoucolor)"
+arch=('x86_64')
+url="https://github.com/T-Dynamos/materialyoucolor-python"
+license=('MIT')
+provides=('python-materialyoucolor')
+conflicts=('python-materialyoucolor')
+depends=('glibc' 'gcc-libs' 'python' 'python-pillow' 'pybind11>=2.11.0')
+makedepends=('python-build' 'python-setuptools>=61.0.0' 'python-installer' 'python-wheel' 'pybind11>=2.11.0')
+source=("$pkgname-$pkgver.tar.gz"::"$url/archive/v$pkgver.tar.gz")
+sha256sums=('aa013f0faea26b87b65f35d7b67f7850c7ed4b926cf1628617d088fe9ddaa9ec')
+
+build() {
+    cd "$_name-$pkgver"
+    python -m build --wheel --no-isolation
+}
+
+package() {
+    cd "$_name-$pkgver"
+    python -m installer --destdir="$pkgdir" dist/*.whl
+    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

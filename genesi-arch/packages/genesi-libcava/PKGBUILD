@@ -1,0 +1,51 @@
+# Maintainer: Genesi OS Team
+#
+# libcava (LukashonakV/cava) repackaged for the [genesi] repo. It exposes cava's
+# audio-visualizer engine as a shared library (no executable) and is a hard
+# dependency of caelestia-shell's audio visualizer. AUR-only upstream, so we
+# mirror its PKGBUILD here and publish the build to genesi-arch/repo/x86_64 (the
+# Calamares netinstall uses pacman and can't reach the AUR). provides=libcava so
+# caelestia's `libcava` dependency resolves to this build.
+pkgname=genesi-libcava
+pkgver=0.10.7
+pkgrel=1
+pkgdesc='cava as a shared library, used by caelestia-shell (Genesi repackage of libcava)'
+arch=('x86_64')
+url='https://github.com/LukashonakV/cava'
+license=('MIT')
+provides=('libcava')
+conflicts=('libcava')
+depends=(
+    'fftw'
+    'ncurses'
+    'alsa-lib'
+    'iniparser'
+    'libglvnd'
+    'sdl2'
+    'portaudio'
+    'sndio'
+    'libpulse'
+    'libpipewire'
+)
+makedepends=(
+    'base-devel'
+    'cmake'
+    'meson'
+    'autoconf-archive'
+)
+source=("$pkgname-$pkgver.tar.gz::https://github.com/LukashonakV/cava/archive/$pkgver.tar.gz")
+sha256sums=('50cc6413e9c96c503657f814744a2baf429a24ff9fed31a8343e0ed285269eff')
+# Upstream ships with LTO disabled in its packaging (link errors otherwise).
+options=(!lto)
+
+build() {
+    cd "cava-${pkgver}"
+    meson setup -Dcava_font=false --prefix=/usr build
+    meson compile -C build
+}
+
+package() {
+    cd "${srcdir}/cava-${pkgver}"
+    DESTDIR="$pkgdir" meson install -C build
+    install -Dm644 LICENSE -t "$pkgdir/usr/share/licenses/$pkgname/"
+}

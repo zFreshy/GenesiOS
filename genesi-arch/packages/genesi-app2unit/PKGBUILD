@@ -1,0 +1,30 @@
+# Maintainer: Genesi OS Team
+#
+# app2unit (Vladimir-csp/app2unit) repackaged for the [genesi] repo. It is an
+# AUR-only utility that launches commands as systemd user units; caelestia-shell
+# and caelestia-cli (the Genesi "Hyprland + caelestia-shell" desktop option,
+# Roadmap 5.1) hard-depend on it. The Calamares netinstall installs with pacman,
+# which can't reach the AUR, so we mirror the AUR PKGBUILD here and ship the
+# built package in genesi-arch/repo/x86_64 like every other Genesi component.
+# provides=app2unit so caelestia's `app2unit` dependency resolves to this build.
+pkgname=genesi-app2unit
+pkgver=1.4.0
+pkgrel=1
+pkgdesc="Utility to launch commands as systemd user units (Genesi repackage of app2unit)"
+arch=('any')
+url="https://github.com/Vladimir-csp/app2unit"
+license=('GPL-3.0-only')
+# Mirror the AUR app2unit provides so both the bare name and the open/term
+# helper aliases other packages may depend on resolve to this build.
+provides=('app2unit' 'app2unit-open' 'app2unit-open-scope' 'app2unit-open-service'
+          'app2unit-term' 'app2unit-term-scope' 'app2unit-term-service')
+conflicts=('app2unit')
+depends=('sh' 'systemd' 'libnotify')
+makedepends=('make' 'scdoc')
+source=("https://github.com/Vladimir-csp/app2unit/archive/refs/tags/v${pkgver}.tar.gz")
+sha256sums=('650f047c53ca2521015718679800d562fdec60ad8eb3d955495afda01c5a4d01')
+
+package() {
+	cd "${srcdir}/app2unit-${pkgver}"
+	DESTDIR="${pkgdir}" prefix='/usr' make install
+}

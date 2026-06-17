@@ -103,6 +103,18 @@ jobs:
           # repo yet, so `pacman -S genesi-foo` would fail. (Only the
           # genesi-desktop meta-package has genesi-* deps; it's built with
           # `makepkg -d` so its dep check is skipped at build time.)
+          #
+          # A handful of Genesi packages repackage AUR-only software under its
+          # canonical name via provides= (genesi-app2unit -> app2unit,
+          # genesi-libcava -> libcava, genesi-materialyoucolor ->
+          # python-materialyoucolor, genesi-ttf-rubik-vf -> ttf-rubik-vf,
+          # genesi-caelestia-{cli,shell} -> caelestia-{cli,shell}). Their bare
+          # names are NOT in any pacman repo at build-deps time (only this run
+          # produces them), so they must be excluded here too or `pacman -S`
+          # aborts the whole pre-install. The dependent packages skip makepkg's
+          # dep check (-d, see MAKEPKG_NODEPS below), and nothing actually needs
+          # these at build time — only at install time, where the genesi repo
+          # resolves them via provides.
           DEPS=$(
             for pkgbuild in genesi-arch/packages/*/PKGBUILD; do
               bash -c "
@@ -113,7 +125,7 @@ jobs:
               "
             done \
               | sed -E 's/[<>=].*//' \
-              | grep -vE '^genesi-' \
+              | grep -vE '^(genesi-.*|app2unit|libcava|python-materialyoucolor|ttf-rubik-vf|caelestia-cli|caelestia-shell)$' \
               | sort -u \
               | grep -v '^$' \
               | tr '\n' ' '
@@ -262,6 +274,21 @@ jobs:
             "genesi-sandboxes"
             "genesi-netinspect"
             "genesi-db-explorer"
+            # Roadmap 5.1 — "Hyprland + caelestia-shell" desktop option. These
+            # repackage AUR-only software (quickshell itself is now in Arch
+            # [extra], so it is NOT rebuilt here) so the Calamares netinstall can
+            # install them with pacman. Ordered leaves-first: the four small
+            # AUR libs/fonts (only [extra] build-deps, normal build) before the
+            # caelestia packages that depend on them. caelestia-cli/shell/settings
+            # depend on the just-built (not-yet-installed) genesi provides, so
+            # they build with `makepkg -d` (see MAKEPKG_NODEPS below).
+            "genesi-app2unit"
+            "genesi-libcava"
+            "genesi-materialyoucolor"
+            "genesi-ttf-rubik-vf"
+            "genesi-caelestia-cli"
+            "genesi-caelestia-shell"
+            "genesi-caelestia-settings"
             # NOTE: genesi-code is NOT built here. Its package is 172 MB, which
             # exceeds GitHub's 100 MB git file limit, so it can't be committed to
             # the git-hosted repo. It is built and published to the separate
@@ -308,8 +335,17 @@ jobs:
             # The genesi-desktop meta depends on other Genesi packages that
             # aren't in any repo at build time; skip makepkg's dep check for it
             # (-d). Install-time resolution from the genesi repo still applies.
+            # Skip makepkg's dep check (-d) for packages whose declared deps are
+            # produced by THIS run and aren't in any repo yet: the genesi-desktop
+            # meta, and the caelestia packages (which depend on the genesi
+            # repackages of caelestia-cli/app2unit/libcava/python-materialyoucolor
+            # /ttf-rubik-vf). Nothing here is actually needed at build time;
+            # install-time resolution from the genesi repo still applies.
             MAKEPKG_NODEPS=""
-            if [ "$pkg" = "genesi-desktop" ]; then MAKEPKG_NODEPS="-d"; fi
+            case "$pkg" in
+              genesi-desktop|genesi-caelestia-cli|genesi-caelestia-shell|genesi-caelestia-settings)
+                MAKEPKG_NODEPS="-d" ;;
+            esac
 
             rc=0
             for attempt in 1 2; do

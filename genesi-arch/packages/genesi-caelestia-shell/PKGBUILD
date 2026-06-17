@@ -1,0 +1,44 @@
+# Maintainer: Genesi OS Team
+#
+# caelestia-shell (caelestia-dots/shell) repackaged for the [genesi] repo. This
+# is the Quickshell-based desktop shell (bar, launcher, notifications, OSDs) that
+# powers Roadmap 5.1's "Hyprland + caelestia-shell" install option. AUR-only
+# upstream; mirrored here so the Calamares netinstall (pacman, no AUR) installs
+# it, pinned to a release tarball for reproducibility. provides=caelestia-shell.
+#
+# Deviation from the AUR PKGBUILD: the AUR build hard-depends on `quickshell-git`
+# because, historically, Quickshell was AUR-only. It has since graduated to Arch
+# [extra] as `quickshell`, so we depend on that instead — no need to compile
+# Quickshell from git in CI, and the installed system pulls a real release. The
+# remaining AUR-only deps are Genesi repackages providing the bare names:
+# caelestia-cli -> genesi-caelestia-cli, app2unit -> genesi-app2unit,
+# libcava -> genesi-libcava, ttf-rubik-vf -> genesi-ttf-rubik-vf.
+pkgname=genesi-caelestia-shell
+pkgver=2.0.3
+pkgrel=1
+pkgdesc='Quickshell desktop shell for the Caelestia design (Genesi repackage of caelestia-shell)'
+arch=('x86_64')
+url='https://github.com/caelestia-dots/shell'
+license=('GPL-3.0-only')
+depends=('caelestia-cli' 'quickshell' 'ddcutil' 'brightnessctl' 'app2unit' 'libcava' 'networkmanager'
+         'lm_sensors' 'fish' 'aubio' 'libpipewire' 'glibc' 'gcc-libs' 'ttf-material-symbols-variable'
+         'power-profiles-daemon' 'ttf-rubik-vf' 'ttf-cascadia-code-nerd' 'swappy' 'libqalculate' 'bash'
+         'qt6-base' 'qt6-declarative' 'qt6-imageformats')
+makedepends=('cmake' 'ninja' 'qt6-shadertools')
+provides=('caelestia-shell')
+conflicts=('caelestia-shell' 'caelestia-shell-git')
+source=("$url/releases/download/v$pkgver/caelestia-shell-v$pkgver.tar.gz")
+sha256sums=('a27eefaa2a6ec817a51ecd10ef705e74daed9121c17f1d515625b5ef90c9cefa')
+
+build() {
+    cd "${srcdir}/release"
+    cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_PREFIX=/ \
+        -DVERSION=$pkgver -DDISTRIBUTOR="Genesi OS (package: $pkgname)"
+    cmake --build build
+}
+
+package() {
+    cd "${srcdir}/release"
+    DESTDIR="$pkgdir" cmake --install build
+    install -Dm644 LICENSE "$pkgdir"/usr/share/licenses/$pkgname/LICENSE
+}

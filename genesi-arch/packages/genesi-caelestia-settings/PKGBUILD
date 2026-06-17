@@ -1,0 +1,44 @@
+# Maintainer: Genesi OS Team
+#
+# Genesi branding/config overlay for the "Hyprland + caelestia-shell" desktop
+# option (Roadmap 5.1). It ships a ready-to-use Hyprland config into /etc/skel so
+# every new user logs straight into a working caelestia desktop with the Genesi
+# wallpaper and Material You scheme derived from it — the Hyprland equivalent of
+# what genesi-kde-settings does for Plasma.
+#
+# Payload-only (no build). Installed by the Hyprland-Desktop netinstall group.
+#
+# NOTE: deliberately does NOT provide/conflict cachyos-desktop-settings. The
+# always-on "Genesi OS" netinstall group installs genesi-kde-settings (which
+# already provides cachyos-desktop-settings) on every system regardless of DE, so
+# claiming that virtual here would make the two Genesi settings packages conflict.
+pkgname=genesi-caelestia-settings
+pkgver=1.0.0
+pkgrel=1
+pkgdesc='Genesi OS Hyprland + caelestia-shell default configuration and branding'
+arch=('any')
+url='https://github.com/zFreshy/GenesiOS'
+license=('GPL-3.0-or-later')
+depends=(
+    'hyprland'
+    'caelestia-shell'
+    'genesi-settings'          # ships /usr/share/wallpapers/genesi/wallpaper.png
+    'polkit-kde-agent'
+    'kitty'                    # $terminal referenced by hyprland.conf
+    'dolphin'                  # $fileManager
+    'fuzzel'                   # launcher fallback + clipboard picker
+    'cliphist'
+    'wl-clipboard'
+    'brightnessctl'
+    'qt6ct'
+)
+source=('hyprland.conf')
+sha256sums=('SKIP')
+
+package() {
+    # Default Hyprland config for new users. Hyprland reads
+    # ~/.config/hypr/hyprland.conf; shipping it via /etc/skel means the users
+    # module (Calamares) copies it into /home/<user> at account creation.
+    install -Dm644 "${srcdir}/hyprland.conf" \
+        "${pkgdir}/etc/skel/.config/hypr/hyprland.conf"
+}
