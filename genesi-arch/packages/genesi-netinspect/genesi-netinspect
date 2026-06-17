@@ -12,7 +12,10 @@
 # wide so HTTPS/API traffic actually decrypts instead of erroring.
 #
 # Usage:
-#   genesi-netinspect            start the inspector (proxy on for the session)
+#   genesi-netinspect            start the native Genesi inspector GUI (Proxy/
+#                                Repeater/Intruder/Scanner over mitmproxy)
+#   genesi-netinspect gui        same as above, explicit
+#   genesi-netinspect web        the classic mitmweb UI (proxy on for the session)
 #   genesi-netinspect cert       trust the mitmproxy CA system-wide (HTTPS)
 #   genesi-netinspect untrust    remove the trusted CA again
 set -euo pipefail
@@ -41,7 +44,11 @@ ensure_ca() {
     [ -f "$CA" ] || die "Could not generate the mitmproxy CA (~/.mitmproxy)."
 }
 
-case "${1:-run}" in
+case "${1:-gui}" in
+  gui)
+    # The native Genesi workbench manages the proxy lifecycle itself.
+    exec genesi-netinspect-gui
+    ;;
   cert)
     ensure_ca
     echo ">>> Trusting the mitmproxy CA system-wide (asks for your password)…"
@@ -59,8 +66,8 @@ case "${1:-run}" in
     echo ">>> Removed."
     exit 0
     ;;
-  run) ;;
-  *) die "usage: genesi-netinspect {run|cert|untrust}" ;;
+  web|run) ;;
+  *) die "usage: genesi-netinspect {gui|web|cert|untrust}" ;;
 esac
 
 ensure_ca

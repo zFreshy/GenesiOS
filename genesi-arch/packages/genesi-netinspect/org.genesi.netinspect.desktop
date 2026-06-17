@@ -2,14 +2,18 @@
 Type=Application
 Name=Genesi API Inspector
 GenericName=HTTP/HTTPS Interception Proxy
-Comment=Intercept, inspect, edit and replay HTTP/HTTPS & API traffic (Burp-style, powered by mitmproxy)
-Exec=konsole --hold -e genesi-netinspect
+Comment=Intercept, edit, replay & fuzz HTTP/HTTPS & API traffic (Burp-style, powered by mitmproxy)
+Exec=genesi-netinspect-gui
 Icon=network-wired
 Terminal=false
 Categories=Development;Network;Security;
-Keywords=proxy;mitmproxy;http;https;api;intercept;burp;repeater;debug;network;
+Keywords=proxy;mitmproxy;http;https;api;intercept;burp;repeater;intruder;scanner;debug;network;
 StartupNotify=true
-Actions=trustca;
+Actions=web;trustca;
+
+[Desktop Action web]
+Name=Classic mitmweb UI
+Exec=konsole --hold -e genesi-netinspect web
 
 [Desktop Action trustca]
 Name=Trust HTTPS interception certificate

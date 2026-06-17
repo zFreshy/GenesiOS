@@ -2,22 +2,23 @@
 #
 # Phase 4.5 — Network inspection. "Genesi API Inspector": a full HTTP/HTTPS
 # interception workbench (the free, scriptable Burp-Suite equivalent on Linux)
-# built on mitmproxy/mitmweb — live flow list, intercept + edit a request,
-# inspect, and replay/resend (Burp's Repeater). The wrapper routes the desktop
-# through it for the session (flips back on exit), and `genesi-netinspect cert`
-# trusts the mitmproxy CA system-wide so HTTPS/API traffic actually decrypts.
-# Plus a `genesi-proxy on|off|toggle` shortcut and a panel/menu toggle.
-# pkgrel 2: rework into the Burp-style API Inspector + cert trust subcommand.
+# built on mitmproxy. pkgrel 3 ships a NATIVE Genesi UI built directly on
+# mitmproxy's Python addon API (PySide6/Kirigami, same identity as the AI
+# Monitor): four Burp-style lanes — Proxy/Intercept, Repeater, Intruder (Sniper
+# fuzzing) and a passive Scanner — with mitmproxy running in-process as the
+# engine. The classic mitmweb UI stays available via `genesi-netinspect web`.
+# `genesi-netinspect cert` still trusts the mitmproxy CA system-wide, and
+# `genesi-proxy on|off|toggle` flips the desktop proxy.
 pkgname=genesi-netinspect
 pkgver=1.0.0
-pkgrel=2
-pkgdesc='Genesi API Inspector — Burp-style HTTP/HTTPS interception proxy (mitmproxy)'
+pkgrel=3
+pkgdesc='Genesi API Inspector — native Burp-style HTTP/HTTPS interception workbench (mitmproxy)'
 arch=('any')
 url='https://github.com/zFreshy/GenesiOS'
 license=('GPL-3.0-or-later')
-depends=('mitmproxy')
+depends=('mitmproxy' 'python' 'pyside6' 'qqc2-desktop-style')
 optdepends=(
-    'konsole: terminal the inspector runs in'
+    'konsole: terminal for the classic mitmweb UI and cert trust'
     'kdialog: graphical error when mitmproxy is missing'
     'libnotify: desktop notification on proxy toggle'
 )
@@ -29,6 +30,18 @@ package() {
         "$pkgdir/usr/local/bin/genesi-proxy"
     install -Dm755 "${startdir}/genesi-netinspect" \
         "$pkgdir/usr/local/bin/genesi-netinspect"
+    install -Dm755 "${startdir}/genesi-netinspect-gui" \
+        "$pkgdir/usr/local/bin/genesi-netinspect-gui"
+
+    # Native GUI app (PySide6 + Kirigami over mitmproxy's addon API)
+    install -Dm644 "${startdir}/app/genesi_netinspect.py" \
+        "$pkgdir/usr/share/genesi-netinspect/app/genesi_netinspect.py"
+    install -Dm644 "${startdir}/app/Main.qml" \
+        "$pkgdir/usr/share/genesi-netinspect/app/Main.qml"
+    install -Dm644 "${startdir}/app/Theme.qml" \
+        "$pkgdir/usr/share/genesi-netinspect/app/Theme.qml"
+    install -Dm644 "${startdir}/app/GlassCard.qml" \
+        "$pkgdir/usr/share/genesi-netinspect/app/GlassCard.qml"
 
     install -Dm644 "${startdir}/org.genesi.netinspect.desktop" \
         "$pkgdir/usr/share/applications/org.genesi.netinspect.desktop"

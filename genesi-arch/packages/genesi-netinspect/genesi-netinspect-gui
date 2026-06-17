@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Launch the native Genesi API Inspector (Qt6/Kirigami over mitmproxy).
+# Falls back to software GL inside a VM that can't present hardware GL.
+if systemd-detect-virt --quiet 2>/dev/null; then
+    export QT_QUICK_BACKEND="${QT_QUICK_BACKEND:-software}"
+fi
+exec python3 /usr/share/genesi-netinspect/app/genesi_netinspect.py "$@"

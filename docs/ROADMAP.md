@@ -787,9 +787,12 @@ in the Genesi pacman repo. What works now vs. what's left for a 1.0:
 
 ### 4.5 Network inspection ✅ (package `genesi-netinspect`)
 > **Genesi API Inspector** — a full HTTP/HTTPS interception workbench (the free,
-> scriptable Burp-Suite equivalent on Linux) built on mitmproxy/mitmweb. Plus
-> `genesi-proxy on|off|toggle`, which flips both the KDE/KIO and env-var proxy
-> to 127.0.0.1:8080 (reversible).
+> scriptable Burp-Suite equivalent on Linux) built on mitmproxy. The default
+> launch is now a **native Genesi UI** (PySide6/Kirigami) driving mitmproxy
+> in-process via its addon API — Proxy/Intercept, Repeater, Intruder and a
+> passive Scanner — with `genesi-netinspect web` keeping the classic mitmweb UI.
+> Plus `genesi-proxy on|off|toggle`, which flips both the KDE/KIO and env-var
+> proxy to 127.0.0.1:8080 (reversible).
 - [x] mitmproxy pre-installed and configured
 - [x] Burp-style interception UI — live flow list, **intercept/pause + edit** a
       request before it's sent, inspect request/response, and **replay/resend**
@@ -802,8 +805,17 @@ in the Genesi pacman repo. What works now vs. what's left for a 1.0:
       CLI + a "Genesi Debug Proxy (toggle)" menu entry
 - [~] Per-app trust stores (Firefox/Java keep their own) + per-container traffic
       integration with the container widget — deferred
-- [ ] Optional native Genesi UI over mitmproxy's addon API (Scanner/Intruder-
-      style helpers) if we ever outgrow mitmweb — mitmproxy stays the engine
+- [x] **Native Genesi UI over mitmproxy's addon API** (Scanner/Intruder-style
+      helpers) — `genesi-netinspect gui` (the default desktop launch) is a
+      PySide6/Kirigami workbench in the Genesi visual identity, with mitmproxy
+      running **in-process** as a `DumpMaster` + a custom addon. Four Burp-style
+      lanes: **Proxy/Intercept** (live flow list, pause + edit a request, forward/
+      drop, host-scope filter), **Repeater** (edit & resend), **Intruder** (Sniper
+      §…§ fuzzing across a payload list, diffing status/length/time with anomaly
+      highlight), and a **passive Scanner** (missing security headers, leaky
+      cookies, unsafe/permissive CORS, version disclosure, error/stack-trace &
+      secret leakage). mitmproxy stays the engine; `genesi-netinspect web` keeps
+      the classic mitmweb UI.
 
 ### 4.6 Database explorer ✅ (package `genesi-db-explorer`)
 > `genesi-db` launcher + Dolphin service menu. DB Browser for SQLite ships by
