@@ -7,13 +7,21 @@
 # `genesi-containers` CLI, which is the only thing that talks to the engine.
 pkgname=genesi-containers
 pkgver=1.0.0
-pkgrel=1
+# pkgrel 2: drop the hard plasma-workspace dep (the Hyprland-installs-KDE bug).
+# This package is in the always-on genesi-desktop meta, so a HARD plasma-workspace
+# dep pulled the whole Plasma shell (=> /usr/bin/plasmashell) onto EVERY install,
+# including a Hyprland-only pick. The engine-agnostic `genesi-containers` CLI
+# needs no Plasma; only the optional plasmoid does, and it merely sits dormant in
+# /usr/share/plasma/plasmoids until a Plasma session loads it. So plasma-workspace
+# is now an optdepend (KDE installs already get it via the KDE-Desktop group).
+pkgrel=2
 pkgdesc='Plasma 6 widget to monitor and control Docker/Podman containers'
 arch=('any')
 url='https://github.com/zFreshy/GenesiOS'
 license=('GPL-3.0-or-later')
-depends=('python' 'plasma-workspace')
+depends=('python')
 optdepends=(
+    'plasma-workspace: the Plasma 6 container widget (KDE/Plasma session only; pulled automatically by the KDE-Desktop install)'
     'docker: container engine (daemon-based)'
     'podman: container engine (rootless, no daemon)'
     'konsole: open container logs and shells in a terminal'
