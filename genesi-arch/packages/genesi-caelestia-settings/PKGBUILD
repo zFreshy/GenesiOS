@@ -24,7 +24,13 @@ pkgver=1.0.0
 # Quickshell to a black screen; real hardware still gets GPU rendering/blur.
 # (2) stop forcing the Genesi wallpaper — use caelestia's own default so its
 # Material You palette comes from the shipped caelestia look.
-pkgrel=3
+# pkgrel 4: fix the magenta "missing icon" placeholders in the launcher/menus.
+# The Hyprland session shipped no icon theme, so Qt/Quickshell (caelestia) and
+# GTK apps had no app icons. Depend on papirus-icon-theme and set it as the
+# default via /etc/skel qt6ct.conf + kdeglobals + gtk-3.0/settings.ini. Safe in
+# /etc/skel: genesi-kde-settings strips its own skel, so nothing conflicts. Icons
+# are CPU-rendered, so this is visible even under the VM software backend.
+pkgrel=4
 pkgdesc='Genesi OS Hyprland + caelestia-shell default configuration and branding'
 arch=('any')
 url='https://github.com/zFreshy/GenesiOS'
@@ -41,9 +47,11 @@ depends=(
     'wl-clipboard'
     'brightnessctl'
     'qt6ct'
+    'papirus-icon-theme'       # app icons for the launcher/menus (no icon theme
+                               # shipped before -> magenta "missing icon" squares)
 )
-source=('hyprland.conf')
-sha256sums=('SKIP')
+source=('hyprland.conf' 'qt6ct.conf' 'kdeglobals' 'gtk-settings.ini')
+sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP')
 
 package() {
     # Default Hyprland config for new users. Hyprland reads
@@ -51,4 +59,16 @@ package() {
     # module (Calamares) copies it into /home/<user> at account creation.
     install -Dm644 "${srcdir}/hyprland.conf" \
         "${pkgdir}/etc/skel/.config/hypr/hyprland.conf"
+
+    # Icon theme for new users (Papirus-Dark). Set it for Qt6 (qt6ct is the
+    # platform theme via QT_QPA_PLATFORMTHEME in hyprland.conf), for Quickshell/
+    # KDE-framework icon lookups (kdeglobals), and for GTK apps (dolphin, etc.).
+    # Without this, caelestia's launcher shows magenta placeholders for app icons.
+    # Safe in /etc/skel: genesi-kde-settings deliberately strips its own skel.
+    install -Dm644 "${srcdir}/qt6ct.conf" \
+        "${pkgdir}/etc/skel/.config/qt6ct/qt6ct.conf"
+    install -Dm644 "${srcdir}/kdeglobals" \
+        "${pkgdir}/etc/skel/.config/kdeglobals"
+    install -Dm644 "${srcdir}/gtk-settings.ini" \
+        "${pkgdir}/etc/skel/.config/gtk-3.0/settings.ini"
 }
