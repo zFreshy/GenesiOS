@@ -125,8 +125,14 @@ ApplicationWindow {
             anchors.leftMargin: 18
             anchors.rightMargin: 16
             spacing: 14
+            Image {
+                source: Qt.resolvedUrl("icons/logo.svg")
+                sourceSize.width: 24; sourceSize.height: 24
+                Layout.preferredWidth: 24; Layout.preferredHeight: 24
+                smooth: true
+            }
             Text {
-                text: "🛰  Genesi API Inspector"
+                text: "Genesi API Inspector"
                 color: theme.textHi; font.pixelSize: 17; font.bold: true
             }
             Rectangle {
@@ -179,10 +185,10 @@ ApplicationWindow {
                 spacing: 6
                 Repeater {
                     model: [
-                        { t: "Proxy",    i: "🔎", n: 0 },
-                        { t: "Repeater", i: "🔁", n: 1 },
-                        { t: "Intruder", i: "🎯", n: 2 },
-                        { t: "Scanner",  i: "🛡", n: 3 }
+                        { t: "Proxy",    i: "icons/proxy.svg",    n: 0 },
+                        { t: "Repeater", i: "icons/repeater.svg", n: 1 },
+                        { t: "Intruder", i: "icons/intruder.svg", n: 2 },
+                        { t: "Scanner",  i: "icons/scanner.svg",  n: 3 }
                     ]
                     delegate: Rectangle {
                         required property var modelData
@@ -197,7 +203,13 @@ ApplicationWindow {
                             anchors.fill: parent
                             anchors.leftMargin: 12
                             spacing: 10
-                            Text { text: modelData.i; font.pixelSize: 16 }
+                            Image {
+                                source: Qt.resolvedUrl(modelData.i)
+                                sourceSize.width: 19; sourceSize.height: 19
+                                Layout.preferredWidth: 19; Layout.preferredHeight: 19
+                                opacity: page === modelData.n ? 1.0 : 0.6
+                                smooth: true
+                            }
                             Text {
                                 text: modelData.t
                                 color: page === modelData.n ? theme.greenBright : theme.textMid

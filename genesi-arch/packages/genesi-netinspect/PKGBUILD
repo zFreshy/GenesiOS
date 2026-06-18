@@ -16,14 +16,17 @@
 # already publishes -p 8080:80) the engine now hops to the next free port
 # (8081, 8082, …) and reports the REAL bound port to the desktop proxy + UI,
 # instead of dying with "address already in use".
+# pkgrel 5: visual identity pass — drop the placeholder emoji (🛰🔎🔁🎯🛡) for
+# a crafted Genesi SVG icon set (app/icons/, brand-green accented line icons)
+# in the header + nav rail. Adds qt6-svg so QtQuick Image renders them.
 pkgname=genesi-netinspect
 pkgver=1.0.0
-pkgrel=4
+pkgrel=5
 pkgdesc='Genesi API Inspector — native Burp-style HTTP/HTTPS interception workbench (mitmproxy)'
 arch=('any')
 url='https://github.com/zFreshy/GenesiOS'
 license=('GPL-3.0-or-later')
-depends=('mitmproxy' 'python' 'pyside6' 'qqc2-desktop-style')
+depends=('mitmproxy' 'python' 'pyside6' 'qqc2-desktop-style' 'qt6-svg')
 optdepends=(
     'konsole: terminal for the classic mitmweb UI and cert trust'
     'kdialog: graphical error when mitmproxy is missing'
@@ -49,6 +52,12 @@ package() {
         "$pkgdir/usr/share/genesi-netinspect/app/Theme.qml"
     install -Dm644 "${startdir}/app/GlassCard.qml" \
         "$pkgdir/usr/share/genesi-netinspect/app/GlassCard.qml"
+
+    # Crafted SVG icon set (header logo + Proxy/Repeater/Intruder/Scanner)
+    for ic in "${startdir}/app/icons/"*.svg; do
+        install -Dm644 "$ic" \
+            "$pkgdir/usr/share/genesi-netinspect/app/icons/$(basename "$ic")"
+    done
 
     install -Dm644 "${startdir}/org.genesi.netinspect.desktop" \
         "$pkgdir/usr/share/applications/org.genesi.netinspect.desktop"
