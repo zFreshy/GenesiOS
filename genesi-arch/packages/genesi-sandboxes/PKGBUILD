@@ -19,7 +19,9 @@ pkgver=1.0.0
 # empty (the "doesn't work" report). (2) Taskbar identity — setDesktopFileName +
 # StartupWMClass + a real app icon (cube) so the window shows our name/logo, not
 # "python3".
-pkgrel=3
+# pkgrel 4: clean up the app icon — drop a stray floating accent stroke on the
+# cube's top face; the green accent is now a real cube edge.
+pkgrel=4
 pkgdesc='Isolated developer workspaces (Distrobox) with ready-made stack templates'
 arch=('any')
 url='https://github.com/zFreshy/GenesiOS'
