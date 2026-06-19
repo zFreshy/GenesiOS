@@ -21,7 +21,14 @@ pkgver=1.0.0
 # "python3".
 # pkgrel 4: clean up the app icon — drop a stray floating accent stroke on the
 # cube's top face; the green accent is now a real cube edge.
-pkgrel=4
+# pkgrel 5: fix the permanently-empty template dropdown. The GUI never selected
+# Plasma's Qt Quick Controls style, so QQC2 fell back to the Basic style and the
+# template ComboBox rendered as a flat accent-green box with unreadable items —
+# the "no sandbox option appears" report. genesi_sandboxes.py now sets
+# QT_QUICK_CONTROLS_STYLE=org.kde.desktop + QQuickStyle.setStyle (matching the
+# AI Mode Monitor), so the dropdown lists the templates and the app picks up the
+# Genesi theme. (qqc2-desktop-style is already a hard dependency.)
+pkgrel=5
 pkgdesc='Isolated developer workspaces (Distrobox) with ready-made stack templates'
 arch=('any')
 url='https://github.com/zFreshy/GenesiOS'

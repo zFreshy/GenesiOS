@@ -2,16 +2,29 @@
 """
 Genesi AI Mode — KWin effect trimmer (runs in the user's Plasma session).
 
-While AI Mode is ON, unload the GPU-hungry desktop effects (blur, background
-contrast) so the compositor stops competing with inference for the GPU; reload
-exactly what we unloaded when AI Mode turns off. This lives in the user session
-(not the root daemon) because KWin's DBus is session-scoped. Everything is
-guarded: on a non-KWin/non-Plasma session, or if DBus isn't reachable, it just
-sits idle and changes nothing.
+While AI Mode is ON we do two things to make windows fully solid — no blur AND no
+transparency — and reverse both exactly when AI Mode turns off:
+
+  1. Unload the GPU-hungry desktop effects (blur, background contrast,
+     translucency) so the compositor stops competing with inference for the GPU.
+  2. Swap the color scheme to the opaque "Genesi-Solid" variant. Genesi's normal
+     glass comes from the *window-background alpha* in the scheme (frosted by
+     blur); unloading effects alone can't remove that alpha, so a translucent
+     window would just lose its frost and look ugly. Applying an alpha-free
+     scheme makes the body — and, since the titlebar inherits the [WM] colour
+     (klassyrc Override=false), the titlebar too — genuinely opaque. On AI-Mode
+     off we restore whatever scheme was active before, so the normal frosted
+     glass returns untouched.
+
+This lives in the user session (not the root daemon) because KWin's DBus and the
+color-scheme tools are session-scoped. Everything is guarded: on a non-KWin/non-
+Plasma session, or if DBus / the tools aren't reachable, it just sits idle and
+changes nothing.
 
 Disable it any time with:  systemctl --user mask genesi-ai-kwin-helper  (or
 remove the autostart entry). Effects to manage can be overridden by setting
-GENESI_KWIN_EFFECTS to a comma-separated list.
+GENESI_KWIN_EFFECTS to a comma-separated list; the opaque scheme name by setting
+GENESI_OPAQUE_SCHEME (empty disables the scheme swap, leaving glass on in AI Mode).
 """
 import os
 import time
@@ -21,9 +34,17 @@ import subprocess
 
 STATE_FILE = "/run/genesi-ai-mode/state.json"
 POLL_SECONDS = 3
+# Effect plugin ids as KWin's Effects DBus knows them: blur/contrast are the C++
+# builtins (bare ids); translucency is the scripted effect, whose id keeps the
+# legacy "kwin4_effect_" prefix (cf. kwin4_effect_translucencyEnabled in kwinrc).
 EFFECTS = [e.strip() for e in
-           os.environ.get("GENESI_KWIN_EFFECTS", "blur,contrast").split(",")
+           os.environ.get("GENESI_KWIN_EFFECTS",
+                          "blur,contrast,kwin4_effect_translucency").split(",")
            if e.strip()]
+# The alpha-free color scheme applied while AI Mode is ON (ships with this
+# package). Empty -> skip the swap entirely (effects-only behaviour).
+OPAQUE_SCHEME = os.environ.get("GENESI_OPAQUE_SCHEME", "Genesi-Solid").strip()
+DEFAULT_SCHEME = "Genesi"
 
 KWIN_SERVICE = "org.kde.KWin"
 KWIN_EFFECTS_PATH = "/Effects"
@@ -76,6 +97,37 @@ def _wait_for_kwin(probe, attempts=15, delay=2):
     return False
 
 
+CS_TOOL = shutil.which("plasma-apply-colorscheme")
+
+
+def _current_scheme():
+    """The active color scheme name (kdeglobals [General] ColorScheme)."""
+    for kr in ("kreadconfig6", "kreadconfig5"):
+        if shutil.which(kr):
+            try:
+                p = subprocess.run(
+                    [kr, "--file", "kdeglobals", "--group", "General",
+                     "--key", "ColorScheme"],
+                    capture_output=True, text=True, timeout=5)
+                name = (p.stdout or "").strip()
+                if name:
+                    return name
+            except (subprocess.TimeoutExpired, OSError):
+                pass
+    return DEFAULT_SCHEME
+
+
+def _apply_scheme(name):
+    """Apply a color scheme by name; return True on success."""
+    if not CS_TOOL or not name:
+        return False
+    try:
+        return subprocess.run([CS_TOOL, name], capture_output=True,
+                              text=True, timeout=20).returncode == 0
+    except (subprocess.TimeoutExpired, OSError):
+        return False
+
+
 def main():
     if not QDBUS or not EFFECTS:
         return  # nothing we can do without qdbus / no effects to manage
@@ -84,29 +136,53 @@ def main():
 
     applied = False
     unloaded = []
+    prev_scheme = None          # scheme to restore when AI Mode turns off
     last = None
-    while True:
-        active = _read_active()
-        if active is None:
+    try:
+        while True:
+            active = _read_active()
+            if active is None:
+                time.sleep(POLL_SECONDS)
+                continue
+            if active and not applied:
+                unloaded = []
+                for eff in EFFECTS:
+                    if _is_loaded(eff):
+                        if _call("unloadEffect", eff) is not None:
+                            unloaded.append(eff)
+                # Swap to the opaque scheme so the (alpha-carrying) window
+                # background goes solid too — not just the effects. Remember the
+                # current scheme to restore later; if a crashed previous run left
+                # the opaque one active, fall back to the default so we never get
+                # stuck restoring Genesi-Solid onto itself.
+                if OPAQUE_SCHEME:
+                    cur = _current_scheme()
+                    prev_scheme = DEFAULT_SCHEME if cur == OPAQUE_SCHEME else cur
+                    _apply_scheme(OPAQUE_SCHEME)
+                applied = True
+                if unloaded != last:
+                    print(f"AI Mode ON: unloaded {unloaded}; scheme -> "
+                          f"{OPAQUE_SCHEME or '(unchanged)'}", flush=True)
+            elif not active and applied:
+                for eff in unloaded:
+                    _call("loadEffect", eff)
+                if OPAQUE_SCHEME and prev_scheme:
+                    _apply_scheme(prev_scheme)
+                print(f"AI Mode OFF: reloaded {unloaded}; scheme -> "
+                      f"{prev_scheme or '(unchanged)'}", flush=True)
+                applied = False
+                unloaded = []
+                prev_scheme = None
+            last = unloaded
             time.sleep(POLL_SECONDS)
-            continue
-        if active and not applied:
-            unloaded = []
-            for eff in EFFECTS:
-                if _is_loaded(eff):
-                    if _call("unloadEffect", eff) is not None:
-                        unloaded.append(eff)
-            applied = True
-            if unloaded != last:
-                print(f"AI Mode ON: unloaded effects {unloaded}", flush=True)
-        elif not active and applied:
+    finally:
+        # Never leave the desktop trimmed if we're killed mid-AI-Mode (logout,
+        # SIGTERM): put the effects and the user's scheme back.
+        if applied:
             for eff in unloaded:
                 _call("loadEffect", eff)
-            print(f"AI Mode OFF: reloaded effects {unloaded}", flush=True)
-            applied = False
-            unloaded = []
-        last = unloaded
-        time.sleep(POLL_SECONDS)
+            if OPAQUE_SCHEME and prev_scheme:
+                _apply_scheme(prev_scheme)
 
 
 if __name__ == "__main__":

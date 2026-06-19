@@ -23,7 +23,13 @@ pkgver=1.0.0
 # e2fsck / btrfs check) BEFORE mounting — a root corrupted by an unclean
 # shutdown ("Structure needs cleaning") no longer aborts the whole repair. The
 # in-chroot package upgrade is now an optional follow-up prompt.
-pkgrel=5
+# pkgrel 6: stop painting Welcome on a bespoke green panel. The root background
+# was a hardcoded dark-green (#0A1E1A) and the cards a green wash, so the app
+# stood out from every native window. Use the Genesi system window colour
+# (#0D2030, the same the color scheme gives Dolphin/Konsole) for the root and a
+# neutral blue card surface (green kept only as a thin accent border); KWin then
+# applies the same glass/blur to it as to every other window.
+pkgrel=6
 pkgdesc="Welcome application for Genesi OS"
 arch=('any')
 url="https://github.com/zFreshy/GenesiOS"

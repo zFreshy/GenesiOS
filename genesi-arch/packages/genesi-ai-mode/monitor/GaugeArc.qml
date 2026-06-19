@@ -10,7 +10,7 @@ Item {
 
     property real value: 0            // 0..1
     property color stroke: "#1D9E75"
-    property color track: "#1E382E"
+    property color track: "#21425A"
     property string big: ""           // centre big label (e.g. "42")
     property string small: ""         // centre small label (e.g. "%")
     property string icon: ""          // centre icon (SVG path); overrides `big`
@@ -26,6 +26,12 @@ Item {
     Canvas {
         id: cv
         anchors.fill: parent
+        // Render through a CPU image rather than a GPU framebuffer object. The
+        // FBO path needs a live GL context and is a common crash point on the
+        // flaky guest GL stacks in VMs; the Image path is driver-independent and
+        // works identically under the software scene-graph backend.
+        renderTarget: Canvas.Image
+        renderStrategy: Canvas.Cooperative
         onPaint: {
             var ctx = getContext("2d")
             ctx.reset()

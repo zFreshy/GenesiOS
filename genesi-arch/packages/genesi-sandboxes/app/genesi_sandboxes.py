@@ -125,6 +125,21 @@ class Backend(QObject):
 
 
 def main():
+    # Use Plasma's Qt Quick Controls style so the app inherits the system color
+    # scheme (the dark Genesi theme) AND renders controls — notably the template
+    # ComboBox — with the proper desktop style. Without this the app falls back
+    # to the Basic QtQuick style, where the (unstyled) ComboBox paints as a flat
+    # accent-green box and its items are unreadable, so the template dropdown
+    # looked permanently empty ("no sandbox option appears"). Needs
+    # qqc2-desktop-style (a hard dependency); falls back silently if absent.
+    os.environ.setdefault("QT_QUICK_CONTROLS_STYLE", "org.kde.desktop")
+    os.environ.setdefault("QT_QPA_PLATFORMTHEME", "kde")
+    try:
+        from PySide6.QtQuickControls2 import QQuickStyle
+        QQuickStyle.setStyle("org.kde.desktop")
+    except ImportError:
+        pass
+
     app = QGuiApplication(sys.argv)
     app.setApplicationName("Genesi Sandboxes")
     app.setApplicationDisplayName("Genesi Sandboxes")

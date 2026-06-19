@@ -169,7 +169,20 @@ pkgver=1.0.0
 # StartupWMClass on the .desktop so the taskbar groups it as Genesi, not python3.
 # pkgrel 76: Monitor surfaces now use the Genesi system blue (window colour)
 # instead of the neutral grey, matching the rest of the desktop.
-pkgrel=76
+# pkgrel 77: (1) the Monitor no longer hard-crashes on launch inside a VM. The
+# guest GL stack lies and Qt Quick's RHI SIGSEGV'd creating the GL context
+# (DrKonqi: QSGRhiSupport::createRhi -> driCreateContextAttribs); genesi_ai_
+# monitor.py now falls back to QT_QUICK_BACKEND=software when systemd-detect-virt
+# reports a VM (bare metal keeps GPU rendering), and GaugeArc's Canvas renders
+# through a CPU image instead of a GPU FBO. (2) AI Mode now also removes window
+# TRANSPARENCY, not just blur. Genesi's glass comes from the window-background
+# alpha in the color scheme (frosted by blur), which unloading effects can't
+# touch, so the helper additionally swaps to a new alpha-free "Genesi-Solid"
+# scheme (shipped here) while AI Mode is ON — windows go genuinely solid — and
+# restores the previous scheme on off, leaving normal-mode glass exactly as it
+# was. (3) de-green the Monitor: its cards/gauges used a dark-green surface;
+# they now use the Genesi system blue so it matches the rest of the desktop.
+pkgrel=77
 pkgdesc='Genesi OS AI Mode - adaptive, reversible local-AI optimizer (CPU/GPU/power) + Plasma 6 widget + monitor app'
 arch=('any')
 url='https://github.com/zFreshy/GenesiOS'
@@ -279,4 +292,8 @@ package() {
         "$pkgdir/usr/local/bin/genesi-ai-kwin-helper"
     install -Dm644 "${startdir}/genesi-ai-kwin-helper.desktop" \
         "$pkgdir/etc/xdg/autostart/genesi-ai-kwin-helper.desktop"
+    # Opaque color scheme the helper switches to while AI Mode is ON, so windows
+    # lose their transparency (not just their blur). Restored to "Genesi" on off.
+    install -Dm644 "${startdir}/Genesi-Solid.colors" \
+        "$pkgdir/usr/share/color-schemes/Genesi-Solid.colors"
 }

@@ -123,7 +123,11 @@ STR = {
 }
 
 STYLE = """
-QWidget#root { background-color: #0A1E1A; }
+/* Use the Genesi *system* window colour (the same dark blue every native app
+   gets from the Genesi color scheme), not a bespoke green panel — so Welcome
+   matches Dolphin/Konsole instead of standing out. KWin's compositor applies
+   the same glass/blur to this opaque surface as to every other window. */
+QWidget#root { background-color: #0D2030; }
 QLabel { color: #E6F1EE; }
 QLabel#title { color: #1D9E75; }
 QLabel#subtitle { color: #A0C0B0; }
@@ -140,7 +144,7 @@ QPushButton#link:hover { background-color: rgba(29,158,117,0.45); }
 QPushButton#danger { background-color: #7A2E2E; }
 QPushButton#danger:hover { background-color: #A53E3E; }
 QFrame#card {
-    background-color: rgba(15,110,86,0.2);
+    background-color: rgba(20,49,69,0.55);
     border: 1px solid rgba(29,158,117,0.4); border-radius: 15px;
 }
 QComboBox, QCheckBox { color: #E6F1EE; }

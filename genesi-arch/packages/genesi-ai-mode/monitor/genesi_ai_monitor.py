@@ -784,6 +784,21 @@ def main():
     # Needs qqc2-desktop-style; falls back silently to the default if absent.
     os.environ.setdefault("QT_QUICK_CONTROLS_STYLE", "org.kde.desktop")
     os.environ.setdefault("QT_QPA_PLATFORMTHEME", "kde")
+    # In a VM the guest GL stack (VMware/virtio/llvmpipe) frequently lies about
+    # its capabilities, and Qt Quick's RHI hard-crashes (SIGSEGV) while creating
+    # the OpenGL context — the exact "fatal error, won't open" the Monitor hit in
+    # DrKonqi (QSGRhiSupport::createRhi -> driCreateContextAttribs). The simpler
+    # Sandboxes window survives because it has no Canvas/FBO work; the Monitor's
+    # gauges do. Fall back to the software scene graph when virtualized: it needs
+    # no GPU, renders the whole dashboard (gradients, Canvas, animations) fine,
+    # and a dashboard isn't perf-critical. Bare metal keeps GPU rendering. A user
+    # QT_QUICK_BACKEND always wins (setdefault).
+    try:
+        if subprocess.run(["systemd-detect-virt", "--quiet"],
+                          timeout=4).returncode == 0:
+            os.environ.setdefault("QT_QUICK_BACKEND", "software")
+    except Exception:
+        pass
     try:
         from PySide6.QtQuickControls2 import QQuickStyle
         QQuickStyle.setStyle("org.kde.desktop")

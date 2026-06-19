@@ -9,13 +9,13 @@ Rectangle {
     id: card
 
     // Set `accent` + `active: true` to highlight the card with a coloured border.
-    property color accent: "#1E382E"
+    property color accent: "#21425A"
     property bool active: false
 
     radius: 18
-    color: "#0F1D18"
+    color: "#122E42"
     border.width: 1
-    border.color: active ? accent : (hov.hovered ? "#2A463B" : "#1E382E")
+    border.color: active ? accent : (hov.hovered ? "#2C5470" : "#21425A")
     Behavior on border.color { ColorAnimation { duration: 180 } }
 
     // Top-edge light sheen for a glassy feel.

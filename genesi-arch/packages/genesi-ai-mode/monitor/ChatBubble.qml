@@ -115,7 +115,7 @@ Item {
                     visible: b.statsData !== null
                     radius: 11
                     color: Qt.rgba(0, 0, 0, 0.22)
-                    border.color: "#223A30"; border.width: 1
+                    border.color: "#21425A"; border.width: 1
                     implicitHeight: statsCol.implicitHeight + 18
 
                     Column {
@@ -175,7 +175,7 @@ Item {
                             }
                         }
 
-                        Rectangle { width: parent.width; height: 1; color: "#1E382E" }
+                        Rectangle { width: parent.width; height: 1; color: "#21425A" }
 
                         // metric chips
                         Flow {
@@ -189,7 +189,7 @@ Item {
                                     height: 36
                                     width: chipCol.implicitWidth + 18
                                     color: Qt.rgba(1, 1, 1, 0.04)
-                                    border.color: "#1E382E"; border.width: 1
+                                    border.color: "#21425A"; border.width: 1
                                     Column {
                                         id: chipCol
                                         anchors.centerIn: parent
