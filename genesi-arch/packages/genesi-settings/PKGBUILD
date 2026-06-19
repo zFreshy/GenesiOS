@@ -66,7 +66,18 @@ pkgver=1.3.4
 # brand blue, so every button stood out as off-theme; now blue (20,49,69). The
 # post_upgrade scriptlet also heals already-installed users' kdeglobals. Bumps
 # the submodule pointer (Genesi.colors lives there).
-pkgrel=34
+# pkgrel 35: make the Genesi Containers widget reach EXISTING users' panels. The
+# pkgrel-33 appletsrc only adds org.genesi.containers (applet 33) for NEW users;
+# an already-installed user keeps the panel plasmashell built at their first
+# login, so the widget (shipped via the genesi-desktop meta) sat dormant in
+# /usr/share/plasma/plasmoids and never appeared on the panel. Add a one-shot
+# per-user migration: genesi-panel-migrate.sh + its autostart (in usr/share/
+# genesi/migrate, NOT skel, so new users — already correct — don't re-run it).
+# The post_upgrade scriptlet drops the autostart into each existing user's
+# ~/.config/autostart; on next login it adds the widget to the live panel via
+# plasmashell scripting (idempotent, marker-guarded, self-removing). Bumps the
+# submodule pointer (the script + .desktop live there).
+pkgrel=35
 epoch=1
 groups=(genesi)
 arch=('any')
@@ -103,8 +114,9 @@ package() {
   install -d "$pkgdir/usr"
   cp -rf "${srcdir}/${_gitname}/usr" "$pkgdir"
   
-  # Make the theme applicator script executable
+  # Make the theme applicator + panel migration scripts executable
   chmod +x "$pkgdir/usr/bin/genesi-apply-theme.sh" 2>/dev/null || true
+  chmod +x "$pkgdir/usr/bin/genesi-panel-migrate.sh" 2>/dev/null || true
   
   # Replace all CachyOS references with Genesi OS
   find "$pkgdir" -type f -exec sed -i 's/CachyOS/Genesi OS/g' {} + 2>/dev/null || true

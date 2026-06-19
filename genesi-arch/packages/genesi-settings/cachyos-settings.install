@@ -20,6 +20,7 @@ post_upgrade() {
     done
 
     fix_selection_contrast
+    migrate_panel_widgets
 }
 
 # Heal the selected-item text colour on systems installed before the
@@ -49,5 +50,37 @@ fix_selection_contrast() {
         # grey button stood out. Force it to the brand blue per existing user.
         runuser -u "$u" -- kwriteconfig6 --file kdeglobals \
             --group "Colors:Button" --key BackgroundNormal "20,49,69" 2>/dev/null || true
+    done
+}
+
+# Heal the panel for users created before a default widget was added. New users
+# get every default widget from the static skel appletsrc, but an EXISTING
+# user's panel layout is whatever plasmashell built at their first login and is
+# never touched by skel changes — so a widget added later (e.g.
+# org.genesi.containers, shipped via the genesi-desktop meta) lands in
+# /usr/share/plasma/plasmoids but never on the running panel. We can't edit the
+# live appletsrc here (plasmashell clobbers it from memory on logout), and this
+# scriptlet runs as root with no access to the user's session bus. So instead we
+# drop a one-shot autostart into each existing user's ~/.config/autostart; on
+# their next login genesi-panel-migrate.sh runs IN-session and adds any missing
+# default widget to the live panel via the plasmashell scripting interface, then
+# self-removes. It is idempotent (only adds a widget not already present) and
+# guarded by a per-user marker, so it never duplicates a widget and never
+# re-fires once it has succeeded.
+migrate_panel_widgets() {
+    local src=/usr/share/genesi/migrate/genesi-panel-migrate.desktop
+    [ -f "$src" ] || return 0
+    local home u uid gid
+    for home in /home/*; do
+        [ -d "$home" ] || continue
+        # Already migrated for this user? leave it alone.
+        [ -f "$home/.config/genesi/panel-migrate-containers.done" ] && continue
+        u=$(stat -c %U "$home" 2>/dev/null) || continue
+        id "$u" >/dev/null 2>&1 || continue
+        uid=$(id -u "$u" 2>/dev/null) || continue
+        gid=$(id -g "$u" 2>/dev/null) || continue
+        install -d -o "$uid" -g "$gid" "$home/.config/autostart" 2>/dev/null || continue
+        install -m 644 -o "$uid" -g "$gid" "$src" \
+            "$home/.config/autostart/genesi-panel-migrate.desktop" 2>/dev/null || true
     done
 }
