@@ -34,12 +34,18 @@ import subprocess
 
 STATE_FILE = "/run/genesi-ai-mode/state.json"
 POLL_SECONDS = 3
-# Effect plugin ids as KWin's Effects DBus knows them: blur/contrast are the C++
-# builtins (bare ids); translucency is the scripted effect, whose id keeps the
-# legacy "kwin4_effect_" prefix (cf. kwin4_effect_translucencyEnabled in kwinrc).
+# Effect plugin ids as KWin's Effects DBus knows them. They are the SHORT ids
+# (blur, contrast, translucency) — NOT the "kwin4_effect_*" names used in
+# kwinrc's [Plugins] group. Using "kwin4_effect_translucency" here was a real
+# bug: isEffectLoaded() returned false for it, so the helper "unloaded" nothing
+# and the actual `translucency` effect stayed on, leaving windows see-through in
+# AI Mode. Confirmed on Plasma 6.5: `translucency` is loaded, the prefixed name
+# is not. We list both so a KDE build that uses the long id is still covered (a
+# non-existent id is simply skipped by the isEffectLoaded guard).
 EFFECTS = [e.strip() for e in
            os.environ.get("GENESI_KWIN_EFFECTS",
-                          "blur,contrast,kwin4_effect_translucency").split(",")
+                          "blur,contrast,translucency,kwin4_effect_translucency"
+                          ).split(",")
            if e.strip()]
 # The alpha-free color scheme applied while AI Mode is ON (ships with this
 # package). Empty -> skip the swap entirely (effects-only behaviour).
