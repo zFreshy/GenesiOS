@@ -87,7 +87,15 @@ pkgver=1.3.4
 # only reaches NEW users, so the .install gains fix_titlebar_uniformity to heal
 # existing users' klassyrc/[WM] on upgrade (effective next login). Bumps the
 # submodule pointer (the seeded configs live there).
-pkgrel=36
+# pkgrel 37: windows are now painted fully OPAQUE (color scheme + kdeglobals lose
+# all alpha) and the glass comes solely from the KWin translucency effect. Reason:
+# Darkly bakes a window's translucency at CREATION from the scheme alpha, so an
+# alpha-carrying scheme could never be made opaque live — AI Mode windows stayed
+# see-through. A compositor effect, by contrast, toggles live for every window, so
+# AI Mode (helper unloads it) now goes fully opaque on demand. fix_titlebar_
+# uniformity extended to strip the alpha from existing users' kdeglobals + tune
+# the effect, on upgrade (effective next login). Bumps the submodule pointer.
+pkgrel=37
 epoch=1
 groups=(genesi)
 arch=('any')

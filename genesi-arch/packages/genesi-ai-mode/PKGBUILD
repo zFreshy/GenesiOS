@@ -197,7 +197,15 @@ pkgver=1.0.0
 # and the translucency effect stayed on. Diagnosed live: scheme swap to
 # Genesi-Solid worked + blur unloaded, but translucency=true. Fixed the id (now
 # unloads both spellings, the bogus one is just skipped).
-pkgrel=79
+# pkgrel 80: drop the color-scheme swap entirely (and the Genesi-Solid scheme).
+# Live testing proved it useless: Darkly bakes a window's translucency at
+# CREATION from the scheme alpha, and swapping the scheme can't un-bake an
+# already-open window — AI Mode windows stayed see-through no matter what.
+# Genesi's glass now comes solely from the KWin `translucency` effect (windows
+# are painted opaque by genesi-settings), which IS a compositor effect and so
+# toggles live for every window. The helper just unloads/reloads
+# blur+contrast+translucency — unloading = instant full opacity, desktop-wide.
+pkgrel=80
 pkgdesc='Genesi OS AI Mode - adaptive, reversible local-AI optimizer (CPU/GPU/power) + Plasma 6 widget + monitor app'
 arch=('any')
 url='https://github.com/zFreshy/GenesiOS'
@@ -307,8 +315,4 @@ package() {
         "$pkgdir/usr/local/bin/genesi-ai-kwin-helper"
     install -Dm644 "${startdir}/genesi-ai-kwin-helper.desktop" \
         "$pkgdir/etc/xdg/autostart/genesi-ai-kwin-helper.desktop"
-    # Opaque color scheme the helper switches to while AI Mode is ON, so windows
-    # lose their transparency (not just their blur). Restored to "Genesi" on off.
-    install -Dm644 "${startdir}/Genesi-Solid.colors" \
-        "$pkgdir/usr/share/color-schemes/Genesi-Solid.colors"
 }

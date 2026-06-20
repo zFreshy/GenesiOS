@@ -65,20 +65,32 @@ fix_selection_contrast() {
 # written to the files and take effect on next login (like the selection heal).
 fix_titlebar_uniformity() {
     command -v kwriteconfig6 >/dev/null 2>&1 || return 0
-    local home u kf key
+    local home u kf key grp
     for home in /home/*; do
         [ -f "$home/.config/kdeglobals" ] || continue
         u=$(stat -c %U "$home" 2>/dev/null) || continue
         id "$u" >/dev/null 2>&1 || continue
 
-        # Titlebar = window-body shade: match [WM] to the body colour + alpha.
+        # Paint windows fully OPAQUE: strip the alpha from every window/view/
+        # button/tooltip surface and the titlebar ([WM]). Darkly bakes a window's
+        # translucency at creation from these alphas, so leaving any alpha here
+        # means AI Mode can never make windows fully solid. The glass is sourced
+        # from the KWin translucency effect instead (below).
+        for grp in "Colors:Window" "Colors:View" "Colors:Tooltip" "Colors:Complementary"; do
+            runuser -u "$u" -- kwriteconfig6 --file kdeglobals --group "$grp" \
+                --key BackgroundNormal "13,32,48" 2>/dev/null || true
+            runuser -u "$u" -- kwriteconfig6 --file kdeglobals --group "$grp" \
+                --key BackgroundAlternate "18,45,64" 2>/dev/null || true
+        done
+        runuser -u "$u" -- kwriteconfig6 --file kdeglobals --group "Colors:Button" \
+            --key BackgroundAlternate "18,45,64" 2>/dev/null || true
         for key in activeBackground activeBlend inactiveBackground inactiveBlend; do
             runuser -u "$u" -- kwriteconfig6 --file kdeglobals --group WM \
-                --key "$key" "13,32,48,200" 2>/dev/null || true
+                --key "$key" "13,32,48" 2>/dev/null || true
         done
 
-        # klassyrc: stop Klassy overriding the titlebar opacity (it inherits the
-        # [WM] alpha now) and match the inactive window outline to the active one.
+        # klassyrc: let the titlebar inherit the (now opaque) [WM] colour and
+        # match the inactive window outline to the active one.
         for kf in klassyrc klassy/klassyrc; do
             runuser -u "$u" -- kwriteconfig6 --file "$kf" --group TitleBarOpacity \
                 --key OverrideActiveTitleBarOpacity false 2>/dev/null || true
@@ -87,6 +99,20 @@ fix_titlebar_uniformity() {
             runuser -u "$u" -- kwriteconfig6 --file "$kf" --group WindowOutlineStyle \
                 --key WindowOutlineCustomColorInactive "13,32,48" 2>/dev/null || true
         done
+
+        # kwinrc: the translucency effect is now the SINGLE glass source. Keep it
+        # on and set a tasteful window-wide opacity (Decoration == ActiveOpacity
+        # so the titlebar matches the body). The AI Mode helper toggles it live.
+        runuser -u "$u" -- kwriteconfig6 --file kwinrc --group Plugins \
+            --key translucencyEnabled true 2>/dev/null || true
+        runuser -u "$u" -- kwriteconfig6 --file kwinrc --group Plugins \
+            --key kwin4_effect_translucencyEnabled true 2>/dev/null || true
+        runuser -u "$u" -- kwriteconfig6 --file kwinrc --group Effect-Translucency \
+            --key ActiveOpacity 82 2>/dev/null || true
+        runuser -u "$u" -- kwriteconfig6 --file kwinrc --group Effect-Translucency \
+            --key InactiveOpacity 78 2>/dev/null || true
+        runuser -u "$u" -- kwriteconfig6 --file kwinrc --group Effect-Translucency \
+            --key Decoration 82 2>/dev/null || true
     done
 }
 
