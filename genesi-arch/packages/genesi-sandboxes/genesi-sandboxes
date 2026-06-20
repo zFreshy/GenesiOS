@@ -246,7 +246,14 @@ PY
     command -v genesi-code >/dev/null 2>&1 || {
         echo "Genesi Code is not installed" >&2; exit 1; }
     mkdir -p "$SANDBOX_ROOT/$2"
-    exec genesi-code "$SANDBOX_ROOT/$2"
+    # Genesi Code (a Warp fork) parses positional CLI args as URLs, NOT bare
+    # paths — a plain path is not a valid URL, so it was silently dropped and
+    # nothing opened. Pass a file:// URL instead: its CLI handles file:// by
+    # spawning a new session with that directory as the working directory (see
+    # uri::handle_incoming_uri -> open_file in genesi-code). Resolve to an
+    # absolute path first so the URL is well-formed (file:///abs/path).
+    dir="$(cd "$SANDBOX_ROOT/$2" && pwd)"
+    exec genesi-code "file://$dir"
     ;;
 
   rm|remove)

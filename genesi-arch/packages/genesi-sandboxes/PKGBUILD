@@ -66,7 +66,12 @@ pkgver=1.0.0
 # kept in app/ — it's bundled at build from the new canonical genesi-ui-kit/ (one
 # source for the kit, copied in via a sibling ../ ref; NOT a published package, so
 # it doesn't trip the pipeline's no-inter-package-dep rule). No runtime change.
-pkgrel=10
+# pkgrel 11: FIX "Open in Genesi Code" never opening the project. Genesi Code (a
+# Warp fork) parses positional CLI args as URLs (Vec<Url>), not bare paths — the
+# plain folder path we passed wasn't a valid URL, so it was dropped and nothing
+# opened. Pass a file:// URL instead (genesi-code's uri::handle_incoming_uri ->
+# open_file spawns a new session with that directory as the working directory).
+pkgrel=11
 pkgdesc='Isolated developer workspaces (Distrobox) with ready-made stack templates'
 arch=('any')
 url='https://github.com/zFreshy/GenesiOS'
