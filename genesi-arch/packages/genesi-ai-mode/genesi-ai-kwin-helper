@@ -2,27 +2,30 @@
 """
 Genesi AI Mode — KWin effect trimmer (runs in the user's Plasma session).
 
-While AI Mode is ON, unload the desktop effects that make windows glassy — blur,
-background contrast, and translucency — so every window snaps fully opaque (no
-blur AND no transparency) and the compositor stops competing with inference for
-the GPU. Reload exactly what we unloaded when AI Mode turns off, restoring the
-glass.
+By DEFAULT this helper now manages NO effects: the window glass (blur, contrast,
+translucency) is kept ON while AI Mode is active. Decision (2026-06-20): trimming
+the compositor was never worth it. The whole point was "stop competing with
+inference for the GPU", but the bench data proved that lever does nothing — on
+bare metal (NVIDIA 8GB) AI Mode ON vs OFF was 78.2 vs 77.3 tok/s, pure noise. A
+KWin compositor effect only does GPU work on screen *damage*; during inference
+the screen is near-static (text streaming in a small chat area), so blur costs
+essentially zero. Meanwhile the half-trimmed state looked ugly: blur would drop
+but the window stayed see-through (transparent-without-frost) — the worst of both
+looks. Keeping the glass fully intact removes that bug and the perf cost is ruído.
 
-This works because Genesi's glass is now sourced ENTIRELY from KWin's
-`translucency` compositor effect (windows are painted opaque by the color scheme;
-the effect makes them see-through and forceblur frosts it). A compositor effect
-toggles live for EVERY window — open or new — which an app-level translucency
-(color-scheme alpha) could not: that stays baked into a window from creation and
-can't be removed live. So unloading the effect is the only thing that reliably
-makes the whole desktop opaque on demand.
+So with the default (empty) effect list the helper is a guarded no-op: it reads
+state.json, finds nothing to manage, and idles. The machinery is kept so the
+behaviour is still opt-in for anyone who wants opacity-on-AI-Mode back — set
+GENESI_KWIN_EFFECTS="blur,contrast,translucency" (the SHORT KWin Effects DBus ids,
+NOT the kwin4_effect_* kwinrc [Plugins] names) and it will unload/reload exactly
+those, restoring them when AI Mode turns off.
 
 Lives in the user session (not the root daemon) because KWin's DBus is
 session-scoped. Everything is guarded: on a non-KWin/non-Plasma session, or if
 DBus isn't reachable, it just sits idle and changes nothing.
 
 Disable it any time with:  systemctl --user mask genesi-ai-kwin-helper  (or
-remove the autostart entry). Effects to manage can be overridden by setting
-GENESI_KWIN_EFFECTS to a comma-separated list.
+remove the autostart entry).
 """
 import os
 import time
@@ -32,18 +35,15 @@ import subprocess
 
 STATE_FILE = "/run/genesi-ai-mode/state.json"
 POLL_SECONDS = 3
-# Effect plugin ids as KWin's Effects DBus knows them. They are the SHORT ids
-# (blur, contrast, translucency) — NOT the "kwin4_effect_*" names used in
-# kwinrc's [Plugins] group. Using "kwin4_effect_translucency" alone was a real
-# bug: isEffectLoaded() returned false for it, so the helper "unloaded" nothing
-# and the actual `translucency` effect stayed on, leaving windows see-through in
-# AI Mode. Confirmed on Plasma 6.5: `translucency` is loaded, the prefixed name
-# is not. We list both so a KDE build that uses the long id is still covered (a
+# Effects to unload while AI Mode is ON. DEFAULT IS EMPTY: keep the glass on (see
+# the module docstring — trimming the compositor was proven worthless by the
+# bench and the half-trimmed state looked ugly). Opt back into opacity-on-AI-Mode
+# by exporting GENESI_KWIN_EFFECTS with the SHORT KWin Effects DBus ids, e.g.
+# GENESI_KWIN_EFFECTS="blur,contrast,translucency" (NOT the kwin4_effect_* names
+# from kwinrc's [Plugins] group — isEffectLoaded() only knows the short ids; a
 # non-existent id is simply skipped by the isEffectLoaded guard).
 EFFECTS = [e.strip() for e in
-           os.environ.get("GENESI_KWIN_EFFECTS",
-                          "blur,contrast,translucency,kwin4_effect_translucency"
-                          ).split(",")
+           os.environ.get("GENESI_KWIN_EFFECTS", "").split(",")
            if e.strip()]
 
 KWIN_SERVICE = "org.kde.KWin"

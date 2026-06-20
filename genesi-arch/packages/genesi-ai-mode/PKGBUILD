@@ -205,7 +205,15 @@ pkgver=1.0.0
 # are painted opaque by genesi-settings), which IS a compositor effect and so
 # toggles live for every window. The helper just unloads/reloads
 # blur+contrast+translucency — unloading = instant full opacity, desktop-wide.
-pkgrel=80
+# pkgrel 81: KEEP the glass in AI Mode. The kwin helper now manages NO effects by
+# default (empty GENESI_KWIN_EFFECTS) — it's a guarded no-op. Rationale: the
+# compositor-trim lever was proven worthless by the bench (ON vs OFF 78.2 vs 77.3
+# tok/s = noise; a KWin effect only does GPU work on screen damage, and inference
+# leaves the screen near-static), while the half-trimmed result looked ugly — blur
+# dropped but windows stayed see-through (transparent-without-frost). Keeping the
+# glass fully intact kills that visual bug at ~zero perf cost. Opacity-on-AI-Mode
+# is still opt-in via GENESI_KWIN_EFFECTS="blur,contrast,translucency".
+pkgrel=81
 pkgdesc='Genesi OS AI Mode - adaptive, reversible local-AI optimizer (CPU/GPU/power) + Plasma 6 widget + monitor app'
 arch=('any')
 url='https://github.com/zFreshy/GenesiOS'
