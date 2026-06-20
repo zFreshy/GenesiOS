@@ -33,7 +33,13 @@ pkgver=1.0.0
 # delegates drawing to Darkly — and Darkly6 SIGSEGVs from QML (null QWidget* in
 # drawControl). Force the Fusion QQC2 style (self-drawn, dark via the kde
 # platform theme) and fall back to the software backend in a VM.
-pkgrel=8
+# pkgrel 9: UI polish pass on the shared kit. (1) GlassCard finally moves off its
+# leftover green-tinted surface to the Genesi system blue (#122E42), completing
+# pkgrel 7's "match the rest of the OS" intent — it was the last holdout. (2) It
+# gained shader-free depth (top sheen + bottom shade), an animated hover lift +
+# brighten. Kept SHADER-FREE so it still renders under the software backend in
+# VMs. Same GlassCard upgrade landed in the AI Monitor + Sandboxes.
+pkgrel=9
 pkgdesc='Genesi API Inspector — native Burp-style HTTP/HTTPS interception workbench (mitmproxy)'
 arch=('any')
 url='https://github.com/zFreshy/GenesiOS'

@@ -213,7 +213,11 @@ pkgver=1.0.0
 # dropped but windows stayed see-through (transparent-without-frost). Keeping the
 # glass fully intact kills that visual bug at ~zero perf cost. Opacity-on-AI-Mode
 # is still opt-in via GENESI_KWIN_EFFECTS="blur,contrast,translucency".
-pkgrel=81
+# pkgrel 82: Monitor UI polish — the shared GlassCard gained shader-free depth
+# (top sheen + bottom shade), an animated hover lift, and a hover brighten. Kept
+# SHADER-FREE on purpose so it still renders under QT_QUICK_BACKEND=software in
+# VMs. Same GlassCard upgrade landed in genesi-sandboxes + genesi-netinspect.
+pkgrel=82
 pkgdesc='Genesi OS AI Mode - adaptive, reversible local-AI optimizer (CPU/GPU/power) + Plasma 6 widget + monitor app'
 arch=('any')
 url='https://github.com/zFreshy/GenesiOS'
