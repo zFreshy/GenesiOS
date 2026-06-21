@@ -77,7 +77,21 @@ pkgver=1.0.0
 # button). Create moved into a dialog. The shared kit is now ADAPTIVE: the app
 # follows the system light/dark scheme (Kirigami.Theme), so it's light on a light
 # system and dark on a dark one. UNVALIDATED on hardware (no Plasma/QML here).
-pkgrel=12
+# pkgrel 13: TEMPLATES NOW SCAFFOLD A REAL STARTER PROJECT. Before, a "React +
+# Vite" box only installed node+npm and left an EMPTY folder — opening it in
+# Genesi Code showed nothing, and the obvious `npm create vite@latest` HUNG on
+# its interactive "Project name?" prompt (the GUI streams stdout with no TTY).
+# `create` now runs a fully non-interactive scaffolder per template:
+#   node   -> create-vite (react) into a slug subdir then lifted up (the box name
+#             may be 'Teste'; create-vite would prompt to sanitise it), + npm i
+#   java   -> start.spring.io starter.tgz (maven, web) extracted in place
+#   python -> FastAPI main.py + requirements.txt + .venv with deps installed
+#   go     -> main.go + `go mod init <slug>`
+#   rust   -> `rustup default stable` then `cargo init --name <slug>`
+#   cpp    -> main.cpp + CMakeLists.txt
+# Scaffolding is never fatal (offline still yields a usable box), skips a
+# non-empty folder, and prints the per-template run command. CLI-only change.
+pkgrel=13
 pkgdesc='Isolated developer workspaces (Distrobox) with ready-made stack templates'
 arch=('any')
 url='https://github.com/zFreshy/GenesiOS'

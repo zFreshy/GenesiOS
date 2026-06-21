@@ -138,17 +138,129 @@ require_distrobox() {
 # id|label|image|packages(pacman, space-sep)|hint
 # All Arch-based so there is one package manager to reason about inside the box.
 read -r -d '' TEMPLATES <<'TPL' || true
-java|Java + Spring Boot|archlinux:latest|jdk-openjdk maven gradle|jdk-openjdk, Maven & Gradle
-node|React + Vite|archlinux:latest|nodejs npm|Node.js + npm — scaffold with: npm create vite@latest
-python|Python + FastAPI|archlinux:latest|python python-pip|Python + pip — then: pip install fastapi uvicorn
-go|Go|archlinux:latest|go|Go toolchain
-rust|Rust|archlinux:latest|rustup base-devel|rustup (run: rustup default stable)
-cpp|C / C++|archlinux:latest|base-devel cmake gdb clang|GCC/Clang, CMake, GDB
+java|Java + Spring Boot|archlinux:latest|jdk-openjdk maven gradle|Spring Boot (web) scaffolded — run: ./mvnw spring-boot:run
+node|React + Vite|archlinux:latest|nodejs npm|React + Vite scaffolded & npm-installed — run: npm run dev
+python|Python + FastAPI|archlinux:latest|python python-pip|FastAPI + venv scaffolded — run: uvicorn main:app --reload
+go|Go|archlinux:latest|go|Go module scaffolded — run: go run .
+rust|Rust|archlinux:latest|rustup base-devel|Cargo crate scaffolded — run: cargo run
+cpp|C / C++|archlinux:latest|base-devel cmake gdb clang|CMake project scaffolded — build: cmake -B build && cmake --build build
 plain|Plain Arch|archlinux:latest||Empty Arch box, add what you need
 TPL
 
 tpl_field() { # id field-index(1-based)
     echo "$TEMPLATES" | awk -F'|' -v id="$1" -v f="$2" '$1==id{print $f; exit}'
+}
+
+# ---- scaffolding ------------------------------------------------------------
+# Turn the empty project folder into a real starter project for the chosen
+# template, FULLY non-interactively. The GUI streams our stdout and has no TTY,
+# so every scaffolder must run without a single prompt (the original "npm create
+# vite" hung forever on its "Project name?" question). Files that don't need the
+# toolchain are written on the host (the folder is shared into the box); the
+# commands that DO need the stack (vite, spring, cargo, go, pip) run inside the
+# box. Never fatal: a failed scaffold (e.g. offline) still leaves a usable box.
+
+# Run a shell snippet inside the box. The project folder is a shared HOME path,
+# so the same absolute path is valid inside the container — each snippet cd's
+# into it first (see scaffold_box's $cd_).
+box_run() { # name script
+    dbx enter --name "$1" -- bash -lc "$2"
+}
+
+# Human-readable "how to run it" for the finished project (printed after create).
+run_hint() { # tpl slug
+    case "$1" in
+      node)   echo "npm run dev" ;;
+      java)   echo "./mvnw spring-boot:run" ;;
+      python) echo "source .venv/bin/activate && uvicorn main:app --reload" ;;
+      go)     echo "go run ." ;;
+      rust)   echo "cargo run" ;;
+      cpp)    echo "cmake -B build && cmake --build build && ./build/$2" ;;
+      *)      echo "" ;;
+    esac
+}
+
+scaffold_box() { # name tpl dir slug
+    local name="$1" tpl="$2" dir="$3" slug="$4"
+    # Don't clobber an existing project (e.g. a box recreated over an old folder).
+    if [ -n "$(ls -A "$dir" 2>/dev/null)" ]; then
+        echo ">>> Project folder not empty — skipping scaffold."
+        return 0
+    fi
+    local cd_="cd '$dir' && "
+    case "$tpl" in
+      node)
+        echo ">>> Scaffolding React + Vite project…"
+        # Scaffold into a slug-named subdir (a VALID npm package name — the box
+        # folder may be 'Teste', which create-vite would stop to sanitise via a
+        # prompt), then lift the contents up. npm_config_yes auto-accepts npx's
+        # "install create-vite?" prompt; CI=1 keeps create-vite non-interactive.
+        box_run "$name" "${cd_}export npm_config_yes=true CI=1 && npm create vite@latest '$slug' -- --template react && cp -a '$slug/.' . && rm -rf '$slug' && npm install" \
+            || echo ">>> (scaffold skipped: npm/vite unavailable or offline)"
+        ;;
+      java)
+        echo ">>> Scaffolding Spring Boot project (start.spring.io)…"
+        box_run "$name" "${cd_}curl -fsSL https://start.spring.io/starter.tgz -d type=maven-project -d language=java -d packaging=jar -d javaVersion=21 -d groupId=com.example -d artifactId='$slug' -d name='$slug' -d dependencies=web -o - | tar -xz" \
+            || echo ">>> (scaffold skipped: offline or start.spring.io unreachable)"
+        ;;
+      python)
+        echo ">>> Scaffolding FastAPI project…"
+        cat > "$dir/main.py" <<'PY'
+from fastapi import FastAPI
+
+app = FastAPI()
+
+
+@app.get("/")
+def read_root():
+    return {"message": "Hello from FastAPI on Genesi"}
+PY
+        printf 'fastapi\nuvicorn[standard]\n' > "$dir/requirements.txt"
+        box_run "$name" "${cd_}python -m venv .venv && .venv/bin/pip install -q --upgrade pip && .venv/bin/pip install -q -r requirements.txt" \
+            || echo ">>> (venv/deps skipped: offline?) — source files are in place"
+        ;;
+      go)
+        echo ">>> Scaffolding Go module…"
+        cat > "$dir/main.go" <<'GO'
+package main
+
+import "fmt"
+
+func main() {
+	fmt.Println("Hello from Go on Genesi")
+}
+GO
+        box_run "$name" "${cd_}go mod init '$slug'" \
+            || echo ">>> (go mod init skipped) — main.go is in place"
+        ;;
+      rust)
+        echo ">>> Scaffolding Rust crate (cargo)…"
+        # rustup ships no default toolchain; set one before cargo exists.
+        box_run "$name" "${cd_}rustup default stable >/dev/null 2>&1 || true; cargo init --name '$slug' ." \
+            || echo ">>> (cargo init skipped: run 'rustup default stable' then 'cargo init')"
+        ;;
+      cpp)
+        echo ">>> Scaffolding C++ project (CMake)…"
+        cat > "$dir/main.cpp" <<'CPP'
+#include <iostream>
+
+int main() {
+    std::cout << "Hello from C++ on Genesi\n";
+    return 0;
+}
+CPP
+        cat > "$dir/CMakeLists.txt" <<CMAKE
+cmake_minimum_required(VERSION 3.16)
+project($slug CXX)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+add_executable($slug main.cpp)
+CMAKE
+        ;;
+      *)
+        : # plain — nothing to scaffold
+        ;;
+    esac
 }
 
 case "${1:-list-json}" in
@@ -213,6 +325,10 @@ PY
     [ -n "$name" ] || { echo "usage: genesi-sandboxes create <name> <template>" >&2; exit 2; }
     image="$(tpl_field "$tpl" 3)"; [ -n "$image" ] || image="archlinux:latest"
     pkgs="$(tpl_field "$tpl" 4)"
+    # A filesystem/identifier-safe slug for the project (npm/cargo/spring names
+    # can't contain spaces or uppercase): 'My App' -> 'my-app'.
+    slug="$(printf '%s' "$name" | tr '[:upper:] ' '[:lower:]-' | tr -cd 'a-z0-9-_')"
+    [ -n "$slug" ] || slug=app
     echo ">>> Backend: $DBX_MGR${SG_DOCKER:+ (via sg docker)}"
     echo ">>> Creating sandbox '$name' from template '$tpl' ($image)…"
     dbx create --yes --name "$name" --image "$image"
@@ -222,9 +338,14 @@ PY
         echo ">>> Installing: $pkgs"
         dbx enter --name "$name" -- sudo pacman -Syu --noconfirm $pkgs
     fi
-    # Give the workspace a project directory on the host (shared into the box).
+    # Give the workspace a project directory on the host (shared into the box)…
     mkdir -p "$SANDBOX_ROOT/$name"
     echo ">>> Project folder: $SANDBOX_ROOT/$name"
+    # …then turn it into a real starter project for the template, so opening it
+    # in Genesi Code shows actual code instead of an empty folder.
+    scaffold_box "$name" "$tpl" "$SANDBOX_ROOT/$name" "$slug"
+    hint="$(run_hint "$tpl" "$slug")"
+    [ -n "$hint" ] && echo ">>> Next — enter the box and run: $hint"
     echo ">>> Sandbox '$name' is ready. Enter it with: genesi-sandboxes enter $name"
     ;;
 
