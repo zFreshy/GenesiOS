@@ -39,7 +39,11 @@ pkgver=0.0.30
 # rebuilt package to supersede the same-version one already in [genesi-apps].)
 # pkgrel 7: new app icon — the Genesi leaf with a </> at its heart (replaces the
 # old leaf+veins glyph). Pure icon swap; bump so the rebuilt package ships it.
-pkgrel=7
+# Floor release for manual local builds. publish-apps.yml replaces this with a
+# unique integer derived from the GitHub Actions run, so package assets are
+# never overwritten after repo-add publishes their size. pkgrel 8 supersedes
+# the mutable 0.0.59-7 asset that caused "Maximum file size exceeded".
+pkgrel=8
 pkgdesc='Genesi Code - local-first code editor / agentic terminal for Genesi OS (Warp fork)'
 arch=('x86_64')
 url='https://github.com/zFreshy/genesi-code'

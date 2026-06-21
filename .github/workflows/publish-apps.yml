@@ -4,9 +4,9 @@ name: Build and Publish Apps Repo
 # 172 MB). The main repo ([genesi]) is hosted inside the git tree
 # (genesi-arch/repo/x86_64), but GitHub rejects files >100 MB in git, so big
 # apps cannot live there. This workflow builds them and publishes a
-# release-hosted pacman repo ([genesi-apps]) to a fixed GitHub Release
-# (assets can be up to 2 GB). It is intentionally independent of
-# publish-packages.yml so the in-OS update pipeline stays untouched.
+# release-hosted pacman repo ([genesi-apps]) to a fixed GitHub Release.
+# Package assets are immutable: every publication gets a unique pkgrel, and
+# the database is switched only after the upload is verified byte-for-byte.
 
 on:
   push:
@@ -34,14 +34,14 @@ on:
 permissions:
   contents: write
 
-# Serialize so two runs don't clobber the same release assets at once.
+# Serialize so two runs never publish different repository snapshots at once.
 concurrency:
   group: publish-apps
   cancel-in-progress: false
 
 env:
-  # Fixed release that backs the [genesi-apps] pacman repo. Assets are clobbered
-  # in place on every run, so the download URLs are stable.
+  # Fixed release that backs the [genesi-apps] pacman repo. Only repository
+  # indexes use stable names; package filenames are never overwritten.
   APPS_TAG: apps-repo
   DB_NAME: genesi-apps
 
@@ -85,7 +85,8 @@ jobs:
           # no-op rebuild when it already matches (push / manual runs always build).
           PUBLISHED=$(gh release view "$APPS_TAG" --repo "$GITHUB_REPOSITORY" --json assets \
             -q '.assets[].name' 2>/dev/null \
-            | grep -oP 'genesi-code-\K[0-9][0-9.]*(?=-[0-9]+-x86_64)' | head -1 || true)
+            | grep -oP 'genesi-code-\K[0-9][0-9.]*(?=-[0-9]+-x86_64)' \
+            | sort -V | tail -1 || true)
           echo "Latest genesi-code = ${LATEST}; published in [genesi-apps] = ${PUBLISHED:-none}"
           if [ "${{ github.event_name }}" = "schedule" ] && [ "${LATEST}" = "${PUBLISHED:-}" ]; then
             echo "skip=true" >> "$GITHUB_OUTPUT"
@@ -97,7 +98,13 @@ jobs:
           # not committed — the committed pkgver is just a manual fallback floor).
           sed -i "s/^pkgver=.*/pkgver=${LATEST}/" \
             "$GITHUB_WORKSPACE/genesi-arch/packages/genesi-code/PKGBUILD"
-          echo "Building genesi-code ${LATEST}"
+          # Never rebuild different bytes under an existing package filename.
+          # pacman caches the compressed size from the sync database; replacing
+          # that file later causes curl's "Maximum file size exceeded".
+          PUBLISH_REL="${GITHUB_RUN_ID}${GITHUB_RUN_ATTEMPT}"
+          sed -i "s/^pkgrel=.*/pkgrel=${PUBLISH_REL}/" \
+            "$GITHUB_WORKSPACE/genesi-arch/packages/genesi-code/PKGBUILD"
+          echo "Building genesi-code ${LATEST}-${PUBLISH_REL}"
 
       - name: Build app packages
         if: steps.resolve.outputs.skip != 'true'
@@ -140,9 +147,29 @@ jobs:
           # `cp` would see "same file" since the link resolves to the source).
           cp --remove-destination "${DB_NAME}.db.tar.gz"    "${DB_NAME}.db"
           cp --remove-destination "${DB_NAME}.files.tar.gz" "${DB_NAME}.files"
+
+          # Ensure repo-add recorded the exact immutable package filename and
+          # compressed byte count before anything is uploaded.
+          PACKAGE_PATH=$(find . -maxdepth 1 -type f -name 'genesi-code-*.pkg.tar.zst' -print -quit)
+          test -n "$PACKAGE_PATH"
+          PACKAGE_NAME=${PACKAGE_PATH#./}
+          PACKAGE_SIZE=$(stat -c%s "$PACKAGE_PATH")
+          DESC_ENTRY=$(bsdtar -tf "${DB_NAME}.db.tar.gz" | grep '/desc$' | head -1)
+          DB_PACKAGE_NAME=$(bsdtar -xOf "${DB_NAME}.db.tar.gz" "$DESC_ENTRY" \
+            | awk '/^%FILENAME%$/{getline; print; exit}')
+          DB_PACKAGE_SIZE=$(bsdtar -xOf "${DB_NAME}.db.tar.gz" "$DESC_ENTRY" \
+            | awk '/^%CSIZE%$/{getline; print; exit}')
+          test "$DB_PACKAGE_NAME" = "$PACKAGE_NAME"
+          test "$DB_PACKAGE_SIZE" = "$PACKAGE_SIZE"
+
+          PACKAGE_SHA256=$(sha256sum "$PACKAGE_PATH" | awk '{print $1}')
+          printf '%s  %s\n' "$PACKAGE_SHA256" "$PACKAGE_NAME" > "${PACKAGE_NAME}.sha256"
+          printf '{\n  "source_tag": "v%s",\n  "package": "%s",\n  "size": %s,\n  "sha256": "%s",\n  "workflow_run_id": "%s",\n  "workflow_run_attempt": "%s"\n}\n' \
+            "${LATEST}" "$PACKAGE_NAME" "$PACKAGE_SIZE" "$PACKAGE_SHA256" \
+            "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" > "${DB_NAME}.manifest.json"
           ls -lh
 
-      - name: Publish to the apps-repo Release
+      - name: Publish immutable package
         if: steps.resolve.outputs.skip != 'true'
         shell: bash
         env:
@@ -154,13 +181,76 @@ jobs:
           gh release create "$APPS_TAG" \
             --repo "$GITHUB_REPOSITORY" \
             --title "Genesi OS Apps Repository" \
-            --notes "Release-hosted pacman repo for large Genesi apps ([genesi-apps]). Assets are replaced in place each build." \
+            --notes "Release-hosted pacman repo for large Genesi apps. Package assets are immutable; stable indexes point to the current package." \
             2>/dev/null || echo "Release $APPS_TAG already exists — updating assets."
-          # --clobber replaces the assets in place so the download URLs stay put.
+          PACKAGE_PATH=$(find . -maxdepth 1 -type f -name 'genesi-code-*.pkg.tar.zst' -print -quit)
+          PACKAGE_NAME=${PACKAGE_PATH#./}
+          if gh release view "$APPS_TAG" --repo "$GITHUB_REPOSITORY" --json assets \
+            -q '.assets[].name' | grep -Fxq "$PACKAGE_NAME"; then
+            echo "::error::refusing to overwrite immutable package asset $PACKAGE_NAME"
+            exit 1
+          fi
+
+          # Upload the unique package before changing the database. The previous
+          # database continues to reference a package that still exists.
+          gh release upload "$APPS_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            "$PACKAGE_PATH" "${PACKAGE_NAME}.sha256"
+
+          mkdir -p remote-package
+          gh release download "$APPS_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern "$PACKAGE_NAME" \
+            --dir remote-package
+          cmp --silent "$PACKAGE_PATH" "remote-package/$PACKAGE_NAME"
+          echo "$(cut -d' ' -f1 "${PACKAGE_NAME}.sha256")  remote-package/$PACKAGE_NAME" \
+            | sha256sum --check -
+
+      - name: Publish repository indexes
+        if: steps.resolve.outputs.skip != 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          cd "$GITHUB_WORKSPACE/genesi-arch/packages/apps-repo"
+
+          # Stable index names are replaced only after the immutable package was
+          # downloaded from GitHub and verified byte-for-byte.
           gh release upload "$APPS_TAG" \
             --repo "$GITHUB_REPOSITORY" \
             --clobber \
-            ./*.pkg.tar.zst \
-            "${DB_NAME}.db" "${DB_NAME}.db.tar.gz" \
-            "${DB_NAME}.files" "${DB_NAME}.files.tar.gz"
+            "${DB_NAME}.db.tar.gz" \
+            "${DB_NAME}.files.tar.gz" "${DB_NAME}.files" \
+            "${DB_NAME}.manifest.json" \
+            "${DB_NAME}.db"
+
+          mkdir -p remote-index
+          gh release download "$APPS_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern "${DB_NAME}.db" \
+            --pattern "${DB_NAME}.manifest.json" \
+            --dir remote-index
+          PACKAGE_PATH=$(find . -maxdepth 1 -type f -name 'genesi-code-*.pkg.tar.zst' -print -quit)
+          PACKAGE_NAME=${PACKAGE_PATH#./}
+          PACKAGE_SIZE=$(stat -c%s "$PACKAGE_PATH")
+          DESC_ENTRY=$(bsdtar -tf "remote-index/${DB_NAME}.db" | grep '/desc$' | head -1)
+          REMOTE_PACKAGE_NAME=$(bsdtar -xOf "remote-index/${DB_NAME}.db" "$DESC_ENTRY" \
+            | awk '/^%FILENAME%$/{getline; print; exit}')
+          REMOTE_PACKAGE_SIZE=$(bsdtar -xOf "remote-index/${DB_NAME}.db" "$DESC_ENTRY" \
+            | awk '/^%CSIZE%$/{getline; print; exit}')
+          test "$REMOTE_PACKAGE_NAME" = "$PACKAGE_NAME"
+          test "$REMOTE_PACKAGE_SIZE" = "$PACKAGE_SIZE"
+
+          # Retain recent immutable packages for clients with cached databases,
+          # while preventing this fixed release from hitting its asset limit.
+          gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${APPS_TAG}" \
+            --jq '.assets
+              | map(select(.name | test("^genesi-code-.*\\.pkg\\.tar\\.zst(\\.sha256)?$")))
+              | sort_by(.created_at) | reverse | .[40:] | .[].id' \
+            | while read -r asset_id; do
+                [ -n "$asset_id" ] || continue
+                gh api --method DELETE "repos/${GITHUB_REPOSITORY}/releases/assets/${asset_id}"
+              done
+
           echo "Published [genesi-apps] -> https://github.com/${GITHUB_REPOSITORY}/releases/download/${APPS_TAG}/${DB_NAME}.db"
