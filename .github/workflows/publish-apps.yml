@@ -80,6 +80,7 @@ jobs:
           if [ -z "${LATEST:-}" ]; then
             echo "::error::could not resolve the latest genesi-code release"; exit 1
           fi
+          echo "latest=${LATEST}" >> "$GITHUB_OUTPUT"
 
           # What's already published in [genesi-apps]? On the cron schedule, skip a
           # no-op rebuild when it already matches (push / manual runs always build).
@@ -109,6 +110,8 @@ jobs:
       - name: Build app packages
         if: steps.resolve.outputs.skip != 'true'
         shell: bash
+        env:
+          LATEST: ${{ steps.resolve.outputs.latest }}
         run: |
           set -euo pipefail
           # makepkg refuses to run as root, so build as an unprivileged user.
