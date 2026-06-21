@@ -1,0 +1,88 @@
+# genesi-caelestia-settings — post-upgrade migration of EXISTING users' Hyprland
+# config.
+#
+# The shipped hyprland.conf lives in /etc/skel, which only seeds NEW accounts. An
+# already-installed user keeps the copy Calamares made at account creation, so a
+# package upgrade that fixes hyprland.conf (e.g. the Hyprland 0.55 dwindle/
+# togglesplit breakage, or the new tray exec-once lines) never reaches them — the
+# new binaries land in /usr/local/bin but nothing starts them and the old config
+# still errors. The KDE side heals this with an in-session autostart (it needs the
+# plasmashell scripting API), but here the target is a plain text file in $HOME,
+# so we edit it directly from the (root) scriptlet.
+#
+# SAFE BY DESIGN: we only touch files that are Genesi's shipped caelestia config
+# (header marker), back the file up once, change ONLY the two known-broken lines,
+# and APPEND the tray/launcher/windowrule blocks only when they're missing. A
+# user's own edits elsewhere are untouched; re-running is idempotent.
+
+_migrate_user() {
+    local cfg="$1" owner="$2"
+    [ -f "$cfg" ] || return 0
+    # Only Genesi's caelestia config (distinctive exec-once marker), and skip if
+    # already migrated (tray present) AND already free of the broken lines.
+    grep -q 'caelestia shell -d' "$cfg" || return 0
+    if grep -q 'genesi-ai-tray' "$cfg" \
+       && ! grep -qE '^[[:space:]]*pseudotile[[:space:]]*=[[:space:]]*true[[:space:]]*$' "$cfg" \
+       && ! grep -qE ',[[:space:]]*J,[[:space:]]*togglesplit,[[:space:]]*$' "$cfg"; then
+        return 0
+    fi
+
+    cp -n "$cfg" "$cfg.genesi-bak" 2>/dev/null || true
+
+    # 1. dwindle:pseudotile was REMOVED in Hyprland 0.55 — drop the line.
+    sed -i '/^[[:space:]]*pseudotile[[:space:]]*=[[:space:]]*true[[:space:]]*$/d' "$cfg"
+    # 2. togglesplit is no longer a direct dispatcher (0.54+) — route via layoutmsg.
+    sed -i 's/\(,[[:space:]]*J,[[:space:]]*\)togglesplit,[[:space:]]*$/\1layoutmsg, togglesplit/' "$cfg"
+
+    # 3. tray applets + popup windowrule (append once).
+    if ! grep -q 'genesi-ai-tray' "$cfg"; then
+        cat >> "$cfg" <<'HYPR'
+
+# ── Added by a genesi-caelestia-settings upgrade ──────────────────────────────
+# Genesi system-tray applets (Hyprland ignores /etc/xdg/autostart, so start them
+# here). They appear in the caelestia bar's StatusNotifierItem tray.
+exec-once = genesi-update --tray
+exec-once = genesi-ai-tray
+exec-once = genesi-containers-tray
+# Float + theme the AI Mode tray popup near the bar.
+windowrule = float, class:^(genesi-ai-tray)$
+windowrule = noborder, class:^(genesi-ai-tray)$
+windowrule = rounding 14, class:^(genesi-ai-tray)$
+windowrule = move 60 60%, class:^(genesi-ai-tray)$
+HYPR
+    fi
+
+    # 4. Windows-like SUPER tap → launcher (append once).
+    if ! grep -q 'bindr = SUPER, SUPER_L' "$cfg"; then
+        cat >> "$cfg" <<'HYPR'
+# Tap SUPER alone to open the caelestia launcher (Windows-like).
+bindr = SUPER, SUPER_L, exec, caelestia shell drawers toggle launcher
+HYPR
+    fi
+
+    # sed -i / >> as root leave the file root-owned — hand it back to the user.
+    chown "$owner" "$cfg" "$cfg.genesi-bak" 2>/dev/null || true
+}
+
+_migrate_all() {
+    local name pw uid gid gecos home shell
+    while IFS=: read -r name pw uid gid gecos home shell; do
+        [ "$uid" -ge 1000 ] 2>/dev/null && [ "$uid" -lt 65000 ] 2>/dev/null || continue
+        case "$shell" in */nologin|*/false|"") continue ;; esac
+        [ -d "$home" ] || continue
+        _migrate_user "$home/.config/hypr/hyprland.conf" "$uid:$gid"
+    done < <(getent passwd)
+}
+
+post_upgrade() {
+    _migrate_all || true
+    echo "==> Caelestia/Hyprland config updated for existing users (backup: "
+    echo "    ~/.config/hypr/hyprland.conf.genesi-bak). Reload with 'hyprctl reload'"
+    echo "    or re-login for the tray icons + fixes to take effect."
+}
+
+post_install() {
+    # Fresh installs get the config straight from /etc/skel; run the migration
+    # anyway so a manual `pacman -S` on a pre-existing user is also healed.
+    _migrate_all || true
+}

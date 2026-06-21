@@ -47,7 +47,17 @@ pkgver=1.0.0
 # hyprland.conf — Hyprland ignores /etc/xdg/autostart, so the shipped tray
 # .desktop never fired under this session and no tray icon appeared. New dep:
 # genesi-update (provides the `genesi-update --tray` SNI applet).
-pkgrel=6
+# pkgrel 7: migrate EXISTING users on upgrade. hyprland.conf ships via /etc/skel,
+# which only seeds NEW accounts, so pkgrel 6's fixes + tray exec-once never
+# reached an already-installed user (new binaries present, but nothing starts
+# them and the old dwindle/togglesplit errors persist). New .install scriptlet
+# edits each existing user's ~/.config/hypr/hyprland.conf in place: drops the
+# removed pseudotile line, routes togglesplit via layoutmsg, and appends the tray
+# exec-once + popup windowrule + SUPER-tap launcher if missing. Idempotent, backs
+# the file up once (.genesi-bak), only touches Genesi's shipped config, preserves
+# ownership. So now `pacman -Syu` (or the update notifier) + `hyprctl reload`
+# brings a running install fully up to date — no reinstall.
+pkgrel=7
 pkgdesc='Genesi OS Hyprland + caelestia-shell default configuration and branding'
 arch=('any')
 url='https://github.com/zFreshy/GenesiOS'
@@ -72,6 +82,7 @@ depends=(
     'papirus-icon-theme'       # app icons for the launcher/menus (no icon theme
                                # shipped before -> magenta "missing icon" squares)
 )
+install='genesi-caelestia-settings.install'
 source=('hyprland.conf' 'qt6ct.conf' 'kdeglobals' 'gtk-settings.ini')
 sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP')
 
