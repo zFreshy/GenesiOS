@@ -404,6 +404,23 @@ class Backend(QObject):
                     or os.path.exists("/usr/bin/llama-server"))
 
     @staticmethod
+    def _installed_backend():
+        """Which Turbo backend is installed: 'cuda', 'vulkan', or None. Lets the
+        UI offer a SWITCH (CUDA<->Vulkan) instead of a one-shot install."""
+        def has(pkg):
+            try:
+                return subprocess.run(["pacman", "-Qq", pkg],
+                                      capture_output=True, timeout=6).returncode == 0
+            except Exception:
+                return False
+        if has("llama.cpp-cuda"):
+            return "cuda"
+        if has("genesi-llama-cpp"):
+            return "vulkan"
+        # llama-server present from some other source — treat as a generic backend
+        return "vulkan" if Backend._has_llama_server() else None
+
+    @staticmethod
     def _nvidia_smi_works():
         """True only when the proprietary/open NVIDIA kernel driver is loaded AND
         functional (nvidia-smi returns 0). False under nouveau/NVK even on an
@@ -467,6 +484,7 @@ class Backend(QObject):
                 "nvidia_works": nv_works,
                 "has_nvidia": has_nv,
                 "installed": self._has_llama_server(),
+                "current": self._installed_backend() or "",
                 "aur": self._aur_helper() or "",
             }))
         threading.Thread(target=work, daemon=True).start()
@@ -635,9 +653,12 @@ class Backend(QObject):
         backed live ISO. Best-effort: if no AUR helper is present we print the
         manual command instead of failing silently."""
         kind = "cuda" if str(kind).lower() == "cuda" else "vulkan"
-        if self._has_llama_server():
+        # Only short-circuit when the REQUESTED backend is already the active one.
+        # If the other one is installed, fall through and SWITCH to the request.
+        if self._installed_backend() == kind:
             self.turboNeedsInstall.emit(False)
-            self.turboStatus.emit("Backend already installed ✓ — turn on Turbo")
+            self.turboStatus.emit(
+                f"{kind.upper()} backend already installed ✓ — turn on Turbo")
             return
         if kind == "cuda":
             self._install_cuda_backend()
@@ -651,9 +672,13 @@ class Backend(QObject):
             self.turboStatus.emit(
                 "installing genesi-llama-cpp (Vulkan)… (authorize in the dialog)")
             try:
+                # Remove a CUDA backend first if present (both provide llama.cpp,
+                # so they conflict) — then install the Vulkan one. -Rdd: skip the
+                # dependency check (nothing hard-depends on llama.cpp here).
                 p = subprocess.run(
-                    ["pkexec", "pacman", "-Sy", "--needed", "--noconfirm",
-                     "genesi-llama-cpp"],
+                    ["pkexec", "sh", "-c",
+                     "pacman -Rdd --noconfirm llama.cpp-cuda 2>/dev/null; "
+                     "pacman -Sy --needed --noconfirm genesi-llama-cpp"],
                     stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                     text=True, timeout=900)
             except Exception as e:

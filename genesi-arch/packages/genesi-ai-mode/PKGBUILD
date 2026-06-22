@@ -257,7 +257,16 @@ pkgver=1.0.0
 # Without it Qt logged "Could not register app ID: App info not found for
 # 'genesi-ai-tray'" and the SNI host had no app info to resolve the icon — a
 # likely reason the tray icon never appeared in the caelestia bar.
-pkgrel=88
+# pkgrel 89: the Monitor can now SWITCH the Turbo backend (CUDA <-> Vulkan) after
+# install, not only pick one when none exists. installTurboBackend used to
+# early-return "already installed" whenever ANY llama-server was present, so a
+# Vulkan install blocked ever trying CUDA. Now it only short-circuits when the
+# REQUESTED backend is the active one; otherwise it switches (the Vulkan path
+# -Rdd-removes a present llama.cpp-cuda first, since both provide llama.cpp). New
+# _installed_backend() detects cuda/vulkan via pacman -Qq; the "Backend" button
+# in the Turbo card is now always visible (not just when missing) so you can open
+# the CUDA/Vulkan chooser any time.
+pkgrel=89
 pkgdesc='Genesi OS AI Mode - adaptive, reversible local-AI optimizer (CPU/GPU/power) + Plasma 6 widget + monitor app'
 arch=('any')
 url='https://github.com/zFreshy/GenesiOS'

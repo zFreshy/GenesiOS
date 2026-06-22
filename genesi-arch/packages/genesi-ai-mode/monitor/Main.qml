@@ -506,9 +506,11 @@ Kirigami.ApplicationWindow {
                                     }
                                 }
                                 QQC2.Button {
-                                    text: "Install Backend"
+                                    // Always available: when a backend is missing it installs one;
+                                    // when one is present it lets you SWITCH between Vulkan and CUDA
+                                    // (the dialog shows which is active + recommends per hardware).
+                                    text: win.turboNeedsInstall ? "Install Backend" : "Backend: CUDA / Vulkan"
                                     icon.name: "download"
-                                    visible: win.turboNeedsInstall
                                     onClicked: { backend.backendInfo(); backendDialog.open() }
                                 }
                             }
