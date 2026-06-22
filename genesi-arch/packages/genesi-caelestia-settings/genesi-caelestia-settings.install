@@ -28,7 +28,8 @@ _migrate_hypr() {
        && ! grep -qE '^[[:space:]]*pseudotile[[:space:]]*=[[:space:]]*true[[:space:]]*$' "$cfg" \
        && ! grep -qE ',[[:space:]]*J,[[:space:]]*togglesplit,[[:space:]]*$' "$cfg" \
        && ! grep -qE '^windowrule = .*,[[:space:]]*class:' "$cfg" \
-       && ! grep -qE '^windowrule = (noborder|rounding|move).*genesi-ai-tray' "$cfg"; then
+       && ! grep -qE '^windowrule = (noborder|rounding|move).*genesi-ai-tray' "$cfg" \
+       && grep -q 'genesi-caelestia-theme-sync' "$cfg"; then
         return 0
     fi
 
@@ -69,6 +70,12 @@ HYPR
 # Tap SUPER alone to open the caelestia launcher (Windows-like).
 bindr = SUPER, SUPER_L, exec, caelestia shell drawers toggle launcher
 HYPR
+    fi
+
+    # 5. Dynamic-theme bridge (added in pkgrel 11) — start it if missing so Qt
+    #    apps follow caelestia's scheme. Idempotent.
+    if ! grep -q 'genesi-caelestia-theme-sync' "$cfg"; then
+        printf '%s\n' 'exec-once = genesi-caelestia-theme-sync --watch' >> "$cfg"
     fi
 
     # sed -i / >> as root leave the file root-owned — hand it back to the user.

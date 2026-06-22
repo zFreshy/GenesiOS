@@ -77,7 +77,16 @@ pkgver=1.0.0
 # the popup rounds itself via its stylesheet). The .install migration now also
 # deletes the noborder/rounding/move windowrules an earlier upgrade wrote to
 # existing users. (float + move parsed fine; dropped move too for minimalism.)
-pkgrel=10
+# pkgrel 11: DYNAMIC theme — Qt apps now follow caelestia's Material You scheme.
+# caelestia 2.0.3 doesn't export its scheme to qt6ct (validated: colors/ dir
+# never appears after a scheme change), so ship genesi-caelestia-theme-sync: it
+# reads ~/.local/state/caelestia/scheme.json and regenerates a qt6ct colour
+# scheme (colors/genesi-caelestia.conf) from the Material You roles, repointing
+# qt6ct.conf at it; runs --watch from hyprland.conf and regenerates on every
+# scheme change. The static genesi-dark.conf stays as the no-scheme fallback.
+# (KF6/Dolphin reads kdeglobals, not qt6ct — a dual-DE-risky follow-up.) The
+# .install migration adds the exec-once for existing users.
+pkgrel=11
 pkgdesc='Genesi OS Hyprland + caelestia-shell default configuration and branding'
 arch=('any')
 url='https://github.com/zFreshy/GenesiOS'
@@ -103,8 +112,9 @@ depends=(
                                # shipped before -> magenta "missing icon" squares)
 )
 install='genesi-caelestia-settings.install'
-source=('hyprland.conf' 'qt6ct.conf' 'kdeglobals' 'gtk-settings.ini' 'genesi-dark.conf')
-sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
+source=('hyprland.conf' 'qt6ct.conf' 'kdeglobals' 'gtk-settings.ini' 'genesi-dark.conf'
+        'genesi-caelestia-theme-sync')
+sha256sums=('SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP')
 
 package() {
     # Default Hyprland config for new users. Hyprland reads
@@ -130,4 +140,11 @@ package() {
     # default light palette. KDE/KF6 apps are unaffected (they read kdeglobals).
     install -Dm644 "${srcdir}/genesi-dark.conf" \
         "${pkgdir}/usr/share/qt6ct/colors/genesi-dark.conf"
+
+    # Dynamic-theme bridge: reads caelestia's active Material You scheme
+    # (~/.local/state/caelestia/scheme.json) and regenerates a qt6ct colour
+    # scheme from it so Qt apps follow the bar. Started with --watch from
+    # hyprland.conf. Falls back to the static genesi-dark.conf when no scheme.
+    install -Dm755 "${srcdir}/genesi-caelestia-theme-sync" \
+        "${pkgdir}/usr/local/bin/genesi-caelestia-theme-sync"
 }

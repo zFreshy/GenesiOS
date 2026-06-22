@@ -1,0 +1,191 @@
+#!/usr/bin/env python3
+# genesi-caelestia-theme-sync — make Qt apps follow caelestia's dynamic scheme.
+#
+# WHY THIS EXISTS
+#   caelestia 2.0.3 generates a Material You palette for its own bar/shell but
+#   does NOT export it to qt6ct on a Genesi install (validated: after a scheme
+#   change ~/.config/qt6ct/colors/ doesn't even exist). So plain-Qt apps don't
+#   follow the bar's colours. This bridge reads caelestia's ACTIVE scheme and
+#   writes a qt6ct colour scheme from it, regenerating whenever the scheme
+#   changes — the "dynamic theme" the static genesi-dark.conf couldn't give.
+#
+#   qt6ct apps read the palette at launch (qt6ct has no live reload), so a scheme
+#   change recolours NEWLY launched apps; that's the same limitation caelestia's
+#   own (absent) Qt theming would have. KDE/KF6 apps (Dolphin) read kdeglobals
+#   instead — a separate, dual-DE-risky step left for a follow-up.
+#
+# USAGE
+#   genesi-caelestia-theme-sync           # one-shot: regenerate from the scheme
+#   genesi-caelestia-theme-sync --watch   # apply once, then watch for changes
+#
+# Pure stdlib (no deps). Started with --watch from the caelestia hyprland.conf.
+import json
+import os
+import sys
+import time
+from pathlib import Path
+
+_CFG = Path(os.environ.get("XDG_CONFIG_HOME") or (Path.home() / ".config"))
+_STATE = Path(os.environ.get("XDG_STATE_HOME") or (Path.home() / ".local/state"))
+
+SCHEME = _STATE / "caelestia" / "scheme.json"
+QT6CT_DIR = _CFG / "qt6ct"
+COLORS = QT6CT_DIR / "colors" / "genesi-caelestia.conf"
+QT6CT_CONF = QT6CT_DIR / "qt6ct.conf"
+
+
+def _hex(c, fallback="000000"):
+    """Normalise a caelestia colour ('0a0f0f' / '#0a0f0f' / 'abc') to 'rrggbb'."""
+    c = (c or "").lstrip("#").strip()
+    if len(c) == 6:
+        return c.lower()
+    if len(c) == 3:
+        return "".join(ch * 2 for ch in c).lower()
+    return fallback
+
+
+def load_scheme():
+    """Return (colours dict, mode str) from caelestia's active scheme, or (None,_)."""
+    try:
+        s = json.loads(SCHEME.read_text())
+        return (s.get("colours") or {}), (s.get("mode") or "dark")
+    except Exception:
+        return None, "dark"
+
+
+def qt6ct_colorscheme(colours):
+    """Build a qt6ct [ColorScheme]: 21 ARGB roles x 3 groups, from Material You.
+
+    QPalette role order qt6ct expects: WindowText, Button, Light, Midlight, Dark,
+    Mid, Text, BrightText, ButtonText, Base, Window, Shadow, Highlight,
+    HighlightedText, Link, LinkVisited, AlternateBase, NoRole, ToolTipBase,
+    ToolTipText, PlaceholderText.
+    """
+    def c(key, fb="000000"):
+        return "#ff" + _hex(colours.get(key), fb)
+
+    on_surface = c("onSurface", "e6e6e6")
+    primary = c("primary", "4a90d9")
+    outline = c("outline", "888888")
+
+    active = [
+        on_surface,                           # WindowText
+        c("surfaceContainer", "2a2a2a"),      # Button
+        c("surfaceBright", "3a3a3a"),         # Light
+        c("surfaceContainerHigh", "333333"),  # Midlight
+        c("surfaceContainerLowest", "0a0a0a"),# Dark
+        c("surfaceContainerHigh", "333333"),  # Mid
+        on_surface,                           # Text
+        c("onPrimary", "ffffff"),             # BrightText
+        on_surface,                           # ButtonText
+        c("surfaceContainerLowest", "0a0a0a"),# Base
+        c("surface", "1a1a1a"),               # Window
+        c("shadow", "000000"),                # Shadow
+        primary,                              # Highlight
+        c("onPrimary", "ffffff"),             # HighlightedText
+        primary,                              # Link
+        c("secondary", "8888aa"),             # LinkVisited
+        c("surfaceContainerLow", "202020"),   # AlternateBase
+        c("surface", "1a1a1a"),               # NoRole
+        c("surfaceContainerHigh", "333333"),  # ToolTipBase
+        on_surface,                           # ToolTipText
+        outline,                              # PlaceholderText
+    ]
+    disabled = list(active)
+    for i in (0, 6, 8, 20):       # dim WindowText / Text / ButtonText / Placeholder
+        disabled[i] = outline
+    disabled[12] = c("surfaceContainerHigh", "333333")   # muted Highlight
+    disabled[13] = on_surface                            # HighlightedText
+
+    return ("[ColorScheme]\n"
+            f"active_colors={', '.join(active)}\n"
+            f"disabled_colors={', '.join(disabled)}\n"
+            f"inactive_colors={', '.join(active)}\n")
+
+
+def _set_appearance(text, kv):
+    """Return qt6ct.conf text with the given keys set inside [Appearance]
+    (replacing or inserting), preserving every other line/section."""
+    lines = text.splitlines()
+    out, in_appearance, seen = [], False, set()
+    for line in lines:
+        stripped = line.strip()
+        if stripped.startswith("[") and stripped.endswith("]"):
+            # leaving [Appearance]: flush any keys we didn't see yet
+            if in_appearance:
+                for k, v in kv.items():
+                    if k not in seen:
+                        out.append(f"{k}={v}")
+                        seen.add(k)
+            in_appearance = (stripped == "[Appearance]")
+            out.append(line)
+            continue
+        if in_appearance and "=" in stripped:
+            key = stripped.split("=", 1)[0].strip()
+            if key in kv:
+                out.append(f"{key}={kv[key]}")
+                seen.add(key)
+                continue
+        out.append(line)
+    if in_appearance:  # file ended inside [Appearance]
+        for k, v in kv.items():
+            if k not in seen:
+                out.append(f"{k}={v}")
+    if "[Appearance]" not in text:  # no section at all — create it
+        out = ["[Appearance]"] + [f"{k}={v}" for k, v in kv.items()] + out
+    return "\n".join(out) + "\n"
+
+
+def apply():
+    """Regenerate the qt6ct colour scheme from caelestia's active scheme and
+    point qt6ct.conf at it. No-op (keeps the static fallback) if no scheme."""
+    colours, mode = load_scheme()
+    if not colours:
+        return False
+    COLORS.parent.mkdir(parents=True, exist_ok=True)
+    COLORS.write_text(
+        "# Auto-generated by genesi-caelestia-theme-sync from caelestia's active\n"
+        "# Material You scheme. Do not edit — it is overwritten on every scheme\n"
+        "# change. Source: ~/.local/state/caelestia/scheme.json\n"
+        + qt6ct_colorscheme(colours))
+    icon = "Papirus" if mode == "light" else "Papirus-Dark"
+    try:
+        existing = QT6CT_CONF.read_text()
+    except Exception:
+        existing = "[Appearance]\nstandard_dialogs=default\nstyle=Fusion\n"
+    QT6CT_CONF.parent.mkdir(parents=True, exist_ok=True)
+    QT6CT_CONF.write_text(_set_appearance(existing, {
+        "color_scheme_path": str(COLORS),
+        "custom_palette": "true",
+        "icon_theme": icon,
+    }))
+    return True
+
+
+def watch():
+    apply()
+    last = None
+    try:
+        last = SCHEME.stat().st_mtime
+    except OSError:
+        pass
+    while True:
+        time.sleep(2)
+        try:
+            mtime = SCHEME.stat().st_mtime
+        except OSError:
+            continue
+        if mtime != last:
+            last = mtime
+            apply()
+
+
+def main():
+    if "--watch" in sys.argv[1:]:
+        watch()
+    else:
+        sys.exit(0 if apply() else 1)
+
+
+if __name__ == "__main__":
+    main()
