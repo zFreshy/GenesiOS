@@ -274,7 +274,12 @@ pkgver=1.0.0
 # components ChatBubble.qml/GaugeArc.qml were also de-hardcoded the same way
 # (system bg/accent/text; only error-red + Turbo-orange stay fixed). Rebuild to
 # ship the rebundled kit + retheme.
-pkgrel=90
+# pkgrel 91: redesign pass + i18n. New left icon SIDEBAR for navigation (replaces
+# the top pill-tabs), and a language switcher (EN default / PT-BR, live, persisted)
+# in the header — both driven by the new shared genesi-ui-kit I18n.qml (bundled in
+# like Theme/GlassCard). All Monitor dashboard strings now go through i18n.t().
+# Logic (Turbo/benchmark/advisor) untouched.
+pkgrel=91
 pkgdesc='Genesi OS AI Mode - adaptive, reversible local-AI optimizer (CPU/GPU/power) + Plasma 6 widget + monitor app'
 arch=('any')
 url='https://github.com/zFreshy/GenesiOS'
@@ -375,6 +380,8 @@ package() {
         "$pkgdir/usr/share/genesi-ai-mode/monitor/Theme.qml"
     install -Dm644 "${startdir}/../genesi-ui-kit/components/GlassCard.qml" \
         "$pkgdir/usr/share/genesi-ai-mode/monitor/GlassCard.qml"
+    install -Dm644 "${startdir}/../genesi-ui-kit/components/I18n.qml" \
+        "$pkgdir/usr/share/genesi-ai-mode/monitor/I18n.qml"
     install -Dm644 "${startdir}/monitor/GaugeArc.qml" \
         "$pkgdir/usr/share/genesi-ai-mode/monitor/GaugeArc.qml"
     install -Dm644 "${startdir}/monitor/ChatBubble.qml" \

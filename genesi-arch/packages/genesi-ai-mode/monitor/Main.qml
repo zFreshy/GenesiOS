@@ -13,6 +13,7 @@ Kirigami.ApplicationWindow {
     color: theme.bgBottom
 
     Theme { id: theme }
+    I18n { id: i18n }
 
     property var st: ({})
     property bool active: false
@@ -177,41 +178,6 @@ Kirigami.ApplicationWindow {
                 QQC2.Label { text: "GENESI"; font.pixelSize: 9; font.letterSpacing: 2; color: theme.green }
             }
 
-            Item { width: Kirigami.Units.largeSpacing }
-
-            // ── Tabs (pill) ──
-            Row {
-                spacing: 4
-                Repeater {
-                    model: ["Dashboard", "AI Chat", "Models"]
-                    delegate: Rectangle {
-                        required property int index
-                        required property string modelData
-                        readonly property bool sel: win.currentTab === index
-                        height: 34
-                        width: tlbl.implicitWidth + 28
-                        radius: 10
-                        color: sel ? theme.a(theme.green, 0.16)
-                             : (tma.containsMouse ? Qt.rgba(1, 1, 1, 0.05) : "transparent")
-                        Behavior on color { ColorAnimation { duration: 150 } }
-                        QQC2.Label {
-                            id: tlbl
-                            anchors.centerIn: parent
-                            text: modelData
-                            font.bold: sel
-                            color: sel ? theme.greenBright : theme.textMid
-                        }
-                        MouseArea {
-                            id: tma
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: win.currentTab = index
-                        }
-                    }
-                }
-            }
-
             Item { Layout.fillWidth: true }
 
             // ── Mode segmented control ──
@@ -227,9 +193,9 @@ Kirigami.ApplicationWindow {
                     spacing: 2
                     Repeater {
                         model: [
-                            { "mode": "on",   "label": "Force ON",  "accent": theme.green },
-                            { "mode": "auto", "label": "Auto",      "accent": theme.green },
-                            { "mode": "off",  "label": "Force OFF", "accent": theme.red }
+                            { "mode": "on",   "key": "mode.on",   "accent": theme.green },
+                            { "mode": "auto", "key": "mode.auto", "accent": theme.green },
+                            { "mode": "off",  "key": "mode.off",  "accent": theme.red }
                         ]
                         delegate: Rectangle {
                             required property var modelData
@@ -243,7 +209,7 @@ Kirigami.ApplicationWindow {
                             QQC2.Label {
                                 id: mlbl
                                 anchors.centerIn: parent
-                                text: modelData.label
+                                text: i18n.t(modelData.key)
                                 font.bold: sel
                                 font.pixelSize: 12
                                 color: sel ? "#08130E" : theme.textMid
@@ -273,10 +239,10 @@ Kirigami.ApplicationWindow {
                     spacing: 2
                     Repeater {
                         model: [
-                            { "p": "max",      "label": "Maximum",    "accent": theme.green },
-                            { "p": "balanced", "label": "Balanced",   "accent": theme.green },
-                            { "p": "battery",  "label": "Battery",    "accent": theme.green },
-                            { "p": "auto",     "label": "Auto",       "accent": theme.green }
+                            { "p": "max",      "key": "prof.max",      "accent": theme.green },
+                            { "p": "balanced", "key": "prof.balanced", "accent": theme.green },
+                            { "p": "battery",  "key": "prof.battery",  "accent": theme.green },
+                            { "p": "auto",     "key": "prof.auto",     "accent": theme.green }
                         ]
                         delegate: Rectangle {
                             required property var modelData
@@ -290,7 +256,7 @@ Kirigami.ApplicationWindow {
                             QQC2.Label {
                                 id: plbl
                                 anchors.centerIn: parent
-                                text: modelData.label
+                                text: i18n.t(modelData.key)
                                 font.bold: sel
                                 font.pixelSize: 12
                                 color: sel ? "#08130E" : theme.textMid
@@ -306,13 +272,99 @@ Kirigami.ApplicationWindow {
                     }
                 }
             }
+
+            // ── Language switch (EN / PT) ──
+            Rectangle {
+                radius: 11
+                implicitWidth: langRow.implicitWidth + 18
+                implicitHeight: 36
+                color: langMa.containsMouse ? theme.a(theme.green, 0.14) : theme.card
+                border.width: 1; border.color: theme.line
+                Behavior on color { ColorAnimation { duration: 150 } }
+                Row {
+                    id: langRow
+                    anchors.centerIn: parent
+                    spacing: 6
+                    Kirigami.Icon { anchors.verticalCenter: parent.verticalCenter; source: "globe"; width: 16; height: 16; color: theme.textMid }
+                    QQC2.Label { anchors.verticalCenter: parent.verticalCenter; text: i18n.code; font.bold: true; font.pixelSize: 12; color: theme.textHi }
+                }
+                MouseArea {
+                    id: langMa
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: i18n.toggle()
+                    QQC2.ToolTip.text: i18n.t("lang.tooltip")
+                    QQC2.ToolTip.visible: containsMouse
+                    QQC2.ToolTip.delay: 400
+                }
+            }
+
+            Item { width: Kirigami.Units.smallSpacing }
         }
     }
 
     // ════════════════════════ CONTENT ════════════════════════
-    StackLayout {
+    RowLayout {
         anchors.fill: parent
-        currentIndex: win.currentTab
+        spacing: 0
+
+        // ──────────────────────── SIDEBAR (nav) ────────────────────────
+        Rectangle {
+            Layout.fillHeight: true
+            Layout.preferredWidth: 60
+            color: theme.bgTop
+            Rectangle { anchors.right: parent.right; width: 1; height: parent.height; color: theme.line }
+
+            ColumnLayout {
+                anchors.fill: parent
+                anchors.topMargin: Kirigami.Units.largeSpacing
+                anchors.bottomMargin: Kirigami.Units.largeSpacing
+                spacing: Kirigami.Units.smallSpacing
+
+                Repeater {
+                    model: [
+                        { "icon": "view-list-icons", "key": "nav.dashboard" },
+                        { "icon": "mail-message",    "key": "nav.chat" },
+                        { "icon": "server-database", "key": "nav.models" }
+                    ]
+                    delegate: Rectangle {
+                        required property int index
+                        required property var modelData
+                        readonly property bool sel: win.currentTab === index
+                        Layout.alignment: Qt.AlignHCenter
+                        width: 40; height: 40; radius: 12
+                        color: sel ? theme.a(theme.green, 0.16)
+                             : (navMa.containsMouse ? theme.a(theme.textHi, 0.06) : "transparent")
+                        Behavior on color { ColorAnimation { duration: 150 } }
+                        Kirigami.Icon {
+                            anchors.centerIn: parent
+                            source: modelData.icon
+                            width: 22; height: 22
+                            color: sel ? theme.greenBright : theme.textMid
+                        }
+                        MouseArea {
+                            id: navMa
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: win.currentTab = index
+                            QQC2.ToolTip.text: i18n.t(modelData.key)
+                            QQC2.ToolTip.visible: containsMouse
+                            QQC2.ToolTip.delay: 400
+                        }
+                    }
+                }
+
+                Item { Layout.fillHeight: true }
+            }
+        }
+
+        // ──────────────────────── PAGES ────────────────────────
+        StackLayout {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            currentIndex: win.currentTab
 
         // ───────────────────────── 1. PAINEL ─────────────────────────
         QQC2.ScrollView {
@@ -379,11 +431,11 @@ Kirigami.ApplicationWindow {
                             spacing: 4
                             QQC2.Label {
                                 text: win.active
-                                      ? (st.profile === "max" ? "AI Mode ON · maximum"
-                                         : st.profile === "balanced" ? "AI Mode ON · balanced"
-                                         : st.profile === "battery" ? "AI Mode ON · battery"
-                                         : st.aggressive ? "AI Mode ON · maximum" : "AI Mode ON · economy")
-                                      : "AI Mode OFF"
+                                      ? (st.profile === "max" ? i18n.t("hero.onMax")
+                                         : st.profile === "balanced" ? i18n.t("hero.onBalanced")
+                                         : st.profile === "battery" ? i18n.t("hero.onBattery")
+                                         : st.aggressive ? i18n.t("hero.onMax") : i18n.t("hero.onEconomy"))
+                                      : i18n.t("hero.off")
                                 font.bold: true; font.pixelSize: 21
                                 color: theme.textHi
                             }
@@ -392,9 +444,9 @@ Kirigami.ApplicationWindow {
                                 opacity: 0.85
                                 font.pixelSize: 12
                                 color: win.activity === "active" ? theme.greenBright : theme.textMid
-                                text: win.activity === "active" ? "● generating"
-                                      : win.activity === "warm" ? "○ model warm · idle"
-                                      : "○ standing by"
+                                text: win.activity === "active" ? i18n.t("hero.generating")
+                                      : win.activity === "warm" ? i18n.t("hero.warm")
+                                      : i18n.t("hero.standby")
                             }
                             QQC2.Label {
                                 opacity: 0.85
@@ -422,7 +474,7 @@ Kirigami.ApplicationWindow {
                                 }
                                 QQC2.Label {
                                     color: theme.textMid
-                                    text: win.active ? "Optimizations applied in real time" : "No tweaks applied"
+                                    text: win.active ? i18n.t("hero.optReal") : i18n.t("hero.noTweaks")
                                 }
                             }
                         }
@@ -475,7 +527,7 @@ Kirigami.ApplicationWindow {
                             spacing: 2
                             RowLayout {
                                 spacing: Kirigami.Units.smallSpacing
-                                QQC2.Label { text: "Turbo Mode"; font.bold: true; font.pixelSize: 16; color: theme.textHi }
+                                QQC2.Label { text: i18n.t("turbo.title"); font.bold: true; font.pixelSize: 16; color: theme.textHi }
                                 // Speculative on/off toggle. Turbo runs plain full
                                 // GPU offload by default (reliable); speculative is
                                 // opt-in — faster on a mature GPU driver, can
@@ -490,7 +542,7 @@ Kirigami.ApplicationWindow {
                                     QQC2.Label {
                                         id: specLbl
                                         anchors.centerIn: parent
-                                        text: win.turboSpec ? "⚡ speculative" : "full offload"
+                                        text: win.turboSpec ? i18n.t("turbo.speculative") : i18n.t("turbo.fullOffload")
                                         font.pixelSize: 10
                                         color: win.turboSpec ? theme.turboBright : theme.textMid
                                     }
@@ -509,7 +561,7 @@ Kirigami.ApplicationWindow {
                                     // Always available: when a backend is missing it installs one;
                                     // when one is present it lets you SWITCH between Vulkan and CUDA
                                     // (the dialog shows which is active + recommends per hardware).
-                                    text: win.turboNeedsInstall ? "Install Backend" : "Backend: CUDA / Vulkan"
+                                    text: win.turboNeedsInstall ? i18n.t("turbo.installBackend") : i18n.t("turbo.backend")
                                     icon.name: "download"
                                     onClicked: { backend.backendInfo(); backendDialog.open() }
                                 }
@@ -517,9 +569,7 @@ Kirigami.ApplicationWindow {
                             QQC2.Label {
                                 Layout.fillWidth: true
                                 wrapMode: Text.WordWrap
-                                text: win.turboSpec
-                                    ? "Advanced mode: ⚡ speculative decoding + dynamic draft + persistent KV cache on disk."
-                                    : "Full GPU offload (stable). Flip ⚡ for the advanced stack."
+                                text: win.turboSpec ? i18n.t("turbo.descSpec") : i18n.t("turbo.descFull")
                                 color: win.turboSpec ? theme.turboBright : theme.textMid
                                 opacity: 0.9
                                 font.pixelSize: 12
@@ -529,7 +579,7 @@ Kirigami.ApplicationWindow {
                                 visible: win.turboRecommend.length > 0
                                 spacing: Kirigami.Units.smallSpacing
                                 QQC2.Label {
-                                    text: "Recommended for your GPU:"
+                                    text: i18n.t("turbo.recommendedGpu")
                                     color: theme.textLo; font.pixelSize: 11
                                 }
                                 Rectangle {
@@ -624,9 +674,9 @@ Kirigami.ApplicationWindow {
                             ColumnLayout {
                                 Layout.fillWidth: true
                                 spacing: 2
-                                QQC2.Label { text: "CPU"; font.bold: true; font.pixelSize: 11; font.letterSpacing: 1; color: theme.green }
+                                QQC2.Label { text: i18n.t("card.cpu"); font.bold: true; font.pixelSize: 11; font.letterSpacing: 1; color: theme.green }
                                 QQC2.Label { text: win.metrics().cpu_percent !== undefined ? win.metrics().cpu_percent.toFixed(1) + "%" : "—"; font.bold: true; font.pixelSize: 18; color: theme.textHi }
-                                QQC2.Label { text: (win.hw().physical_cores || "?") + " cores · " + (win.hw().logical_cores || "?") + " threads"; color: theme.textLo; font.pixelSize: 11; elide: Text.ElideRight; Layout.fillWidth: true }
+                                QQC2.Label { text: (win.hw().physical_cores || "?") + " " + i18n.t("u.cores") + " · " + (win.hw().logical_cores || "?") + " " + i18n.t("u.threads"); color: theme.textLo; font.pixelSize: 11; elide: Text.ElideRight; Layout.fillWidth: true }
                             }
                         }
                     }
@@ -648,9 +698,9 @@ Kirigami.ApplicationWindow {
                             ColumnLayout {
                                 Layout.fillWidth: true
                                 spacing: 2
-                                QQC2.Label { text: "MEMORY"; font.bold: true; font.pixelSize: 11; font.letterSpacing: 1; color: theme.blue }
+                                QQC2.Label { text: i18n.t("card.memory"); font.bold: true; font.pixelSize: 11; font.letterSpacing: 1; color: theme.blue }
                                 QQC2.Label { text: win.metrics().ram_total_mb ? (Math.round((win.metrics().ram_used_mb || 0) / 102.4) / 10).toFixed(1) + " / " + Math.round(win.metrics().ram_total_mb / 1024) + " GB" : "—"; font.bold: true; font.pixelSize: 18; color: theme.textHi }
-                                QQC2.Label { text: (win.metrics().ram_used_mb || 0) + " MB in use"; color: theme.textLo; font.pixelSize: 11; elide: Text.ElideRight; Layout.fillWidth: true }
+                                QQC2.Label { text: (win.metrics().ram_used_mb || 0) + " " + i18n.t("u.inUse"); color: theme.textLo; font.pixelSize: 11; elide: Text.ElideRight; Layout.fillWidth: true }
                             }
                         }
                     }
@@ -672,9 +722,9 @@ Kirigami.ApplicationWindow {
                             ColumnLayout {
                                 Layout.fillWidth: true
                                 spacing: 2
-                                QQC2.Label { text: "INFERENCE"; font.bold: true; font.pixelSize: 11; font.letterSpacing: 1; color: theme.purpleBright }
-                                QQC2.Label { text: win.activeModel ? (st.tokens_per_second ? st.tokens_per_second + " t/s" : "Active") : "—"; font.bold: true; font.pixelSize: 18; color: theme.textHi }
-                                QQC2.Label { text: win.activeModel ? win.activeModel : "no model"; color: theme.textLo; font.pixelSize: 11; elide: Text.ElideRight; Layout.fillWidth: true }
+                                QQC2.Label { text: i18n.t("card.inference"); font.bold: true; font.pixelSize: 11; font.letterSpacing: 1; color: theme.purpleBright }
+                                QQC2.Label { text: win.activeModel ? (st.tokens_per_second ? st.tokens_per_second + " t/s" : i18n.t("u.active")) : "—"; font.bold: true; font.pixelSize: 18; color: theme.textHi }
+                                QQC2.Label { text: win.activeModel ? win.activeModel : i18n.t("u.noModel"); color: theme.textLo; font.pixelSize: 11; elide: Text.ElideRight; Layout.fillWidth: true }
                             }
                         }
                     }
@@ -700,7 +750,7 @@ Kirigami.ApplicationWindow {
                             spacing: Kirigami.Units.smallSpacing
                             Kirigami.Icon { source: "configure"; color: theme.green; Layout.preferredWidth: 16; Layout.preferredHeight: 16 }
                             QQC2.Label {
-                                text: win.active ? "Optimizations applied" : "Inactive — no tweaks applied"
+                                text: win.active ? i18n.t("opt.applied") : i18n.t("opt.inactive")
                                 font.bold: true; font.pixelSize: 15; color: theme.textHi
                             }
                         }
@@ -708,7 +758,7 @@ Kirigami.ApplicationWindow {
                         QQC2.Label {
                             visible: !win.active
                             color: theme.textLo
-                            text: "Start a local model (or use Force ON) to see live tuning here."
+                            text: i18n.t("opt.hint")
                         }
 
                         Repeater {
@@ -746,7 +796,7 @@ Kirigami.ApplicationWindow {
                             spacing: Kirigami.Units.smallSpacing
                             Kirigami.Icon { source: "speedometer"; color: theme.blue; Layout.preferredWidth: 16; Layout.preferredHeight: 16 }
                             QQC2.Label {
-                                text: "Performance benchmark"
+                                text: i18n.t("bench.title")
                                 font.bold: true; font.pixelSize: 15; color: theme.textHi
                             }
                             Item { Layout.fillWidth: true }
@@ -756,7 +806,7 @@ Kirigami.ApplicationWindow {
                                 Layout.preferredWidth: 22; Layout.preferredHeight: 22
                             }
                             QQC2.Button {
-                                text: win.benchRunning ? "Measuring…" : "Run benchmark"
+                                text: win.benchRunning ? i18n.t("bench.measuring") : i18n.t("bench.run")
                                 icon.name: "speedometer"
                                 enabled: !win.benchRunning
                                 onClicked: backend.runBench(win.turboModel || win.activeModel || win.firstInstalledModel || "llama3.2")
@@ -843,8 +893,8 @@ Kirigami.ApplicationWindow {
                                 Layout.fillWidth: true
                                 wrapMode: Text.WordWrap
                                 text: (win.benchDelta >= 0 ? "▲ +" : "▼ ") + win.benchDelta.toFixed(1)
-                                    + "% generation gain with AI Mode ON"
-                                    + (Math.abs(win.benchDelta) < 1 ? "  ·  in a VM the governor is a no-op; run on bare metal for the real gain" : "")
+                                    + i18n.t("bench.gain")
+                                    + (Math.abs(win.benchDelta) < 1 ? i18n.t("bench.vmNote") : "")
                                 color: win.benchDelta >= 1 ? theme.greenBright
                                      : (win.benchDelta <= -1 ? theme.red : theme.textMid)
                                 font.bold: true
@@ -863,6 +913,7 @@ Kirigami.ApplicationWindow {
 
         // ───────────────────────── 3. MODELOS ─────────────────────────
         AdvisorPage { id: advisorPage }
+        }
     }
 
     // ════════════ BACKEND CHOICE DIALOG (Vulkan ⇄ CUDA) ════════════

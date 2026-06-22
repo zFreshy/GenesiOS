@@ -11,6 +11,9 @@ place to edit the look that the Genesi Qt6/QML apps share:
   danger) with press feedback.
 - `components/StatusBanner.qml` — accent-tinted inline status banner with an
   optional action button.
+- `components/I18n.qml` — runtime i18n helper (English default + pt-BR, live
+  switch, persisted). Instantiate once per root (`I18n { id: i18n }`) and use
+  `i18n.t("key")`; toggle with `i18n.toggle()`. Add keys to BOTH dictionaries.
 
 ## This is intentionally NOT a standalone package
 
