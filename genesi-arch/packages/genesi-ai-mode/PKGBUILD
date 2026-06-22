@@ -246,7 +246,14 @@ pkgver=1.0.0
 # accessors (p.window().color(), p.windowText().color(), …) which sidestep the
 # overload entirely; muted is now derived by blending. Theme-adaptive behaviour
 # is unchanged.
-pkgrel=86
+# pkgrel 87: fix a SECOND genesi-ai-tray crash that pkgrel 86 exposed —
+# RecursionError on launch. _apply_theme() calls setStyleSheet(), which itself
+# emits a PaletteChange; the changeEvent handler re-applied the theme on that,
+# re-entering setStyleSheet → infinite recursion (pkgrel 86's color() fix let
+# _apply_theme run far enough to trigger it). Removed the changeEvent handler;
+# the theme is applied on construction and re-applied each time the popup opens
+# (popup_at), which still tracks a system light/dark switch between opens.
+pkgrel=87
 pkgdesc='Genesi OS AI Mode - adaptive, reversible local-AI optimizer (CPU/GPU/power) + Plasma 6 widget + monitor app'
 arch=('any')
 url='https://github.com/zFreshy/GenesiOS'

@@ -71,7 +71,13 @@ pkgver=1.0.0
 # (custom_palette=true, style=Fusion). The .install migration also flips an
 # existing user's old custom_palette=false config. Does NOT touch kdeglobals, so
 # a dual-DE user's KDE theme is left alone.
-pkgrel=9
+# pkgrel 10: the AI-tray windowrules STILL errored on screen — Hyprland 0.55
+# rejects `noborder` ("invalid field type") and `rounding N` ("garbage input")
+# even space-separated. They're cosmetic, so keep ONLY `float` (confirmed valid;
+# the popup rounds itself via its stylesheet). The .install migration now also
+# deletes the noborder/rounding/move windowrules an earlier upgrade wrote to
+# existing users. (float + move parsed fine; dropped move too for minimalism.)
+pkgrel=10
 pkgdesc='Genesi OS Hyprland + caelestia-shell default configuration and branding'
 arch=('any')
 url='https://github.com/zFreshy/GenesiOS'

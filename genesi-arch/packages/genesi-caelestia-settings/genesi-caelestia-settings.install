@@ -22,11 +22,13 @@ _migrate_hypr() {
     # already migrated (tray present) AND already free of the broken lines.
     grep -q 'caelestia shell -d' "$cfg" || return 0
     # Skip only if fully up to date: tray present AND none of the broken forms
-    # left (pre-0.55 pseudotile / direct togglesplit / comma windowrule syntax).
+    # left — pre-0.55 pseudotile, direct togglesplit, comma windowrule syntax, or
+    # the noborder/rounding/move windowrules Hyprland 0.55 rejects.
     if grep -q 'genesi-ai-tray' "$cfg" \
        && ! grep -qE '^[[:space:]]*pseudotile[[:space:]]*=[[:space:]]*true[[:space:]]*$' "$cfg" \
        && ! grep -qE ',[[:space:]]*J,[[:space:]]*togglesplit,[[:space:]]*$' "$cfg" \
-       && ! grep -qE '^windowrule = .*,[[:space:]]*class:' "$cfg"; then
+       && ! grep -qE '^windowrule = .*,[[:space:]]*class:' "$cfg" \
+       && ! grep -qE '^windowrule = (noborder|rounding|move).*genesi-ai-tray' "$cfg"; then
         return 0
     fi
 
@@ -40,6 +42,10 @@ _migrate_hypr() {
     #     SPACE-separated, not comma — `windowrule = float, class:..` errors with
     #     "invalid field". Heal the comma form an earlier upgrade may have written.
     sed -i '/^windowrule = /s/,[[:space:]]*class:/ class:/' "$cfg"
+    # 2c. Hyprland 0.55 rejects the noborder/rounding/move windowrules
+    #     ("invalid field type noborder" / "rounding … garbage input"). They're
+    #     cosmetic — drop them, keep only `float` (the popup rounds itself).
+    sed -i -E '/^windowrule = (noborder|rounding|move).*genesi-ai-tray/d' "$cfg"
 
     # 3. tray applets + popup windowrule (append once).
     if ! grep -q 'genesi-ai-tray' "$cfg"; then
@@ -51,11 +57,9 @@ _migrate_hypr() {
 exec-once = genesi-update --tray
 exec-once = genesi-ai-tray
 exec-once = genesi-containers-tray
-# Float + theme the AI Mode tray popup near the bar (Hyprland 0.55 space syntax).
+# Float the AI Mode tray popup (only `float` — Hyprland 0.55 rejects the
+# noborder/rounding/move rules; the popup rounds itself via its stylesheet).
 windowrule = float class:^(genesi-ai-tray)$
-windowrule = noborder class:^(genesi-ai-tray)$
-windowrule = rounding 14 class:^(genesi-ai-tray)$
-windowrule = move 60 60% class:^(genesi-ai-tray)$
 HYPR
     fi
 

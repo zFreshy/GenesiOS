@@ -38,7 +38,7 @@ import signal
 import subprocess
 import sys
 
-from PyQt6.QtCore import Qt, QTimer, QPoint, QEvent
+from PyQt6.QtCore import Qt, QTimer, QPoint
 from PyQt6.QtGui import QAction, QColor, QCursor, QIcon, QPainter, QBrush
 from PyQt6.QtWidgets import (
     QApplication, QFrame, QHBoxLayout, QLabel, QPushButton, QSystemTrayIcon,
@@ -239,10 +239,11 @@ class Popup(QFrame):
         # re-stamp selection state (stylesheet reset clears the dynamic property look)
         self.refresh()
 
-    def changeEvent(self, ev):
-        if ev.type() in (QEvent.Type.PaletteChange, QEvent.Type.ApplicationPaletteChange):
-            self._apply_theme()
-        super().changeEvent(ev)
+    # NOTE: do NOT re-apply the theme from a changeEvent/PaletteChange handler.
+    # setStyleSheet() itself emits a PaletteChange, so handling it re-entered
+    # _apply_theme endlessly → RecursionError that crashed the tray on launch.
+    # The theme is (re)applied on construction and every time the popup opens
+    # (popup_at), which covers a system light/dark switch between opens.
 
     # ── data ────────────────────────────────────────────────────────────────────
     def _set(self, mode):
@@ -303,7 +304,7 @@ class Popup(QFrame):
 
     # ── show/hide ────────────────────────────────────────────────────────────────
     def popup_at(self, global_pos):
-        self.refresh()
+        self._apply_theme()   # re-read the system palette each time it opens
         self.adjustSize()
         # place above-and-left of the click so it doesn't cover the bar (Wayland
         # ignores this; the hyprland.conf windowrule positions it there instead)
