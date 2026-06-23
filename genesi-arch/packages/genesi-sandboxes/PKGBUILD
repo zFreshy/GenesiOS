@@ -96,7 +96,11 @@ pkgver=1.0.0
 # Kirigami.Theme.highlightColor and surfaces from the system background. Matches
 # the Plasma scheme on KDE and caelestia's Material You on Hyprland (via qt6ct).
 # Rebuild to ship the rebundled kit.
-pkgrel=14
+# pkgrel 15: add the language switcher (EN default / PT-BR, live) to the sidebar
+# via the shared genesi-ui-kit I18n.qml (added to the bundled-components loop);
+# sidebar/filters/banners/dialog titles now go through i18n.t(). The sidebar
+# (brand + New workspace + All/Running/Stopped filters) was already in place.
+pkgrel=15
 pkgdesc='Isolated developer workspaces (Distrobox) with ready-made stack templates'
 arch=('any')
 url='https://github.com/zFreshy/GenesiOS'
@@ -127,7 +131,7 @@ package() {
         "$pkgdir/usr/share/genesi-sandboxes/app/Main.qml"
     # Shared Genesi UI kit — one canonical source, bundled in at build (see
     # genesi-ui-kit/README.md for why it's not a dependency).
-    for comp in Theme GlassCard GButton StatusBanner; do
+    for comp in Theme GlassCard GButton StatusBanner I18n; do
         install -Dm644 "${startdir}/../genesi-ui-kit/components/${comp}.qml" \
             "$pkgdir/usr/share/genesi-sandboxes/app/${comp}.qml"
     done

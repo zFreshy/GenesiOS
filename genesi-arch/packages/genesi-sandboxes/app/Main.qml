@@ -20,6 +20,7 @@ Kirigami.ApplicationWindow {
     color: theme.bgBottom
 
     Theme { id: theme }
+    I18n { id: i18n }
 
     property var boxes: []
     property var templates: []
@@ -117,6 +118,25 @@ Kirigami.ApplicationWindow {
                             QQC2.Label { text: "Sandboxes"; font.bold: true; font.pixelSize: 16; color: theme.textHi }
                             QQC2.Label { text: "GENESI OS"; font.pixelSize: 9; font.letterSpacing: 2; color: theme.green }
                         }
+                        Item { Layout.fillWidth: true }
+                        // Language switch (EN / PT, live)
+                        Rectangle {
+                            Layout.preferredWidth: 38; Layout.preferredHeight: 26
+                            radius: 8
+                            color: sbLangMa.containsMouse ? theme.a(theme.green, 0.14) : theme.card
+                            border.width: 1; border.color: theme.line
+                            QQC2.Label { anchors.centerIn: parent; text: i18n.code; font.bold: true; font.pixelSize: 11; color: theme.textHi }
+                            MouseArea {
+                                id: sbLangMa
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: i18n.toggle()
+                                QQC2.ToolTip.text: i18n.t("lang.tooltip")
+                                QQC2.ToolTip.visible: containsMouse
+                                QQC2.ToolTip.delay: 400
+                            }
+                        }
                     }
 
                     // primary action
@@ -124,7 +144,7 @@ Kirigami.ApplicationWindow {
                         theme: theme
                         kind: "filled"
                         Layout.fillWidth: true
-                        text: "New workspace"
+                        text: i18n.t("sb.newWorkspace")
                         iconSource: "list-add"
                         enabled: !win.busy && win.hasDistrobox
                         onClicked: createDialog.open()
@@ -135,9 +155,9 @@ Kirigami.ApplicationWindow {
                     // filters (Doquo-style nav)
                     Repeater {
                         model: [
-                            { "k": "all",     "label": "All workspaces", "icon": "view-list-symbolic" },
-                            { "k": "running", "label": "Running",         "icon": "media-playback-start" },
-                            { "k": "stopped", "label": "Stopped",         "icon": "media-playback-stop" }
+                            { "k": "all",     "lk": "sb.all",     "icon": "view-list-symbolic" },
+                            { "k": "running", "lk": "sb.running", "icon": "media-playback-start" },
+                            { "k": "stopped", "lk": "sb.stopped", "icon": "media-playback-stop" }
                         ]
                         delegate: Rectangle {
                             id: navItem
@@ -161,7 +181,7 @@ Kirigami.ApplicationWindow {
                                 }
                                 QQC2.Label {
                                     Layout.fillWidth: true
-                                    text: navItem.modelData.label
+                                    text: i18n.t(navItem.modelData.lk)
                                     color: navItem.sel ? theme.textHi : theme.textMid
                                     font.bold: navItem.sel
                                 }
@@ -284,24 +304,24 @@ Kirigami.ApplicationWindow {
                     spacing: Kirigami.Units.smallSpacing
                     StatusBanner {
                         theme: theme; visible: !win.hasDistrobox; accent: theme.red; icon: "dialog-error"
-                        title: "Distrobox is not installed"
+                        title: i18n.t("sb.distroboxMissing")
                         body: "Install it from the Genesi Package Installer (distrobox + podman) to create workspaces."
                     }
                     StatusBanner {
                         theme: theme; visible: win.hasDistrobox && win.containerBackend === "none"; accent: theme.turbo; icon: "dialog-warning"
-                        title: "No container backend found"
+                        title: i18n.t("sb.noBackend")
                         body: "Install podman (recommended, rootless — no daemon, no setup) or docker, then Refresh."
                     }
                     StatusBanner {
                         theme: theme; visible: win.backendIssue === "inactive"; accent: theme.turbo; icon: "media-playback-start"
-                        title: "Docker is installed but not running"
+                        title: i18n.t("sb.dockerNotRunning")
                         body: "Its service is stopped. Start it once below — it'll also start on every boot. (podman needs none of this.)"
                         action: "Start Docker"; actionIcon: "media-playback-start"; busy: win.busy
                         onActionClicked: backend.startDocker()
                     }
                     StatusBanner {
                         theme: theme; visible: win.backendIssue === "perm"; accent: theme.turbo; icon: "dialog-warning"
-                        title: "Your user can't talk to Docker yet"
+                        title: i18n.t("sb.dockerNoPerm")
                         body: "Add yourself to the docker group, then log out and back in:\n    sudo usermod -aG docker $USER"
                     }
                 }
@@ -542,7 +562,7 @@ Kirigami.ApplicationWindow {
         // ════════════ CREATE DIALOG (name + template) ════════════
         Kirigami.PromptDialog {
             id: createDialog
-            title: "New workspace"
+            title: i18n.t("sb.newWorkspace")
             standardButtons: Kirigami.Dialog.NoButton
             preferredWidth: Kirigami.Units.gridUnit * 28
             onOpened: {
@@ -618,7 +638,7 @@ Kirigami.ApplicationWindow {
         Kirigami.PromptDialog {
             id: confirm
             property string boxName: ""
-            title: "Remove workspace"
+            title: i18n.t("sb.removeWorkspace")
             subtitle: "Delete '" + boxName + "' and everything inside it? This cannot be undone."
             standardButtons: Kirigami.Dialog.NoButton
             customFooterActions: [

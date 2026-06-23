@@ -52,7 +52,11 @@ pkgver=1.0.0
 # Kirigami.Theme.highlightColor and surfaces from the system background — matching
 # the Plasma scheme on KDE and caelestia's Material You on Hyprland (via qt6ct).
 # Rebuild to ship the rebundled kit.
-pkgrel=12
+# pkgrel 13: add the language switcher (EN default / PT-BR, live) to the header
+# via the shared genesi-ui-kit I18n.qml (bundled in like Theme/GlassCard); header
+# chrome strings now go through i18n.t(). The nav rail (Proxy/Repeater/Intruder/
+# Scanner) already provided the icon sidebar. Deep per-lane i18n is a follow-up.
+pkgrel=13
 pkgdesc='Genesi API Inspector — native Burp-style HTTP/HTTPS interception workbench (mitmproxy)'
 arch=('any')
 url='https://github.com/zFreshy/GenesiOS'
@@ -85,6 +89,8 @@ package() {
         "$pkgdir/usr/share/genesi-netinspect/app/Theme.qml"
     install -Dm644 "${startdir}/../genesi-ui-kit/components/GlassCard.qml" \
         "$pkgdir/usr/share/genesi-netinspect/app/GlassCard.qml"
+    install -Dm644 "${startdir}/../genesi-ui-kit/components/I18n.qml" \
+        "$pkgdir/usr/share/genesi-netinspect/app/I18n.qml"
 
     # Crafted SVG icon set (header logo + Proxy/Repeater/Intruder/Scanner)
     for ic in "${startdir}/app/icons/"*.svg; do

@@ -18,6 +18,7 @@ ApplicationWindow {
     color: theme.bgBottom
 
     Theme { id: theme }
+    I18n { id: i18n }
 
     // ── shared state ───────────────────────────────────────────────
     property int page: 0
@@ -153,15 +154,40 @@ ApplicationWindow {
             Item { Layout.fillWidth: true }
             Text {
                 visible: !certTrusted
-                text: "HTTPS not decrypting?"
+                text: i18n.t("insp.httpsHelp")
                 color: theme.textMid; font.pixelSize: 12
             }
             PillButton {
-                text: certTrusted ? "✓ CA trusted" : "Trust HTTPS cert"
+                text: certTrusted ? i18n.t("insp.caTrusted") : i18n.t("insp.trustCert")
                 accent: certTrusted ? theme.green : theme.turbo
                 flat: certTrusted
                 enabledX: !certTrusted
                 onClicked: backend.trustCert()
+            }
+            // Language switch (EN / PT, live)
+            Rectangle {
+                Layout.preferredWidth: langRow.implicitWidth + 18
+                Layout.preferredHeight: 30
+                radius: 8
+                color: langMa.containsMouse ? theme.a(theme.green, 0.14) : theme.cardHi
+                border.width: 1; border.color: theme.line
+                Row {
+                    id: langRow
+                    anchors.centerIn: parent
+                    spacing: 6
+                    Text { anchors.verticalCenter: parent.verticalCenter; text: "🌐"; font.pixelSize: 13 }
+                    Text { anchors.verticalCenter: parent.verticalCenter; text: i18n.code; color: theme.textHi; font.pixelSize: 12; font.bold: true }
+                }
+                MouseArea {
+                    id: langMa
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: i18n.toggle()
+                    ToolTip.text: i18n.t("lang.tooltip")
+                    ToolTip.visible: containsMouse
+                    ToolTip.delay: 400
+                }
             }
         }
     }
