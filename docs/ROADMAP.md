@@ -525,38 +525,42 @@ once and gates every optimizer on detected capabilities.
       the installed binary's `--help` (names vary by version) and env-tunable
       (`GENESI_TURBO_DRAFT_MAX/MIN/P`). Active ONLY in ⚡ speculative mode — the
       Monitor's toggle says so explicitly. Real gain needs CUDA validation._
-- [ ] **🌟 Ideia 1: Native Medusa / EAGLE Integration** — Em vez de 2 modelos (principal + draft),
-      carrega um **único modelo** com múltiplas "cabeças extras" de especulação. Gera ganhos
-      massivos (3x a 4x) de velocidade de resposta sem dobrar o consumo de VRAM.
-      _**Status: bloqueado upstream, não é uma flag.** O `llama-server` ainda não expõe EAGLE/
-      Medusa de forma estável a partir dos GGUFs que o ollama baixa (precisa de pesos das
-      cabeças + suporte no servidor). Não dá pra "ligar" sem mentir. O substituto entregue
-      hoje com o MESMO objetivo (ganho grande de decode sem dobrar VRAM) é o **MoE
-      expert-offload** no Tier 4 + o auto-spec no CUDA. Reavaliar quando o EAGLE entrar no
-      master do llama.cpp; aí vira detecção via `--help` igual aos outros flags de spec._
+- [ ] **🌟 Idea 1: Native Medusa / EAGLE integration** — instead of 2 models
+      (target + draft), load a **single model** with multiple extra speculation
+      "heads". Massive decode speedups (3–4×) without doubling VRAM use.
+      _**Status: blocked upstream, not a flag.** `llama-server` doesn't yet expose
+      EAGLE/Medusa stably from the GGUFs ollama pulls (it needs the head weights +
+      server support), so it can't be honestly "turned on". The stand-in shipped
+      today with the SAME goal (big decode win without doubling VRAM) is **MoE
+      expert-offload** (Tier 4) + CUDA auto-spec. Revisit once EAGLE lands in
+      llama.cpp master; it then becomes a `--help`-gated flag like the other spec
+      options._
 
 **Tier 4 — Memory & ZRAM OS-Pinning (Revolutionary)**
-- [x] **🌟 Ideia 3: ZRAM AI swap** — Para PCs de 8GB ou sem placa dedicada: enquanto o AI
-      Mode roda agressivo, `genesi-aid` sobe um dispositivo de **ZRAM** (RAM comprimida com
-      zstd) como swap de **alta prioridade**, então sob pressão de memória (modelo grande +
-      navegador) as páginas frias **comprimem na RAM em vez de travar no SSD** — acaba o
-      "congelamento" estilo Windows ao alternar navegador↔IA. Totalmente reversível
-      (`swapoff` + reset no disable). Opt-in via `advanced.conf` (`zram_ai = on` ou um tamanho
-      como `8G`); no-op silencioso sem o módulo zram/zramctl. _Nota: "pinar com `mlock`" foi
-      descartado de propósito — `mlock` IMPEDE swap, o oposto do objetivo; o ganho real é o
-      swap comprimido em RAM de alta prioridade._
-- [x] **🌟 MoE expert-offload (a jogada fora-da-caixa, novo item).** Rodar um **Mixture-of-
-      Experts** (ex. `qwen3:30b-a3b`, `gpt-oss:20b`) — "esperto como um 30B", mas só ~3B
-      ativos por token. Quando não cabe na VRAM, o Turbo mantém **toda a atenção na GPU**
-      (`-ngl 999`) e empurra só os tensores de **experts** pra RAM (`--n-cpu-moe K`, K
-      calculado pela VRAM lendo `expert_count`/`block_count` do header GGUF). Como só alguns
-      experts disparam por token, transmiti-los da RAM custa muito menos que derramar camadas
-      densas pela PCIe → **cérebro grande na velocidade de um pequeno** numa placa de 8GB. O
-      `recommend` sugere o maior MoE que cabe (gate por RAM); `GENESI_TURBO_NCMOE` força o
-      split. _Nenhum OS faz isso por padrão. Ganho a validar em hardware._
-- [x] **Smart partial offload when VRAM can't hold the whole model** — denso: `-ngl auto`
-      (máximo de camadas que a VRAM segura, nunca um 999 cego que dá OOM); MoE: o
-      expert-offload acima.
+- [x] **🌟 Idea 3: ZRAM AI swap** — for 8 GB / dGPU-less PCs: while AI Mode runs
+      aggressively, `genesi-aid` brings up a **ZRAM** device (zstd-compressed RAM)
+      as a **high-priority** swap, so under memory pressure (big model + browser)
+      cold pages **compress in RAM instead of stalling on the SSD** — killing the
+      Windows-style "freeze" when switching between the browser and the AI. Fully
+      reversible (`swapoff` + reset on disable). Opt-in via `advanced.conf`
+      (`zram_ai = on`, or a size like `8G`); silent no-op without the zram module /
+      zramctl. _Note: pinning with `mlock` was deliberately dropped — `mlock`
+      PREVENTS swap, the opposite of the goal; the real win is the high-priority
+      compressed-RAM swap above._
+- [x] **🌟 MoE expert-offload (the out-of-the-box win, new item).** Run a
+      **Mixture-of-Experts** model (e.g. `qwen3:30b-a3b`, `gpt-oss:20b`) — "smart
+      like a 30B" but only ~3B active per token. When it doesn't fit VRAM, Turbo
+      keeps **all attention on the GPU** (`-ngl 999`) and pushes only the **expert**
+      tensors to RAM (`--n-cpu-moe K`, K computed from VRAM by reading
+      `expert_count`/`block_count` from the GGUF header). Since only a few experts
+      fire per token, streaming them from RAM costs far less than spilling whole
+      dense layers over PCIe → **big-model brains at small-model speed** on an 8 GB
+      card. `recommend` suggests the biggest MoE that fits (RAM-gated);
+      `GENESI_TURBO_NCMOE` forces the split. _No OS does this by default. Gain to be
+      validated on hardware._
+- [x] **Smart partial offload when VRAM can't hold the whole model** — dense:
+      `-ngl auto` (as many layers as the VRAM holds, never a blind 999 that OOMs);
+      MoE: the expert-offload above.
 
 > **Honest framing for marketing:** lead with *"local AI answers instantly and
 > tunes itself — no setup"* (warm daemon + preload + auto-tune + microarch build),
