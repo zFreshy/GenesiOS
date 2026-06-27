@@ -505,17 +505,29 @@ once and gates every optimizer on detected capabilities.
       automatically per machine — exactly this item, the safe way. _(AMX is a
       further upstream ggml backend; tracked there.)_
 - [x] **Hardware auto-tune for Turbo.** `--threads` = fast/physical cores
-      (`_performance_cores`, hybrid-P/E-aware), AI processes pinned to the perf
-      cores by `genesi-aid` (cpuset affinity, 2.8.4), auto `-ngl` from VRAM (full
-      vs `-ngl auto` vs MoE expert-offload via the advisor's fit math), and
-      governor/power by AI Mode. NUMA placement (`numactl`) on multi-socket is the
-      one remaining sub-item (no-op on the single-socket consumer target).
+      (`_performance_cores`, hybrid-P/E-aware) for DECODE, plus (pkgrel 98)
+      `--threads-batch` = ALL logical cores for PREFILL (compute-bound, SMT helps)
+      and `--prio 2` to cut scheduler jitter on CPU boxes (gated on `--help`,
+      `GENESI_TURBO_NO_CPU_TUNE=1` to skip). AI processes pinned to the perf cores
+      by `genesi-aid` (cpuset affinity, 2.8.4); auto `-ngl` from VRAM (full vs
+      `-ngl auto` vs MoE expert-offload via the advisor's fit math); governor/power
+      by AI Mode. NUMA placement (`numactl`) on multi-socket is the one remaining
+      sub-item (no-op on the single-socket consumer target).
+- [ ] **🌟 Idea 5: Continuous batching on the warm shared daemon.** The always-warm
+      `genesi-turbo.service` is ONE server every app uses (Code, Hermes, chat). With
+      llama-server's parallel slots, simultaneous requests share each weight read →
+      higher aggregate throughput than per-app servers, and one shared KV cache. An
+      OS owns this; an app can't. _Pending: enable/auto-size `--parallel` slots on
+      the warm daemon vs VRAM. Aggregate throughput, not single-stream latency._
 
 **Tier 3 — Algorithmic decode wins (Revolutionary)**
 - [x] **N-gram / prompt-lookup speculation** (no draft model needed) — great for
       code, quotes and repetitive text; Turbo enables `--spec-type ngram-simple`
-      on CPU-only machines (when the binary supports it), so GPU-less laptops get
-      a speculative speedup with no second model and no extra RAM.
+      whenever there's no draft model, **on GPU as well as CPU** (pkgrel 98; was
+      CPU-only before). This is the real Turbo edge over plain ollama-on-GPU for a
+      fitting model with no same-family draft (mistral/gemma1/phi): free, no VRAM,
+      identical output, big on code/agent/RAG/edit output. Disable with
+      `GENESI_TURBO_NO_NGRAM=1`.
 - [x] **Dynamic draft length** — tune how many tokens the draft proposes from the
       live acceptance rate (`--draft-max/--draft-min/--draft-p-min`): speculate
       more on easy spans, back off on hard ones. Beats today's fixed N.
@@ -535,6 +547,30 @@ once and gates every optimizer on detected capabilities.
       expert-offload** (Tier 4) + CUDA auto-spec. Revisit once EAGLE lands in
       llama.cpp master; it then becomes a `--help`-gated flag like the other spec
       options._
+- [x] **Self-draft for draft-less families (opt-in).** When a model has no
+      published tiny same-family sibling (mistral, gemma1, phi…), build a low-bit
+      (Q2) quant of the model ITSELF with `llama-quantize` and use it as the
+      speculative draft — same tokenizer guaranteed, cached under
+      `~/.cache/genesi-turbo/drafts`. _**DONE (pkgrel 98), opt-in `GENESI_TURBO_
+      SELF_DRAFT=1`.** Honest caveat: a self-draft has the same layer count as the
+      target, so it's only ~memory-ratio faster — modest ~1.1–1.3× — AND both must
+      fit VRAM, so on an 8 GB card a 7B + its draft usually don't fit and
+      server_cmd drops it. Real benefit on bigger cards / smaller targets._
+- [ ] **🌟 Idea 2: REST — retrieval-based speculative decoding from MemPalace.**
+      Speculate decode tokens by retrieving, from a datastore of the user's own
+      past conversations (MemPalace), the continuation of a matching suffix — a
+      near-perfect "draft" for recurring questions, no draft model. _**Shipped
+      today as REST-lite:** the MemPalace bridge injects a relevant past answer
+      into the context and the GPU n-gram speculation above picks those tokens up —
+      no fork needed. **Pending (research):** true REST puts the datastore lookup
+      INSIDE the decoder (a `--spec-type` llama.cpp doesn't have), which needs a
+      llama.cpp fork — tracked, not faked._
+- [ ] **🌟 Activation sparsity backend (PowerInfer).** Most FFN neurons output ~0
+      per token; PowerInfer predicts the "hot" neurons and computes only those,
+      keeping hot neurons on GPU and cold on CPU — up to ~10× on consumer GPUs.
+      _Pending: it's a SEPARATE engine (not llama.cpp) and needs ReLU-fied models
+      (ProSparse-Llama etc.), so it'd be an alternative Turbo backend, not a flag.
+      Biggest theoretical "fast on a weak card" win; a subproject when revisited._
 
 **Tier 4 — Memory & ZRAM OS-Pinning (Revolutionary)**
 - [x] **🌟 Idea 3: ZRAM AI swap** — for 8 GB / dGPU-less PCs: while AI Mode runs

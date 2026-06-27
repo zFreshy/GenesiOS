@@ -35,7 +35,19 @@ Tuning knobs (env vars, no rebuild needed — for on-hardware tuning):
   GENESI_TURBO_NO_MOE=1          disable MoE expert-offload (fall back to plain
                                  partial offload; `serve` also auto-falls-back to
                                  this if --n-cpu-moe trips the model loader)
-  GENESI_TURBO_THREADS=<n>       CPU inference threads (default: fast/perf cores)
+  GENESI_TURBO_THREADS=<n>       CPU inference threads for DECODE (default: fast/
+                                 perf cores)
+  GENESI_TURBO_THREADS_BATCH=<n> CPU threads for PREFILL (default: all logical
+                                 cores — prefill is compute-bound, SMT helps)
+  GENESI_TURBO_PRIO=2            CPU thread scheduling priority (above-normal)
+  GENESI_TURBO_NO_CPU_TUNE=1     skip the CPU prefill-threads / priority tuning
+  GENESI_TURBO_NO_NGRAM=1        disable model-free n-gram/prompt-lookup spec
+                                 (on by default when no draft model — free win on
+                                 code/agent/RAG output, harmless otherwise)
+  GENESI_TURBO_SELF_DRAFT=1      when no same-family draft exists, build a low-bit
+                                 self-draft (Q2) of the model for speculation
+                                 (opt-in; modest ~1.1-1.3x and only if both fit
+                                 VRAM, so usually a no-op on an 8 GB card)
   GENESI_TURBO_DRAFT_MAX=8       max tokens the draft proposes (speculative only)
   GENESI_TURBO_DRAFT_MIN=1       min draft length — floor for dynamic draft length
   GENESI_TURBO_DRAFT_P=0.6       stop drafting below this acceptance probability
@@ -260,6 +272,48 @@ def pick_draft(main):
     for key, draft in DRAFT_FOR:
         if low.startswith(key):
             return draft
+    return None
+
+
+def self_draft_path(main_gguf):
+    """A low-bit (Q2_K) quant of the SAME model, to use as a speculative draft
+    when the family has no published tiny sibling (mistral, gemma1, phi…). Same
+    tokenizer is GUARANTEED (it's literally the same model), so acceptance is high.
+    Built once with `llama-quantize` and cached under ~/.cache/genesi-turbo/drafts.
+
+    HONEST CAVEAT: a self-draft has the SAME number of layers as the target, so
+    it's only ~memory-ratio faster (≈2× for Q2 vs Q4), not the ~10× a 1B-drafts-7B
+    sibling gives — net gain is a modest ~1.1–1.3×, AND both must fit VRAM (on an
+    8 GB card a 7B target + its Q2 draft usually DON'T, so server_cmd's fit check
+    drops it). Hence opt-in: GENESI_TURBO_SELF_DRAFT=1. Returns a path or None."""
+    qbin = llama_bin("llama-quantize")
+    if not qbin:
+        return None
+    cache = os.path.expanduser("~/.cache/genesi-turbo/drafts")
+    try:
+        os.makedirs(cache, exist_ok=True)
+    except OSError:
+        return None
+    out = os.path.join(cache, os.path.basename(main_gguf) + ".q2k.gguf")
+    if os.path.isfile(out) and os.path.getsize(out) > 0:
+        return out
+    quant = os.environ.get("GENESI_TURBO_SELF_DRAFT_QUANT", "Q2_K")
+    print(f":: building a {quant} self-draft (one-off, ~1-2 min) → {out}",
+          flush=True)
+    try:
+        r = subprocess.run([qbin, main_gguf, out, quant], timeout=1800)
+    except Exception as e:
+        print(f"   [!] self-draft quantize failed: {e}", file=sys.stderr)
+        return None
+    if r.returncode == 0 and os.path.isfile(out):
+        return out
+    # Clean up a partial file so we retry cleanly next time.
+    try:
+        os.remove(out)
+    except OSError:
+        pass
+    print("   [!] self-draft quantize did not produce a model — skipping.",
+          file=sys.stderr)
     return None
 
 
@@ -773,6 +827,23 @@ def server_cmd(main_gguf, draft_gguf):
 
     help_txt = _llama_help()
 
+    # CPU decode tuning (GPU-less boxes, where decode is CPU-bound). Two real wins:
+    #  - SPLIT the thread counts: --threads stays the fast PHYSICAL cores for
+    #    DECODE (memory-bandwidth-bound — SMT siblings / E-cores just add sync
+    #    stalls), while --threads-batch uses ALL logical cores for PREFILL
+    #    (compute-bound — SMT actually helps there). Reading the prompt gets faster
+    #    without slowing generation.
+    #  - --prio 2 (above-normal thread scheduling priority) cuts run-to-run jitter
+    #    from other desktop processes. Both gated on --help (names vary) and
+    #    env-tunable; skip the lot with GENESI_TURBO_NO_CPU_TUNE=1.
+    if not gpu and not _env_flag("GENESI_TURBO_NO_CPU_TUNE"):
+        tb_flag = _pick_flag(help_txt, "--threads-batch", "-tb")
+        if tb_flag:
+            cmd += [tb_flag, str(_env_int("GENESI_TURBO_THREADS_BATCH",
+                                          os.cpu_count() or threads))]
+        if "--prio" in help_txt:
+            cmd += ["--prio", str(_env_int("GENESI_TURBO_PRIO", 2))]
+
     # Persistent prompt/KV cache to disk (Zero Cold-Start). --slot-save-path
     # enables llama-server's runtime slot save/restore API (/slots?action=save|
     # restore), so a long system-prompt's KV can survive a server restart — the
@@ -826,14 +897,19 @@ def server_cmd(main_gguf, draft_gguf):
         # --spec-type speculate from -md alone, so we only add it when supported.
         if "--spec-type" in help_txt:
             cmd += ["--spec-type", "draft-simple"]
-    elif (not use_ngl_999 and "--spec-type" in help_txt
-          and not _env_flag("GENESI_TURBO_NO_NGRAM")):
-        # CPU-only, no draft model: model-free n-gram speculative decoding. It
+    elif "--spec-type" in help_txt and not _env_flag("GENESI_TURBO_NO_NGRAM"):
+        # No draft model: model-free n-gram / prompt-lookup speculation. It
         # speculates from the context's OWN n-grams — no second model, no extra
-        # RAM, negligible compute — so it's the ONE speculation method that can
-        # help on a GPU-less laptop (big win on code/repetitive text, harmless
-        # otherwise). Needs a recent llama-server (hence the --help gate).
-        # Disable with GENESI_TURBO_NO_NGRAM=1.
+        # VRAM, negligible compute. HUGE on code / agent / RAG / edit workloads
+        # where the output copies chunks of the input (Genesi Code!), and harmless
+        # on novel text (output is identical either way). Now enabled on GPU too,
+        # not just CPU-only: ollama doesn't do this by default, so it's a real
+        # Turbo edge for fitting models that have NO same-family draft (mistral,
+        # gemma1, phi…) — exactly the case where Turbo used to equal plain ollama.
+        # It's also the engine behind "retrieval speculation": when MemPalace
+        # injects a relevant PAST answer into the context, n-gram picks those
+        # tokens straight up (REST-lite, no llama.cpp fork). Disable with
+        # GENESI_TURBO_NO_NGRAM=1.
         cmd += ["--spec-type", "ngram-simple"]
 
     return cmd
@@ -1084,6 +1160,14 @@ def cmd_serve(main, draft, spec=False):
     if draft is None and (spec or _env_flag("GENESI_TURBO_SPEC")):
         draft = pick_draft(main)
     draft_g = ensure(draft) if draft else None
+    # No same-family draft, but the user opted into a self-draft (GENESI_TURBO_
+    # SELF_DRAFT=1)? Build/cache a low-bit quant of the model itself as the draft.
+    # server_cmd's VRAM-fit check still decides whether it's actually used.
+    if (draft_g is None and (spec or _env_flag("GENESI_TURBO_SPEC"))
+            and _env_flag("GENESI_TURBO_SELF_DRAFT")):
+        draft_g = self_draft_path(main_g)
+        if draft_g:
+            draft = "self-draft (Q2)"
     print(f":: Genesi Turbo serving {main}" +
           (f" + draft {draft} (speculative)" if draft_g
            else " (full GPU offload)"))

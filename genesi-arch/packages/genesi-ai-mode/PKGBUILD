@@ -339,7 +339,23 @@ pkgver=1.0.0
 # Turbo's edge is speculative decoding + MoE — expanded the draft catalogue
 # (gemma3->gemma3:1b, gemma2->gemma2:2b, family-exact so tokenizers match) so spec
 # actually fires for more models and Turbo is genuinely faster than plain ollama.
-pkgrel=97
+# pkgrel 98: out-of-the-box decode wins + CPU tuning. (1) n-gram/prompt-lookup
+# speculation now runs on the GPU too (was CPU-only): for a fitting model with NO
+# same-family draft (mistral/gemma1/phi) Turbo speculates from the context's own
+# n-grams — free, no VRAM, identical output, big on code/agent/RAG/edit where the
+# output copies the input. This is the real Turbo edge over plain ollama-on-GPU,
+# and the engine behind "retrieval speculation" (MemPalace injects a past answer
+# into context → n-gram picks it up). Disable: GENESI_TURBO_NO_NGRAM=1. (2) CPU
+# tuning: split thread counts — --threads = physical/perf cores for DECODE,
+# --threads-batch = all logical cores for PREFILL (compute-bound, SMT helps) —
+# plus --prio 2 to cut scheduler jitter. Gated on --help, env-tunable,
+# GENESI_TURBO_NO_CPU_TUNE=1 to skip. (3) Opt-in self-draft (GENESI_TURBO_SELF_
+# DRAFT=1): when no family draft exists, llama-quantize builds a cached Q2 of the
+# model itself as the draft (modest ~1.1-1.3x, both must fit VRAM so usually a
+# no-op on 8 GB — helps bigger cards / smaller targets). ROADMAP: marked n-gram-on-
+# GPU done; added PowerInfer (activation sparsity), continuous batching on the warm
+# daemon, and true REST retrieval-decode as research items.
+pkgrel=98
 pkgdesc='Genesi OS AI Mode - adaptive, reversible local-AI optimizer (CPU/GPU/power) + Plasma 6 widget + monitor app'
 arch=('any')
 url='https://github.com/Genesi-OS/GenesiOS'
