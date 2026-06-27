@@ -15,7 +15,16 @@
 # libcava -> genesi-libcava, ttf-rubik-vf -> genesi-ttf-rubik-vf.
 pkgname=genesi-caelestia-shell
 pkgver=2.0.3
-pkgrel=1
+# pkgrel 2: backport upstream commit 79a387e9 ("fix: wallpaper launcher crash",
+# 2026-06-26, after the v2.0.3 tarball). The launcher's ContentList animated the
+# `state` property via `Behavior on state`, so the state Transition's
+# SequentialAnimation ran on targets destroyed when switching apps<->wallpapers /
+# selecting a wallpaper -> Qt animation driver hit a freed object
+# (QQuickPropertyChanges::actions via QSequentialAnimationGroupJob) -> SIGSEGV.
+# Diagnosed from three identical coredumps on a Genesi RTX 3050 box. We ship the
+# whole fixed ContentList.qml and overwrite the tarball's copy in prepare() (a
+# full file, not a context patch, so the CI build can't fail on patch fuzz).
+pkgrel=2
 pkgdesc='Quickshell desktop shell for the Caelestia design (Genesi repackage of caelestia-shell)'
 arch=('x86_64')
 url='https://github.com/caelestia-dots/shell'
@@ -27,8 +36,18 @@ depends=('caelestia-cli' 'quickshell' 'ddcutil' 'brightnessctl' 'app2unit' 'libc
 makedepends=('cmake' 'ninja' 'qt6-shadertools')
 provides=('caelestia-shell')
 conflicts=('caelestia-shell' 'caelestia-shell-git')
-source=("$url/releases/download/v$pkgver/caelestia-shell-v$pkgver.tar.gz")
-sha256sums=('a27eefaa2a6ec817a51ecd10ef705e74daed9121c17f1d515625b5ef90c9cefa')
+source=("$url/releases/download/v$pkgver/caelestia-shell-v$pkgver.tar.gz"
+        "ContentList.qml")
+sha256sums=('a27eefaa2a6ec817a51ecd10ef705e74daed9121c17f1d515625b5ef90c9cefa'
+            'SKIP')
+
+prepare() {
+    # Overwrite the launcher ContentList with the wallpaper-crash-fixed copy (see
+    # the pkgrel 2 note). install -D is a no-op-safe replace; the target always
+    # exists in the v2.0.3 tarball.
+    install -Dm644 "${srcdir}/ContentList.qml" \
+        "${srcdir}/release/modules/launcher/ContentList.qml"
+}
 
 build() {
     cd "${srcdir}/release"
