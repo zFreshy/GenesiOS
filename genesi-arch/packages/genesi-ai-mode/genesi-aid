@@ -1587,31 +1587,29 @@ class AIOptimizer:
             logger.debug(f"state write: {e}")
 
     def manage_always_warm(self):
-        conf = self._advanced_conf()
-        if conf.get("always_warm_turbo") in ("on", "1", "true", "yes"):
-            if not hasattr(self, "_warm_proc") or self._warm_proc.poll() is not None:
-                # Warm the model that actually fits THIS machine's VRAM (the
-                # advisor's pick) rather than a hardcoded one that may not fit /
-                # may not be pulled. Falls back to a small model if recommend fails.
-                model = "llama3.2:3b"
-                try:
-                    r = subprocess.run(["genesi-ai-turbo", "recommend"],
-                                       capture_output=True, text=True, timeout=30)
-                    t = (r.stdout or "").strip().splitlines()
-                    if t and t[0].strip():
-                        model = t[0].strip()
-                except Exception:
-                    pass
-                logger.info("Spawning Always-Warm Turbo daemon (%s)…", model)
-                self._warm_proc = subprocess.Popen(
-                    ["genesi-ai-turbo", "serve", model],
-                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
-                )
-        else:
-            if hasattr(self, "_warm_proc") and self._warm_proc.poll() is None:
-                logger.info("Stopping Always-Warm Turbo daemon...")
-                self._warm_proc.terminate()
-                self._warm_proc = None
+        """Tier 1 always-warm shared Turbo server, driven by the opt-in
+        advanced.conf `always_warm_turbo` knob. Implemented as a real systemd
+        unit (genesi-turbo.service) rather than a daemon-spawned child, so the
+        warm server survives a genesi-aid restart, restarts on failure, and is
+        the SINGLE owner of :11435 (no child process racing the unit for the
+        port). The unit resolves the model to keep warm itself (recommend →
+        biggest fits-VRAM). Off by default; this just reflects the knob."""
+        want = self._advanced_conf().get("always_warm_turbo") in (
+            "on", "1", "true", "yes")
+        try:
+            active = subprocess.run(
+                ["systemctl", "is-active", "genesi-turbo.service"],
+                capture_output=True, timeout=8).returncode == 0
+        except Exception:
+            return
+        if want and not active:
+            logger.info("Always-warm Turbo: starting genesi-turbo.service")
+            subprocess.run(["systemctl", "start", "genesi-turbo.service"],
+                           capture_output=True)
+        elif not want and active:
+            logger.info("Always-warm Turbo: stopping genesi-turbo.service")
+            subprocess.run(["systemctl", "stop", "genesi-turbo.service"],
+                           capture_output=True)
 
     # ── main loop ────────────────────────────────────────────────────────────
     def _maybe_redetect_gpus(self):

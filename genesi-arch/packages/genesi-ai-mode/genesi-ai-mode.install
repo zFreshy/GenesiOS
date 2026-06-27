@@ -24,4 +24,6 @@ pre_remove() {
     echo "==> Stopping and disabling genesi-aid service..."
     systemctl stop genesi-aid.service 2>/dev/null || true
     systemctl disable genesi-aid.service 2>/dev/null || true
+    # Also tear down the optional always-warm Turbo unit so it isn't orphaned.
+    systemctl disable --now genesi-turbo.service 2>/dev/null || true
 }

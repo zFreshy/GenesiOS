@@ -461,17 +461,19 @@ once and gates every optimizer on detected capabilities.
       "Turbo never came up". Now the Monitor **unloads Ollama's keep-alive model
       (`keep_alive=0`) before** starting Turbo, and **Force OFF releases it too**
       so RAM returns to baseline instead of lingering ~15 min. _(shipped)_
-- [~] **Always-warm shared inference daemon.** One persistent `llama-server`
+- [x] **Always-warm shared inference daemon.** One persistent `llama-server`
       (the Turbo `:11435`, already OpenAI-compatible) that **every app uses** —
       no per-app reload, and a **shared prefix/KV cache** across apps. An app
-      can't assume a system daemon; an OS can. Managed by `genesi-aid` as a
-      socket-activated/long-lived unit. _**Partial:** opt-in `always_warm_turbo`
-      in `advanced.conf` — `genesi-aid` keeps a Turbo server warm on the advisor's
-      VRAM-fit model (was hardcoded to `llama3.2:latest`; now uses `recommend`).
-      Since all Genesi apps already point at `:11435` (Genesi Code does today),
-      they share that one warm model + KV cache. Remaining: make it the DEFAULT via
-      a socket-activated systemd unit (currently a background process the daemon
-      spawns), so it survives independently and starts on first connection._
+      can't assume a system daemon; an OS can. _**DONE (pkgrel 96):** shipped as a
+      real systemd unit `genesi-turbo.service` — long-lived, `Restart=on-failure`
+      (StartLimit-guarded), resolves the model via `recommend` (override with
+      `/etc/genesi-ai-mode/turbo.env` `GENESI_WARM_MODEL`). It's the SINGLE owner
+      of :11435, so all Genesi apps (Code points there today; Hermes/Monitor too)
+      reuse one warm model + KV cache. OFF by default; the opt-in `always_warm_turbo`
+      knob in `advanced.conf` has `genesi-aid` start/stop the unit (no more
+      daemon-spawned child racing the port). Remaining nicety: true socket
+      activation (start on first connect) needs `llama-server` LISTEN_FDS support
+      upstream — not available, so a long-lived unit is the correct shippable form._
 - [ ] **Predictive preload at login/idle.** `genesi-aid` warms the user's
       most-used model at low priority when the machine is idle, so the first
       prompt is instant (vs ~2 min cold load today). RAM-gated; integrates with

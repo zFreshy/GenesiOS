@@ -1,0 +1,37 @@
+[Unit]
+Description=Genesi Turbo - always-warm shared local-AI inference server
+Documentation=https://github.com/Genesi-OS/GenesiOS
+# Roadmap 2.8.11 Tier 1: one persistent llama-server (the Turbo :11435, OpenAI-
+# compatible) that EVERY Genesi app (Code, Hermes, the Monitor) reuses — no
+# per-app reload, one warm model + one KV cache shared across apps. OFF by
+# default: shipped but NOT enabled at install. Turn it on with the advanced.conf
+# `always_warm_turbo` knob (genesi-aid then starts/stops this unit) or directly:
+#   sudo systemctl enable --now genesi-turbo.service
+# Order after ollama so its model blobs are already group-readable (the ollama
+# drop-in opens the perms on start); harmless if ollama isn't installed.
+After=ollama.service genesi-aid.service
+Wants=genesi-aid.service
+
+[Service]
+Type=simple
+# Resolve the model to keep warm: an explicit GENESI_WARM_MODEL (optional env
+# file) wins, else the advisor's biggest-fits-VRAM pick, else a safe small model.
+# `exec` so llama-server becomes the main process (clean stop/restart).
+EnvironmentFile=-/etc/genesi-ai-mode/turbo.env
+ExecStart=/bin/sh -c 'm="${GENESI_WARM_MODEL:-$(genesi-ai-turbo recommend 2>/dev/null | head -n1)}"; [ -n "$m" ] || m=llama3.2:3b; echo "genesi-turbo: warming $m"; exec genesi-ai-turbo serve "$m"'
+Restart=on-failure
+RestartSec=15
+# Don't restart-storm if the model can't load (bad model, no VRAM, OOM): give up
+# after 5 failures in 5 min so a misconfig doesn't peg the box.
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+# Inference server: needs the GPU + to read the model blobs, so we keep the
+# sandbox light. NoNewPrivileges is safe; ProtectHome only costs the optional
+# on-disk slot cache (Turbo skips it gracefully when ~/.cache isn't writable).
+NoNewPrivileges=true
+ProtectSystem=true
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

@@ -319,7 +319,14 @@ pkgver=1.0.0
 # now warms the advisor's VRAM-fit model instead of a hardcoded llama3.2:latest.
 # See ROADMAP 2.8.11 Tier 2/4 (microarch auto-dispatch + hardware auto-tune also
 # marked done; Medusa/EAGLE documented as upstream-blocked, MoE is its stand-in).
-pkgrel=95
+# pkgrel 96: roadmap 2.8.11 Tier 1 — always-warm shared Turbo server as a REAL
+# systemd unit. New genesi-turbo.service keeps one llama-server warm on :11435 for
+# every Genesi app to reuse (the model resolved via `recommend`, override with
+# /etc/genesi-ai-mode/turbo.env GENESI_WARM_MODEL). OFF by default (shipped, not
+# enabled). genesi-aid's manage_always_warm now drives this unit (systemctl
+# start/stop) instead of spawning a child process — single owner of :11435, no
+# port race, survives a daemon restart, restarts on failure (StartLimit-guarded).
+pkgrel=96
 pkgdesc='Genesi OS AI Mode - adaptive, reversible local-AI optimizer (CPU/GPU/power) + Plasma 6 widget + monitor app'
 arch=('any')
 url='https://github.com/Genesi-OS/GenesiOS'
@@ -378,6 +385,12 @@ package() {
     # systemd service
     install -Dm644 "${startdir}/genesi-aid.service" \
         "$pkgdir/usr/lib/systemd/system/genesi-aid.service"
+
+    # Always-warm shared Turbo server (roadmap 2.8.11 Tier 1). Shipped but NOT
+    # enabled by default — opt-in via advanced.conf `always_warm_turbo` (genesi-aid
+    # starts/stops it) or `systemctl enable --now genesi-turbo.service`.
+    install -Dm644 "${startdir}/genesi-turbo.service" \
+        "$pkgdir/usr/lib/systemd/system/genesi-turbo.service"
 
     # Runtime dir for user<->daemon IPC (world-writable, on tmpfs)
     install -Dm644 "${startdir}/genesi-ai-mode.tmpfiles.conf" \
